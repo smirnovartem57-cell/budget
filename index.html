@@ -278,24 +278,6 @@
     outline-offset: 1px;
     border-color: var(--info-accent);
   }
-  .subtype-row { display: none; gap: 8px; }
-  .subtype-row.visible { display: flex; }
-  .subtype-row button {
-    flex: 1;
-    padding: 8px;
-    border-radius: 8px;
-    border: 1px solid var(--border);
-    background: var(--bg-page);
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--text-secondary);
-    cursor: pointer;
-  }
-  .subtype-row button.active {
-    background: var(--info-bg);
-    color: #0C2B44;
-    border-color: var(--info-accent);
-  }
   .new-cat-inline {
     display: none;
     gap: 8px;
@@ -303,8 +285,25 @@
   }
   .new-cat-inline.visible { display: flex; }
 
-  .credit-name-row { display: none; margin-top: 10px; }
-  .credit-name-row.visible { display: block; }
+  .name-row { display: none; margin-top: 10px; }
+  .name-row.visible { display: block; }
+
+  .page-tabs { display: flex; gap: 8px; margin-bottom: 20px; }
+  .page-tab-btn {
+    padding: 10px 18px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--card-bg);
+    color: var(--text-secondary);
+    font-weight: 700;
+    font-size: 13.5px;
+    cursor: pointer;
+  }
+  .page-tab-btn.active {
+    background: var(--graphite);
+    color: var(--graphite-text);
+    border-color: var(--graphite);
+  }
 
   .btn-primary, .btn-secondary, .btn-ghost {
     border: none;
@@ -443,6 +442,12 @@
     вставьте туда данные вашего проекта Supabase. Подробности — в файле <code>README.md</code>.
   </div>
 
+  <div class="page-tabs">
+    <button type="button" class="page-tab-btn active" id="tabBudgetBtn">Бюджет</button>
+    <button type="button" class="page-tab-btn" id="tabDebtsBtn">Долги</button>
+  </div>
+
+  <div id="budgetView">
   <div class="summary-grid">
     <div class="summary-card income">
       <div class="label" id="labelIncomePeriod">Доход за месяц</div>
@@ -470,11 +475,7 @@
         <button type="button" id="btnKindExpense">Расход</button>
       </div>
 
-      <div class="subtype-row" id="subtypeRow">
-        <button type="button" id="btnOneTime" class="active">Разовый</button>
-        <button type="button" id="btnMonthly">Ежемесячный</button>
-      </div>
-      <div style="height:12px;"></div>
+      <div style="height:4px;"></div>
 
       <div class="form-row">
         <label>Категория</label>
@@ -483,12 +484,12 @@
           <input type="text" id="newCatName" placeholder="Название категории">
           <button type="button" class="btn-secondary" id="newCatSave">+</button>
         </div>
-        <div class="credit-name-row" id="creditNameRow">
-          <label style="margin-top:10px;">Кредит</label>
-          <select id="creditNameSelect"></select>
-          <div class="new-cat-inline" id="newCreditInline">
-            <input type="text" id="newCreditName" placeholder="Например: Сбербанк">
-            <button type="button" class="btn-secondary" id="newCreditSave">+</button>
+        <div class="name-row" id="nameRow">
+          <label style="margin-top:10px;">Название</label>
+          <select id="nameSelect"></select>
+          <div class="new-cat-inline" id="newNameInline">
+            <input type="text" id="newNameInput" placeholder="Например: Ипотека">
+            <button type="button" class="btn-secondary" id="newNameSave">+</button>
           </div>
         </div>
       </div>
@@ -556,6 +557,66 @@
       </div>
     </div>
   </div>
+  </div>
+
+  <div id="debtsView" style="display:none;">
+    <div class="main-grid">
+      <!-- DEBT FORM -->
+      <div class="panel">
+        <h2>Новый долг</h2>
+        <div class="form-row">
+          <label>Кто должен</label>
+          <input type="text" id="debtorInput" placeholder="Например: Иван">
+        </div>
+        <div class="form-row">
+          <label>Сумма, ₽</label>
+          <input type="number" id="debtAmountInput" placeholder="0" min="0" step="1">
+        </div>
+        <div class="form-row">
+          <label>Дата долга</label>
+          <input type="date" id="debtDateInput" min="2020-01-01" max="2099-12-31">
+        </div>
+        <div class="form-row">
+          <label>Комментарий (необязательно)</label>
+          <input type="text" id="debtCommentInput" placeholder="Например: занял на ремонт">
+        </div>
+        <button class="btn-primary" id="debtSubmitBtn">Добавить долг</button>
+      </div>
+
+      <div>
+        <!-- DEBTS BY PERSON -->
+        <div class="panel">
+          <h2>Долги по людям</h2>
+          <div id="debtsByPersonGrid" class="summary-grid" style="margin-bottom:0;"></div>
+        </div>
+
+        <div style="height:20px;"></div>
+
+        <!-- ALL DEBTS -->
+        <div class="panel">
+          <h2 style="justify-content:space-between;">
+            <span>Все долги</span>
+            <span class="badge-info" id="debtsTotalBadge">0 ₽</span>
+          </h2>
+          <div style="overflow-x:auto;">
+            <table>
+              <thead>
+                <tr>
+                  <th>Дата</th>
+                  <th>Кто должен</th>
+                  <th>Комментарий</th>
+                  <th style="text-align:right;">Сумма</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="debtsTableBody"></tbody>
+            </table>
+            <div class="empty-note" id="debtsEmptyNote" style="display:none;">Пока нет долгов</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -588,9 +649,9 @@ const fmt = { format: fmt_format };
 
 let state = {
   kind: 'income',        // income | expense
-  subtype: 'one_time',   // one_time | monthly
   categories: [],
   transactions: [],
+  debts: [],
   selectedMonth: null,   // 'YYYY-MM'
   selectedYear: null,    // 'YYYY'
   viewMode: 'month',     // month | year
@@ -610,7 +671,7 @@ function monthKey(dateStr) {
 }
 function monthLabel(key) {
   const [y, m] = key.split('-');
-  const names = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+  const names = ['январь','февраль','март','апрель','май','июнь','июль','август','сентябрь','октябрь','ноябрь','декабрь'];
   return `${names[parseInt(m)-1]} ${y}`;
 }
 
@@ -647,14 +708,17 @@ async function loadAll() {
     renderEverything();
     return;
   }
-  const [{ data: cats, error: catErr }, { data: txs, error: txErr }] = await Promise.all([
+  const [{ data: cats, error: catErr }, { data: txs, error: txErr }, { data: debts, error: debtErr }] = await Promise.all([
     supabaseClient.from('categories').select('*').order('created_at'),
     supabaseClient.from('transactions').select('*').order('date', { ascending: false }),
+    supabaseClient.from('debts').select('*').order('date', { ascending: false }),
   ]);
   if (catErr) { toast('Ошибка загрузки категорий: ' + catErr.message); return; }
   if (txErr) { toast('Ошибка загрузки операций: ' + txErr.message); return; }
+  if (debtErr) { toast('Ошибка загрузки долгов: ' + debtErr.message); return; }
   state.categories = cats || [];
   state.transactions = txs || [];
+  state.debts = debts || [];
 
   if (!state.selectedMonth) {
     const now = new Date();
@@ -666,11 +730,20 @@ async function loadAll() {
   renderEverything();
 }
 
-/* ---------------- UI: KIND / SUBTYPE TOGGLES ---------------- */
+/* ---------------- UI: KIND TOGGLE ---------------- */
 document.getElementById('btnKindIncome').addEventListener('click', () => setKind('income'));
 document.getElementById('btnKindExpense').addEventListener('click', () => setKind('expense'));
-document.getElementById('btnOneTime').addEventListener('click', () => setSubtype('one_time'));
-document.getElementById('btnMonthly').addEventListener('click', () => setSubtype('monthly'));
+
+/* ---------------- UI: PAGE TABS ---------------- */
+document.getElementById('tabBudgetBtn').addEventListener('click', () => switchPageTab('budget'));
+document.getElementById('tabDebtsBtn').addEventListener('click', () => switchPageTab('debts'));
+
+function switchPageTab(tab) {
+  document.getElementById('tabBudgetBtn').classList.toggle('active', tab === 'budget');
+  document.getElementById('tabDebtsBtn').classList.toggle('active', tab === 'debts');
+  document.getElementById('budgetView').style.display = tab === 'budget' ? '' : 'none';
+  document.getElementById('debtsView').style.display = tab === 'debts' ? '' : 'none';
+}
 
 /* ---------------- UI: VIEW MODE (MONTH / YEAR) ---------------- */
 document.getElementById('viewModeMonthBtn').addEventListener('click', () => setViewMode('month'));
@@ -694,25 +767,12 @@ function setKind(kind) {
   document.getElementById('btnKindIncome').classList.toggle('income-active', kind === 'income');
   document.getElementById('btnKindExpense').classList.toggle('active', kind === 'expense');
   document.getElementById('btnKindExpense').classList.toggle('expense-active', kind === 'expense');
-  document.getElementById('subtypeRow').classList.toggle('visible', kind === 'expense');
   populateCategorySelect();
-}
-function setSubtype(sub) {
-  state.subtype = sub;
-  document.getElementById('btnOneTime').classList.toggle('active', sub === 'one_time');
-  document.getElementById('btnMonthly').classList.toggle('active', sub === 'monthly');
-  populateCategorySelect();
-}
-
-function currentCategoryKind() {
-  if (state.kind === 'income') return 'income';
-  return state.subtype === 'monthly' ? 'expense_monthly' : 'expense_one_time';
 }
 
 function populateCategorySelect() {
   const sel = document.getElementById('categorySelect');
-  const kind = currentCategoryKind();
-  const list = state.categories.filter(c => c.kind === kind);
+  const list = state.categories.filter(c => c.kind === state.kind);
   sel.innerHTML = '';
   list.forEach(c => {
     const opt = document.createElement('option');
@@ -728,30 +788,32 @@ function populateCategorySelect() {
   document.getElementById('newCatInline').classList.remove('visible');
   document.getElementById('newCatName').value = '';
 
-  // toggle credit sub-select
+  // toggle Название sub-select
   sel.onchange = () => {
     if (sel.value === '__new__') {
       document.getElementById('newCatInline').classList.add('visible');
-      document.getElementById('creditNameRow').classList.remove('visible');
+      document.getElementById('nameRow').classList.remove('visible');
     } else {
       document.getElementById('newCatInline').classList.remove('visible');
-      if (sel.value === 'Кредит') {
-        document.getElementById('creditNameRow').classList.add('visible');
-        populateCreditNameSelect();
+      if (namesForCategory(sel.value).length) {
+        document.getElementById('nameRow').classList.add('visible');
+        populateNameSelect(sel.value);
       } else {
-        document.getElementById('creditNameRow').classList.remove('visible');
+        document.getElementById('nameRow').classList.remove('visible');
       }
     }
   };
   if (list.length) sel.dispatchEvent(new Event('change'));
 }
 
-const DEFAULT_CREDIT_NAMES = ['Ипотека', 'Альфа'];
+function namesForCategory(categoryName) {
+  const nameKind = state.kind === 'income' ? 'income_name' : 'expense_name';
+  return state.categories.filter(c => c.kind === nameKind && c.parent_category === categoryName).map(c => c.name);
+}
 
-function populateCreditNameSelect() {
-  const sel = document.getElementById('creditNameSelect');
-  const dbNames = state.categories.filter(c => c.kind === 'credit_name').map(c => c.name);
-  const names = dbNames.length ? dbNames : DEFAULT_CREDIT_NAMES;
+function populateNameSelect(categoryName) {
+  const sel = document.getElementById('nameSelect');
+  const names = namesForCategory(categoryName);
   sel.innerHTML = '';
   names.forEach(name => {
     const opt = document.createElement('option');
@@ -761,43 +823,35 @@ function populateCreditNameSelect() {
   });
   const addOpt = document.createElement('option');
   addOpt.value = '__new__';
-  addOpt.textContent = '+ Новый кредит';
+  addOpt.textContent = '+ Новое название';
   sel.appendChild(addOpt);
 
-  document.getElementById('newCreditInline').classList.remove('visible');
+  document.getElementById('newNameInline').classList.remove('visible');
   sel.onchange = () => {
-    document.getElementById('newCreditInline').classList.toggle('visible', sel.value === '__new__');
+    document.getElementById('newNameInline').classList.toggle('visible', sel.value === '__new__');
   };
 }
 
-document.getElementById('newCreditSave').addEventListener('click', async () => {
-  const name = document.getElementById('newCreditName').value.trim();
-  if (!name) { toast('Введите название кредита'); return; }
+document.getElementById('newNameSave').addEventListener('click', async () => {
+  const name = document.getElementById('newNameInput').value.trim();
+  if (!name) { toast('Введите название'); return; }
   if (!isConfigured) { toast('Сначала подключите базу данных'); return; }
-  const { error } = await supabaseClient.from('categories').insert({ kind: 'credit_name', name });
-  if (error) {
-    toast('Не удалось сохранить в базу — используется только в этом сеансе');
-    const sel = document.getElementById('creditNameSelect');
-    const opt = document.createElement('option');
-    opt.value = name; opt.textContent = name;
-    sel.insertBefore(opt, sel.lastElementChild);
-    sel.value = name;
-    document.getElementById('newCreditInline').classList.remove('visible');
-    return;
-  }
-  toast('Кредит добавлен');
+  const parentCategory = document.getElementById('categorySelect').value;
+  const kind = state.kind === 'income' ? 'income_name' : 'expense_name';
+  const { error } = await supabaseClient.from('categories').insert({ kind, name, parent_category: parentCategory });
+  if (error) { toast('Ошибка: ' + error.message); return; }
+  toast('Название добавлено');
   await loadAll();
-  document.getElementById('categorySelect').value = 'Кредит';
+  document.getElementById('categorySelect').value = parentCategory;
   document.getElementById('categorySelect').dispatchEvent(new Event('change'));
-  document.getElementById('creditNameSelect').value = name;
+  document.getElementById('nameSelect').value = name;
 });
 
 document.getElementById('newCatSave').addEventListener('click', async () => {
   const name = document.getElementById('newCatName').value.trim();
   if (!name) { toast('Введите название категории'); return; }
   if (!isConfigured) { toast('Сначала подключите базу данных'); return; }
-  const kind = currentCategoryKind();
-  const { error } = await supabaseClient.from('categories').insert({ kind, name });
+  const { error } = await supabaseClient.from('categories').insert({ kind: state.kind, name });
   if (error) { toast('Ошибка: ' + error.message); return; }
   toast('Категория добавлена');
   await loadAll();
@@ -809,24 +863,20 @@ document.getElementById('newCatSave').addEventListener('click', async () => {
 document.getElementById('submitBtn').addEventListener('click', async () => {
   if (!isConfigured) { toast('Сначала подключите базу данных (см. README.md)'); return; }
   const sel = document.getElementById('categorySelect');
-  let category = sel.value;
+  const category = sel.value;
   if (!category || category === '__new__') { toast('Выберите или добавьте категорию'); return; }
-  if (category === 'Кредит') {
-    const creditSel = document.getElementById('creditNameSelect');
-    const creditName = creditSel.value;
-    if (!creditName || creditName === '__new__') { toast('Выберите или добавьте название кредита'); return; }
-    category = `Кредит: ${creditName}`;
+  let subcategory = null;
+  if (document.getElementById('nameRow').classList.contains('visible')) {
+    const nameSel = document.getElementById('nameSelect');
+    if (!nameSel.value || nameSel.value === '__new__') { toast('Выберите или добавьте название'); return; }
+    subcategory = nameSel.value;
   }
   const amount = parseFloat(document.getElementById('amountInput').value);
   if (!amount || amount <= 0) { toast('Введите сумму больше нуля'); return; }
   const date = document.getElementById('dateInput').value || new Date().toISOString().slice(0,10);
   const comment = document.getElementById('commentInput').value.trim();
 
-  const payload = {
-    kind: state.kind,
-    subtype: state.kind === 'expense' ? state.subtype : null,
-    category, amount, date, comment: comment || null,
-  };
+  const payload = { kind: state.kind, category, subcategory, amount, date, comment: comment || null };
   const { error } = await supabaseClient.from('transactions').insert(payload);
   if (error) { toast('Ошибка: ' + error.message); return; }
   toast('Операция добавлена');
@@ -836,6 +886,71 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
 });
 
 document.getElementById('dateInput').valueAsDate = new Date();
+document.getElementById('debtDateInput').valueAsDate = new Date();
+
+/* ---------------- DEBTS ---------------- */
+document.getElementById('debtSubmitBtn').addEventListener('click', async () => {
+  if (!isConfigured) { toast('Сначала подключите базу данных (см. README.md)'); return; }
+  const debtorName = document.getElementById('debtorInput').value.trim();
+  if (!debtorName) { toast('Введите, кто должен'); return; }
+  const amount = parseFloat(document.getElementById('debtAmountInput').value);
+  if (!amount || amount <= 0) { toast('Введите сумму больше нуля'); return; }
+  const date = document.getElementById('debtDateInput').value || new Date().toISOString().slice(0,10);
+  const comment = document.getElementById('debtCommentInput').value.trim();
+
+  const { error } = await supabaseClient.from('debts').insert({
+    debtor_name: debtorName, amount, date, comment: comment || null,
+  });
+  if (error) { toast('Ошибка: ' + error.message); return; }
+  toast('Долг добавлен');
+  document.getElementById('debtorInput').value = '';
+  document.getElementById('debtAmountInput').value = '';
+  document.getElementById('debtCommentInput').value = '';
+  await loadAll();
+});
+
+async function deleteDebt(id) {
+  if (!confirm('Удалить этот долг?')) return;
+  const { error } = await supabaseClient.from('debts').delete().eq('id', id);
+  if (error) { toast('Ошибка: ' + error.message); return; }
+  toast('Удалено');
+  await loadAll();
+}
+
+function renderDebts() {
+  const grid = document.getElementById('debtsByPersonGrid');
+  const byPerson = {};
+  state.debts.forEach(d => { byPerson[d.debtor_name] = (byPerson[d.debtor_name] || 0) + Number(d.amount); });
+  const people = Object.keys(byPerson).sort();
+  grid.innerHTML = people.length
+    ? people.map(name => `
+        <div class="summary-card income">
+          <div class="label">${name}</div>
+          <div class="value">${fmt.format(byPerson[name])}</div>
+        </div>
+      `).join('')
+    : '<div class="empty-note">Пока нет долгов</div>';
+
+  const total = state.debts.reduce((s, d) => s + Number(d.amount), 0);
+  document.getElementById('debtsTotalBadge').textContent = fmt.format(total);
+
+  const tbody = document.getElementById('debtsTableBody');
+  const list = state.debts.slice().sort((a, b) => b.date.localeCompare(a.date));
+  tbody.innerHTML = '';
+  document.getElementById('debtsEmptyNote').style.display = list.length ? 'none' : 'block';
+  list.forEach(d => {
+    const tr = document.createElement('tr');
+    const dateFmt = new Date(d.date).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    tr.innerHTML = `
+      <td>${dateFmt}</td>
+      <td><span class="cat-badge">${d.debtor_name}</span></td>
+      <td class="comment-cell">${d.comment || ''}</td>
+      <td style="text-align:right;" class="amount-income">${fmt.format(d.amount)}</td>
+      <td><button class="del-btn" onclick="deleteDebt('${d.id}')">✕</button></td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
 
 /* ---------------- DELETE TRANSACTION ---------------- */
 async function deleteTx(id) {
@@ -1022,6 +1137,10 @@ function renderSummary() {
   const gb = document.getElementById('growthBalance'); gb.textContent = gBalance.text; gb.className = 'growth-indicator ' + gBalance.dir;
 }
 
+function txCategoryLabel(t) {
+  return t.subcategory ? `${t.category} · ${t.subcategory}` : t.category;
+}
+
 /* ---------------- RENDER: TABLE ---------------- */
 function renderTable() {
   const tbody = document.getElementById('txTableBody');
@@ -1039,7 +1158,7 @@ function renderTable() {
     const dateFmt = new Date(t.date).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
     tr.innerHTML = `
       <td>${dateFmt}</td>
-      <td><span class="cat-badge">${t.category}</span></td>
+      <td><span class="cat-badge">${txCategoryLabel(t)}</span></td>
       <td class="comment-cell">${t.comment || ''}</td>
       <td style="text-align:right;" class="${t.kind === 'income' ? 'amount-income' : 'amount-expense'}">
         ${t.kind === 'income' ? '+' : '−'} ${fmt.format(t.amount)}
@@ -1129,7 +1248,7 @@ function renderCategoryPie(canvasId, boxId, kind) {
     box.innerHTML = `<canvas id="${canvasId}"></canvas>`;
   }
   const byCategory = {};
-  periodTx.forEach(t => { byCategory[t.category] = (byCategory[t.category] || 0) + Number(t.amount); });
+  periodTx.forEach(t => { const label = txCategoryLabel(t); byCategory[label] = (byCategory[label] || 0) + Number(t.amount); });
   const labels = Object.keys(byCategory);
   const data = Object.values(byCategory);
 
@@ -1160,6 +1279,7 @@ function renderEverything() {
   renderDynamicsChart();
   renderCategoryPie('incomeChart', 'incomeChartBox', 'income');
   renderCategoryPie('expenseChart', 'expenseChartBox', 'expense');
+  renderDebts();
 }
 
 loadAll();
