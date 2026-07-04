@@ -94,6 +94,49 @@
   }
   .month-picker select:focus { outline: none; }
   .month-picker option { color: #111; }
+  .month-nav-btn {
+    background: rgba(255,255,255,0.1);
+    border: none;
+    color: var(--graphite-text);
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 14px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .month-nav-btn:hover { background: rgba(255,255,255,0.2); }
+  .month-nav-btn:disabled { opacity: 0.3; cursor: default; }
+  .view-toggle {
+    display: flex;
+    background: rgba(255,255,255,0.06);
+    border-radius: 999px;
+    padding: 2px;
+    margin-right: 2px;
+  }
+  .view-toggle-btn {
+    background: transparent;
+    border: none;
+    color: #9CA3AF;
+    font-size: 12.5px;
+    font-weight: 700;
+    padding: 5px 12px;
+    border-radius: 999px;
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+  }
+  .view-toggle-btn.active {
+    background: var(--btn-primary);
+    color: #fff;
+  }
+  .growth-indicator {
+    font-size: 12px;
+    font-weight: 600;
+    margin-top: 4px;
+    color: var(--text-secondary);
+  }
+  .growth-indicator.up { color: var(--income-accent); }
+  .growth-indicator.down { color: var(--expense-accent); }
 
   .container {
     max-width: 1180px;
@@ -150,6 +193,39 @@
   .summary-card.expense .value { color: var(--expense-accent); }
   .summary-card.balance .value { color: var(--btn-primary); }
   .summary-card.balance-total .value { color: var(--graphite); }
+
+  /* mini summary row (all-time totals, half size) */
+  .summary-grid-mini {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  @media (max-width: 900px) {
+    .summary-grid-mini { grid-template-columns: repeat(3, 1fr); }
+  }
+  .mini-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 9px 12px;
+  }
+  .mini-card .label {
+    font-size: 10px;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    font-weight: 600;
+    margin-bottom: 3px;
+  }
+  .mini-card .value {
+    font-family: 'Manrope', sans-serif;
+    font-size: 14px;
+    font-weight: 800;
+  }
+  .mini-card.income .value { color: var(--income-accent); }
+  .mini-card.expense .value { color: var(--expense-accent); }
+  .mini-card.balance .value { color: var(--graphite); }
 
   /* main grid */
   .main-grid {
@@ -259,6 +335,9 @@
     margin-top: 8px;
   }
   .new-cat-inline.visible { display: flex; }
+
+  .credit-name-row { display: none; margin-top: 10px; }
+  .credit-name-row.visible { display: block; }
 
   .btn-primary, .btn-secondary, .btn-ghost {
     border: none;
@@ -378,8 +457,14 @@
     </div>
   </div>
   <div class="month-picker">
-    <span style="font-size:13px;color:#9CA3AF;">Месяц:</span>
+    <div class="view-toggle">
+      <button type="button" class="view-toggle-btn active" id="viewModeMonthBtn">Месяц</button>
+      <button type="button" class="view-toggle-btn" id="viewModeYearBtn">Год</button>
+    </div>
+    <button type="button" class="month-nav-btn" id="monthPrevBtn" title="Предыдущий период">◀</button>
     <select id="monthSelect"></select>
+    <select id="yearSelect" style="display:none;"></select>
+    <button type="button" class="month-nav-btn" id="monthNextBtn" title="Следующий период">▶</button>
   </div>
 </div>
 
@@ -391,22 +476,36 @@
     вставьте туда данные вашего проекта Supabase. Подробности — в файле <code>README.md</code>.
   </div>
 
+  <div class="summary-grid-mini">
+    <div class="mini-card income">
+      <div class="label">Доход за весь период</div>
+      <div class="value" id="sumIncomeTotal">—</div>
+    </div>
+    <div class="mini-card expense">
+      <div class="label">Расход за весь период</div>
+      <div class="value" id="sumExpenseTotal">—</div>
+    </div>
+    <div class="mini-card balance">
+      <div class="label">Остаток за весь период</div>
+      <div class="value" id="balanceTotal">—</div>
+    </div>
+  </div>
+
   <div class="summary-grid">
     <div class="summary-card income">
-      <div class="label">Доход за месяц</div>
+      <div class="label" id="labelIncomePeriod">Доход за месяц</div>
       <div class="value" id="sumIncomeMonth">—</div>
+      <div class="growth-indicator" id="growthIncome"></div>
     </div>
     <div class="summary-card expense">
-      <div class="label">Расход за месяц</div>
+      <div class="label" id="labelExpensePeriod">Расход за месяц</div>
       <div class="value" id="sumExpenseMonth">—</div>
+      <div class="growth-indicator" id="growthExpense"></div>
     </div>
     <div class="summary-card balance">
-      <div class="label">Остаток за месяц</div>
+      <div class="label" id="labelBalancePeriod">Остаток за месяц</div>
       <div class="value" id="balanceMonth">—</div>
-    </div>
-    <div class="summary-card balance-total">
-      <div class="label">Остаток всего</div>
-      <div class="value" id="balanceTotal">—</div>
+      <div class="growth-indicator" id="growthBalance"></div>
     </div>
   </div>
 
@@ -431,6 +530,14 @@
         <div class="new-cat-inline" id="newCatInline">
           <input type="text" id="newCatName" placeholder="Название категории">
           <button type="button" class="btn-secondary" id="newCatSave">+</button>
+        </div>
+        <div class="credit-name-row" id="creditNameRow">
+          <label style="margin-top:10px;">Кредит</label>
+          <select id="creditNameSelect"></select>
+          <div class="new-cat-inline" id="newCreditInline">
+            <input type="text" id="newCreditName" placeholder="Например: Сбербанк">
+            <button type="button" class="btn-secondary" id="newCreditSave">+</button>
+          </div>
         </div>
       </div>
 
@@ -474,7 +581,10 @@
 
       <!-- TRANSACTIONS -->
       <div class="panel">
-        <h2>Операции за месяц</h2>
+        <h2 style="justify-content:space-between;">
+          <span>Операции</span>
+          <select id="txPeriodSelect" style="width:auto; padding:6px 10px; font-size:12.5px;"></select>
+        </h2>
         <div style="overflow-x:auto;">
           <table>
             <thead>
@@ -488,8 +598,9 @@
             </thead>
             <tbody id="txTableBody"></tbody>
           </table>
-          <div class="empty-note" id="emptyNote" style="display:none;">Пока нет операций за этот месяц</div>
+          <div class="empty-note" id="emptyNote" style="display:none;">Нет операций за этот период</div>
         </div>
+        <button class="btn-ghost" id="loadMoreBtn" style="width:100%; margin-top:12px; display:none;">Показать ещё 5</button>
       </div>
     </div>
   </div>
@@ -529,6 +640,10 @@ let state = {
   categories: [],
   transactions: [],
   selectedMonth: null,   // 'YYYY-MM'
+  selectedYear: null,    // 'YYYY'
+  viewMode: 'month',     // month | year
+  txPeriod: 'sync',      // 'sync' | 'all' | 'YYYY-MM'
+  txVisibleCount: 5,
 };
 
 function toast(msg) {
@@ -545,6 +660,33 @@ function monthLabel(key) {
   const [y, m] = key.split('-');
   const names = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
   return `${names[parseInt(m)-1]} ${y}`;
+}
+
+// months included in the currently active dashboard period
+function activeMonths() {
+  if (state.viewMode === 'year') {
+    const y = state.selectedYear;
+    return Array.from({length: 12}, (_, i) => `${y}-${String(i+1).padStart(2,'0')}`);
+  }
+  return [state.selectedMonth];
+}
+
+// the equivalent set of months for the immediately preceding period (for growth %)
+function previousPeriodMonths() {
+  if (state.viewMode === 'year') {
+    const prevYear = String(Number(state.selectedYear) - 1);
+    return Array.from({length: 12}, (_, i) => `${prevYear}-${String(i+1).padStart(2,'0')}`);
+  }
+  const [y, m] = state.selectedMonth.split('-').map(Number);
+  const d = new Date(y, m - 2, 1);
+  return [`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`];
+}
+
+function sumForMonths(monthKeys, kind) {
+  const set = new Set(monthKeys);
+  return state.transactions
+    .filter(t => t.kind === kind && set.has(monthKey(t.date)))
+    .reduce((s,t) => s + Number(t.amount), 0);
 }
 
 /* ---------------- DATA LOADING ---------------- */
@@ -566,6 +708,9 @@ async function loadAll() {
     const now = new Date();
     state.selectedMonth = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
   }
+  if (!state.selectedYear) {
+    state.selectedYear = String(new Date().getFullYear());
+  }
   renderEverything();
 }
 
@@ -574,6 +719,22 @@ document.getElementById('btnKindIncome').addEventListener('click', () => setKind
 document.getElementById('btnKindExpense').addEventListener('click', () => setKind('expense'));
 document.getElementById('btnOneTime').addEventListener('click', () => setSubtype('one_time'));
 document.getElementById('btnMonthly').addEventListener('click', () => setSubtype('monthly'));
+
+/* ---------------- UI: VIEW MODE (MONTH / YEAR) ---------------- */
+document.getElementById('viewModeMonthBtn').addEventListener('click', () => setViewMode('month'));
+document.getElementById('viewModeYearBtn').addEventListener('click', () => setViewMode('year'));
+
+function setViewMode(mode) {
+  state.viewMode = mode;
+  document.getElementById('viewModeMonthBtn').classList.toggle('active', mode === 'month');
+  document.getElementById('viewModeYearBtn').classList.toggle('active', mode === 'year');
+  document.getElementById('monthSelect').style.display = mode === 'month' ? '' : 'none';
+  document.getElementById('yearSelect').style.display = mode === 'year' ? '' : 'none';
+  document.getElementById('labelIncomePeriod').textContent = mode === 'month' ? 'Доход за месяц' : 'Доход за год';
+  document.getElementById('labelExpensePeriod').textContent = mode === 'month' ? 'Расход за месяц' : 'Расход за год';
+  document.getElementById('labelBalancePeriod').textContent = mode === 'month' ? 'Остаток за месяц' : 'Остаток за год';
+  renderEverything();
+}
 
 function setKind(kind) {
   state.kind = kind;
@@ -605,7 +766,7 @@ function populateCategorySelect() {
     const opt = document.createElement('option');
     opt.value = c.name;
     opt.dataset.default = c.default_amount ?? '';
-    opt.textContent = c.default_amount ? `${c.name} (обычно ${fmt.format(c.default_amount)})` : c.name;
+    opt.textContent = c.name;
     sel.appendChild(opt);
   });
   const addOpt = document.createElement('option');
@@ -616,20 +777,73 @@ function populateCategorySelect() {
   document.getElementById('newCatInline').classList.remove('visible');
   document.getElementById('newCatName').value = '';
 
-  // auto-fill default amount if present
+  // auto-fill default amount if present + toggle credit sub-select
   sel.onchange = () => {
     if (sel.value === '__new__') {
       document.getElementById('newCatInline').classList.add('visible');
+      document.getElementById('creditNameRow').classList.remove('visible');
     } else {
       document.getElementById('newCatInline').classList.remove('visible');
       const opt = sel.selectedOptions[0];
       if (opt && opt.dataset.default) {
         document.getElementById('amountInput').value = opt.dataset.default;
       }
+      if (sel.value === 'Кредит') {
+        document.getElementById('creditNameRow').classList.add('visible');
+        populateCreditNameSelect();
+      } else {
+        document.getElementById('creditNameRow').classList.remove('visible');
+      }
     }
   };
   if (list.length) sel.dispatchEvent(new Event('change'));
 }
+
+const DEFAULT_CREDIT_NAMES = ['Ипотека', 'Альфа'];
+
+function populateCreditNameSelect() {
+  const sel = document.getElementById('creditNameSelect');
+  const dbNames = state.categories.filter(c => c.kind === 'credit_name').map(c => c.name);
+  const names = dbNames.length ? dbNames : DEFAULT_CREDIT_NAMES;
+  sel.innerHTML = '';
+  names.forEach(name => {
+    const opt = document.createElement('option');
+    opt.value = name;
+    opt.textContent = name;
+    sel.appendChild(opt);
+  });
+  const addOpt = document.createElement('option');
+  addOpt.value = '__new__';
+  addOpt.textContent = '+ Новый кредит';
+  sel.appendChild(addOpt);
+
+  document.getElementById('newCreditInline').classList.remove('visible');
+  sel.onchange = () => {
+    document.getElementById('newCreditInline').classList.toggle('visible', sel.value === '__new__');
+  };
+}
+
+document.getElementById('newCreditSave').addEventListener('click', async () => {
+  const name = document.getElementById('newCreditName').value.trim();
+  if (!name) { toast('Введите название кредита'); return; }
+  if (!isConfigured) { toast('Сначала подключите базу данных'); return; }
+  const { error } = await supabaseClient.from('categories').insert({ kind: 'credit_name', name });
+  if (error) {
+    toast('Не удалось сохранить в базу — используется только в этом сеансе');
+    const sel = document.getElementById('creditNameSelect');
+    const opt = document.createElement('option');
+    opt.value = name; opt.textContent = name;
+    sel.insertBefore(opt, sel.lastElementChild);
+    sel.value = name;
+    document.getElementById('newCreditInline').classList.remove('visible');
+    return;
+  }
+  toast('Кредит добавлен');
+  await loadAll();
+  document.getElementById('categorySelect').value = 'Кредит';
+  document.getElementById('categorySelect').dispatchEvent(new Event('change'));
+  document.getElementById('creditNameSelect').value = name;
+});
 
 document.getElementById('newCatSave').addEventListener('click', async () => {
   const name = document.getElementById('newCatName').value.trim();
@@ -648,8 +862,14 @@ document.getElementById('newCatSave').addEventListener('click', async () => {
 document.getElementById('submitBtn').addEventListener('click', async () => {
   if (!isConfigured) { toast('Сначала подключите базу данных (см. README.md)'); return; }
   const sel = document.getElementById('categorySelect');
-  const category = sel.value;
+  let category = sel.value;
   if (!category || category === '__new__') { toast('Выберите или добавьте категорию'); return; }
+  if (category === 'Кредит') {
+    const creditSel = document.getElementById('creditNameSelect');
+    const creditName = creditSel.value;
+    if (!creditName || creditName === '__new__') { toast('Выберите или добавьте название кредита'); return; }
+    category = `Кредит: ${creditName}`;
+  }
   const amount = parseFloat(document.getElementById('amountInput').value);
   if (!amount || amount <= 0) { toast('Введите сумму больше нуля'); return; }
   const date = document.getElementById('dateInput').value || new Date().toISOString().slice(0,10);
@@ -679,52 +899,204 @@ async function deleteTx(id) {
   await loadAll();
 }
 
-/* ---------------- MONTH SELECT ---------------- */
+/* ---------------- MONTH / YEAR SELECT ---------------- */
 document.getElementById('monthSelect').addEventListener('change', (e) => {
   state.selectedMonth = e.target.value;
   renderEverything();
 });
+document.getElementById('yearSelect').addEventListener('change', (e) => {
+  state.selectedYear = e.target.value;
+  renderEverything();
+});
+
+function allMonthKeysSorted() {
+  return Array.from(document.getElementById('monthSelect').options).map(o => o.value);
+}
+function allYearKeysSorted() {
+  return Array.from(document.getElementById('yearSelect').options).map(o => o.value);
+}
+
+document.getElementById('monthPrevBtn').addEventListener('click', () => {
+  if (state.viewMode === 'year') {
+    const keys = allYearKeysSorted();
+    const idx = keys.indexOf(state.selectedYear);
+    if (idx > 0) { state.selectedYear = keys[idx - 1]; renderEverything(); }
+  } else {
+    const keys = allMonthKeysSorted();
+    const idx = keys.indexOf(state.selectedMonth);
+    if (idx > 0) { state.selectedMonth = keys[idx - 1]; renderEverything(); }
+  }
+});
+document.getElementById('monthNextBtn').addEventListener('click', () => {
+  if (state.viewMode === 'year') {
+    const keys = allYearKeysSorted();
+    const idx = keys.indexOf(state.selectedYear);
+    if (idx !== -1 && idx < keys.length - 1) { state.selectedYear = keys[idx + 1]; renderEverything(); }
+  } else {
+    const keys = allMonthKeysSorted();
+    const idx = keys.indexOf(state.selectedMonth);
+    if (idx !== -1 && idx < keys.length - 1) { state.selectedMonth = keys[idx + 1]; renderEverything(); }
+  }
+});
+
+function fullMonthRange() {
+  const now = new Date();
+  const currentKey = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  const txKeys = state.transactions.map(t => monthKey(t.date));
+  let earliest = currentKey;
+  if (txKeys.length) {
+    earliest = txKeys.reduce((min, k) => (k < min ? k : min), currentKey);
+  }
+  const [ey, em] = earliest.split('-').map(Number);
+  const earliestDate = new Date(ey, em - 1, 1);
+  const twoYearsBack = new Date(now.getFullYear(), now.getMonth() - 24, 1);
+  const startDate = earliestDate < twoYearsBack ? earliestDate : twoYearsBack;
+
+  const keys = [];
+  let cursor = new Date(startDate);
+  const end = new Date(now.getFullYear(), now.getMonth(), 1);
+  while (cursor <= end) {
+    keys.push(`${cursor.getFullYear()}-${String(cursor.getMonth()+1).padStart(2,'0')}`);
+    cursor.setMonth(cursor.getMonth() + 1);
+  }
+  return keys;
+}
 
 function populateMonthSelect() {
   const sel = document.getElementById('monthSelect');
-  const keys = new Set(state.transactions.map(t => monthKey(t.date)));
-  const now = new Date();
-  keys.add(`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`);
-  const sorted = Array.from(keys).sort().reverse();
+  const keys = fullMonthRange();
+
   sel.innerHTML = '';
-  sorted.forEach(k => {
+  keys.forEach(k => {
     const opt = document.createElement('option');
     opt.value = k;
     opt.textContent = monthLabel(k);
     sel.appendChild(opt);
   });
   sel.value = state.selectedMonth;
+
+  if (state.viewMode === 'month') {
+    document.getElementById('monthPrevBtn').disabled = keys.indexOf(state.selectedMonth) <= 0;
+    document.getElementById('monthNextBtn').disabled = keys.indexOf(state.selectedMonth) >= keys.length - 1;
+  }
+}
+
+function populateYearSelect() {
+  const sel = document.getElementById('yearSelect');
+  const monthKeys = fullMonthRange();
+  const years = Array.from(new Set(monthKeys.map(k => k.split('-')[0]))).sort();
+  sel.innerHTML = '';
+  years.forEach(y => {
+    const opt = document.createElement('option');
+    opt.value = y;
+    opt.textContent = y;
+    sel.appendChild(opt);
+  });
+  if (!years.includes(state.selectedYear)) state.selectedYear = years[years.length - 1];
+  sel.value = state.selectedYear;
+
+  if (state.viewMode === 'year') {
+    document.getElementById('monthPrevBtn').disabled = years.indexOf(state.selectedYear) <= 0;
+    document.getElementById('monthNextBtn').disabled = years.indexOf(state.selectedYear) >= years.length - 1;
+  }
+}
+
+/* ---------------- TRANSACTIONS PERIOD SELECT ---------------- */
+document.getElementById('txPeriodSelect').addEventListener('change', (e) => {
+  state.txPeriod = e.target.value;
+  state.txVisibleCount = 5;
+  renderTable();
+});
+document.getElementById('loadMoreBtn').addEventListener('click', () => {
+  state.txVisibleCount += 5;
+  renderTable();
+});
+
+function populateTxPeriodSelect() {
+  const sel = document.getElementById('txPeriodSelect');
+  const prevValue = sel.value || state.txPeriod;
+  const keys = fullMonthRange().slice().reverse(); // most recent first
+  sel.innerHTML = '';
+  const syncOpt = document.createElement('option');
+  syncOpt.value = 'sync';
+  syncOpt.textContent = 'Текущий период';
+  sel.appendChild(syncOpt);
+  const allOpt = document.createElement('option');
+  allOpt.value = 'all';
+  allOpt.textContent = 'Весь период';
+  sel.appendChild(allOpt);
+  keys.forEach(k => {
+    const opt = document.createElement('option');
+    opt.value = k;
+    opt.textContent = monthLabel(k);
+    sel.appendChild(opt);
+  });
+  sel.value = prevValue;
+  if (sel.value !== prevValue) sel.value = 'sync';
+}
+
+// months that should filter the transactions list, based on state.txPeriod
+function txActiveMonths() {
+  if (state.txPeriod === 'sync') return activeMonths();
+  if (state.txPeriod === 'all') return null; // no filter
+  return [state.txPeriod];
 }
 
 /* ---------------- RENDER: SUMMARY ---------------- */
+function formatGrowth(current, previous) {
+  if (!previous) {
+    return current > 0 ? { text: 'нет данных за пред. период', dir: '' } : { text: '', dir: '' };
+  }
+  const pct = ((current - previous) / previous) * 100;
+  const dir = pct > 0.05 ? 'up' : (pct < -0.05 ? 'down' : '');
+  const arrow = pct > 0.05 ? '▲' : (pct < -0.05 ? '▼' : '•');
+  const periodWord = state.viewMode === 'year' ? 'к пред. году' : 'к пред. месяцу';
+  return { text: `${arrow} ${Math.abs(pct).toFixed(1)}% ${periodWord}`, dir };
+}
+
 function renderSummary() {
-  const monthTx = state.transactions.filter(t => monthKey(t.date) === state.selectedMonth);
-  const incomeMonth = monthTx.filter(t => t.kind === 'income').reduce((s,t) => s + Number(t.amount), 0);
-  const expenseMonth = monthTx.filter(t => t.kind === 'expense').reduce((s,t) => s + Number(t.amount), 0);
+  const curMonths = activeMonths();
+  const prevMonths = previousPeriodMonths();
+
+  const incomePeriod = sumForMonths(curMonths, 'income');
+  const expensePeriod = sumForMonths(curMonths, 'expense');
+  const incomePrev = sumForMonths(prevMonths, 'income');
+  const expensePrev = sumForMonths(prevMonths, 'expense');
+
   const incomeTotal = state.transactions.filter(t => t.kind === 'income').reduce((s,t) => s + Number(t.amount), 0);
   const expenseTotal = state.transactions.filter(t => t.kind === 'expense').reduce((s,t) => s + Number(t.amount), 0);
 
-  document.getElementById('sumIncomeMonth').textContent = fmt.format(incomeMonth);
-  document.getElementById('sumExpenseMonth').textContent = fmt.format(expenseMonth);
-  document.getElementById('balanceMonth').textContent = fmt.format(incomeMonth - expenseMonth);
+  document.getElementById('sumIncomeMonth').textContent = fmt.format(incomePeriod);
+  document.getElementById('sumExpenseMonth').textContent = fmt.format(expensePeriod);
+  document.getElementById('balanceMonth').textContent = fmt.format(incomePeriod - expensePeriod);
+
+  const gIncome = formatGrowth(incomePeriod, incomePrev);
+  const gExpense = formatGrowth(expensePeriod, expensePrev);
+  const gBalance = formatGrowth(incomePeriod - expensePeriod, incomePrev - expensePrev);
+  const gi = document.getElementById('growthIncome'); gi.textContent = gIncome.text; gi.className = 'growth-indicator ' + gIncome.dir;
+  const ge = document.getElementById('growthExpense'); ge.textContent = gExpense.text; ge.className = 'growth-indicator ' + gExpense.dir;
+  const gb = document.getElementById('growthBalance'); gb.textContent = gBalance.text; gb.className = 'growth-indicator ' + gBalance.dir;
+
+  document.getElementById('sumIncomeTotal').textContent = fmt.format(incomeTotal);
+  document.getElementById('sumExpenseTotal').textContent = fmt.format(expenseTotal);
   document.getElementById('balanceTotal').textContent = fmt.format(incomeTotal - expenseTotal);
 }
 
 /* ---------------- RENDER: TABLE ---------------- */
 function renderTable() {
   const tbody = document.getElementById('txTableBody');
-  const monthTx = state.transactions.filter(t => monthKey(t.date) === state.selectedMonth)
-    .sort((a,b) => b.date.localeCompare(a.date));
+  const filterMonths = txActiveMonths();
+  let list = filterMonths
+    ? state.transactions.filter(t => filterMonths.includes(monthKey(t.date)))
+    : state.transactions.slice();
+  list = list.sort((a,b) => b.date.localeCompare(a.date));
+
+  const visible = list.slice(0, state.txVisibleCount);
   tbody.innerHTML = '';
-  document.getElementById('emptyNote').style.display = monthTx.length ? 'none' : 'block';
-  monthTx.forEach(t => {
+  document.getElementById('emptyNote').style.display = list.length ? 'none' : 'block';
+  visible.forEach(t => {
     const tr = document.createElement('tr');
-    const dateFmt = new Date(t.date).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' });
+    const dateFmt = new Date(t.date).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
     tr.innerHTML = `
       <td>${dateFmt}</td>
       <td><span class="cat-badge">${t.category}</span></td>
@@ -736,6 +1108,15 @@ function renderTable() {
     `;
     tbody.appendChild(tr);
   });
+
+  const loadMoreBtn = document.getElementById('loadMoreBtn');
+  const remaining = list.length - visible.length;
+  if (remaining > 0) {
+    loadMoreBtn.style.display = 'block';
+    loadMoreBtn.textContent = `Показать ещё ${Math.min(5, remaining)}`;
+  } else {
+    loadMoreBtn.style.display = 'none';
+  }
 }
 
 /* ---------------- CHARTS ---------------- */
@@ -783,17 +1164,19 @@ function renderDynamicsChart() {
 const PIE_COLORS = ['#185FA5','#5B94C9','#B7D6F2','#232733','#9C9A94','#2E7D5B','#B4483A','#E7B9B4','#7A9CB0'];
 
 function renderCategoryPie(canvasId, boxId, kind) {
-  const monthTx = state.transactions.filter(t => monthKey(t.date) === state.selectedMonth && t.kind === kind);
+  const months = activeMonths();
+  const periodTx = state.transactions.filter(t => months.includes(monthKey(t.date)) && t.kind === kind);
   const box = document.getElementById(boxId);
-  if (!monthTx.length) {
-    box.innerHTML = `<div class="empty-note">Нет данных за ${monthLabel(state.selectedMonth)}</div>`;
+  const periodLabel = state.viewMode === 'year' ? state.selectedYear : monthLabel(state.selectedMonth);
+  if (!periodTx.length) {
+    box.innerHTML = `<div class="empty-note">Нет данных за ${periodLabel}</div>`;
     return;
   }
   if (!box.querySelector('canvas')) {
     box.innerHTML = `<canvas id="${canvasId}"></canvas>`;
   }
   const byCategory = {};
-  monthTx.forEach(t => { byCategory[t.category] = (byCategory[t.category] || 0) + Number(t.amount); });
+  periodTx.forEach(t => { byCategory[t.category] = (byCategory[t.category] || 0) + Number(t.amount); });
   const labels = Object.keys(byCategory);
   const data = Object.values(byCategory);
 
@@ -816,6 +1199,8 @@ function renderCategoryPie(canvasId, boxId, kind) {
 /* ---------------- MASTER RENDER ---------------- */
 function renderEverything() {
   populateMonthSelect();
+  populateYearSelect();
+  populateTxPeriodSelect();
   populateCategorySelect();
   renderSummary();
   renderTable();
