@@ -441,7 +441,7 @@
 
       <div class="form-row">
         <label>Дата</label>
-        <input type="date" id="dateInput">
+        <input type="date" id="dateInput" min="2020-01-01" max="2099-12-31">
       </div>
 
       <div class="form-row">
@@ -514,7 +514,14 @@ if (isConfigured) {
   document.getElementById('configBanner').style.display = 'block';
 }
 
-const fmt = new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', maximumFractionDigits: 0 });
+function fmt_format(amount) {
+  const n = Math.round(Number(amount) || 0);
+  const sign = n < 0 ? '−' : '';
+  const digits = Math.abs(n).toString();
+  const grouped = digits.replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+  return `${sign}${grouped} ₽`;
+}
+const fmt = { format: fmt_format };
 
 let state = {
   kind: 'income',        // income | expense
