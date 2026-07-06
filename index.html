@@ -1196,6 +1196,17 @@ function toast(msg, duration = 2200) {
   t.__hideTimer = setTimeout(() => t.classList.remove('show'), duration);
 }
 
+// On a flaky connection a fetch can hang indefinitely — never resolving, never
+// rejecting — which no try/catch can detect. This races it against a timer so
+// the UI always gets an answer (an error) instead of staying stuck forever.
+function withTimeout(promise, ms, timeoutMessage) {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(timeoutMessage || 'Превышено время ожидания ответа от сервера')), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
 function monthKey(dateStr) {
   return dateStr.slice(0, 7);
 }
@@ -1414,16 +1425,32 @@ document.getElementById('authSubmitBtn').addEventListener('click', async () => {
   const email = document.getElementById('authEmailInput').value.trim();
   const password = document.getElementById('authPasswordInput').value;
   if (!email || !password) { toast('Введите email и пароль'); return; }
+  const submitBtn = document.getElementById('authSubmitBtn');
+  if (submitBtn.disabled) return;
+  submitBtn.disabled = true;
+  const originalLabel = submitBtn.textContent;
+  submitBtn.textContent = 'Входим…';
   let result;
   try {
-    result = await supabaseClient.auth.signInWithPassword({ email, password });
+    // A stalled connection can leave a fetch neither resolving nor rejecting —
+    // withTimeout guarantees an answer either way instead of leaving the button
+    // (and the user) waiting forever with no feedback at all.
+    result = await withTimeout(
+      supabaseClient.auth.signInWithPassword({ email, password }),
+      12000,
+      'Сервер не отвечает — проверьте интернет-соединение и попробуйте снова'
+    );
   } catch (err) {
     // A network-level failure (no internet, DNS/firewall blocking the server, etc.)
     // rejects the promise instead of resolving with {error} — without this catch
     // the tap on "Войти" silently does nothing.
     toast('Не удалось подключиться к серверу: ' + (err.message || 'проверьте интернет-соединение'), 5000);
+    submitBtn.disabled = false;
+    submitBtn.textContent = originalLabel;
     return;
   }
+  submitBtn.disabled = false;
+  submitBtn.textContent = originalLabel;
   const { error } = result;
   if (error) { toast('Ошибка входа: ' + (authErrorMessages[error.message] || error.message), 5000); return; }
   document.getElementById('authModalOverlay').classList.remove('visible');
@@ -1449,7 +1476,7 @@ async function loadAll() {
     return;
   }
   try {
-    const { data: { session } } = await supabaseClient.auth.getSession();
+    const { data: { session } } = await withTimeout(supabaseClient.auth.getSession(), 12000, 'Сервер не отвечает — проверьте интернет-соединение');
     currentUser = session ? session.user : null;
     updateAuthUI();
 
@@ -1472,14 +1499,14 @@ async function loadAll() {
       notesQuery.is('user_id', null);
     }
 
-    const [{ data: cats, error: catErr }, { data: txs, error: txErr }, { data: debts, error: debtErr }, { data: shopping, error: shoppingErr }, { data: income, error: incomeErr }, { data: notes, error: notesErr }] = await Promise.all([
+    const [{ data: cats, error: catErr }, { data: txs, error: txErr }, { data: debts, error: debtErr }, { data: shopping, error: shoppingErr }, { data: income, error: incomeErr }, { data: notes, error: notesErr }] = await withTimeout(Promise.all([
       supabaseClient.from('categories').select('*').order('created_at'),
       txQuery,
       debtQuery,
       shoppingQuery,
       incomeQuery,
       notesQuery,
-    ]);
+    ]), 15000, 'Сервер не отвечает — проверьте интернет-соединение');
     if (catErr) { toast('Ошибка загрузки категорий: ' + catErr.message); return; }
     if (txErr) { toast('Ошибка загрузки операций: ' + txErr.message); return; }
     if (debtErr) { toast('Ошибка загрузки долгов: ' + debtErr.message); return; }
