@@ -1094,8 +1094,8 @@ let state = {
   categories: [],
   transactions: [],
   debts: [],
-  selectedMonth: null,   // 'YYYY-MM'
-  selectedYear: null,    // 'YYYY'
+  selectedMonth: `${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}`, // 'YYYY-MM'
+  selectedYear: String(new Date().getFullYear()), // 'YYYY'
   viewMode: 'month',     // month | year
   txPeriod: 'sync',      // 'sync' | 'all' | 'YYYY-MM'
   txVisibleCount: 5,
@@ -1166,11 +1166,12 @@ function updateAuthUI() {
   document.getElementById('authBtn').textContent = currentUser ? 'Выйти' : 'Войти';
   document.getElementById('authStatusLabel').textContent = currentUser ? 'Артём' : 'Демо-режим';
   document.getElementById('demoBanner').classList.toggle('visible', !currentUser);
-  document.getElementById('pinBtn').style.display = currentUser ? 'inline-block' : 'none';
+  document.getElementById('pinBtn').style.display = (currentUser && hasCryptoSubtle) ? 'inline-block' : 'none';
   checkPinLock();
 }
 
 /* ---------------- APP PIN LOCK ---------------- */
+const hasCryptoSubtle = !!(window.crypto && window.crypto.subtle);
 async function sha256Hex(str) {
   const enc = new TextEncoder().encode(str);
   const buf = await crypto.subtle.digest('SHA-256', enc);
@@ -1186,12 +1187,15 @@ function markPinUnlocked() { sessionStorage.setItem('pinUnlocked', '1'); }
 function clearPinState() { setPinHash(null); sessionStorage.removeItem('pinUnlocked'); }
 
 function checkPinLock() {
-  const locked = !!(currentUser && getPinHash() && !isPinUnlockedThisSession());
+  // Fail open (never lock) if this browser can't do the hash check at all —
+  // better than permanently stranding someone behind a PIN screen it can't verify.
+  const locked = !!(currentUser && hasCryptoSubtle && getPinHash() && !isPinUnlockedThisSession());
   document.getElementById('pinLockOverlay').classList.toggle('visible', locked);
   if (locked) document.getElementById('pinLockInput').focus();
 }
 
 document.getElementById('pinBtn').addEventListener('click', () => {
+  if (!hasCryptoSubtle) { toast('PIN-код не поддерживается в этом браузере'); return; }
   const hasPin = !!getPinHash();
   document.getElementById('pinCurrentRow').style.display = hasPin ? 'block' : 'none';
   document.getElementById('pinDisableBtn').style.display = hasPin ? 'block' : 'none';
@@ -1214,35 +1218,47 @@ async function verifyCurrentPin() {
 }
 
 document.getElementById('pinSaveBtn').addEventListener('click', async () => {
-  if (!(await verifyCurrentPin())) return;
-  const newPin = document.getElementById('pinNewInput').value;
-  const confirmPin = document.getElementById('pinConfirmInput').value;
-  if (!/^\d{4}$/.test(newPin)) { toast('PIN-код должен состоять из 4 цифр'); return; }
-  if (newPin !== confirmPin) { toast('PIN-коды не совпадают'); return; }
-  setPinHash(await sha256Hex(newPin));
-  markPinUnlocked();
-  document.getElementById('pinModalOverlay').classList.remove('visible');
-  toast('PIN-код сохранён');
+  try {
+    if (!(await verifyCurrentPin())) return;
+    const newPin = document.getElementById('pinNewInput').value;
+    const confirmPin = document.getElementById('pinConfirmInput').value;
+    if (!/^\d{4}$/.test(newPin)) { toast('PIN-код должен состоять из 4 цифр'); return; }
+    if (newPin !== confirmPin) { toast('PIN-коды не совпадают'); return; }
+    setPinHash(await sha256Hex(newPin));
+    markPinUnlocked();
+    document.getElementById('pinModalOverlay').classList.remove('visible');
+    toast('PIN-код сохранён');
+  } catch (err) {
+    toast('Не удалось сохранить PIN-код: ' + err.message);
+  }
 });
 
 document.getElementById('pinDisableBtn').addEventListener('click', async () => {
-  if (!(await verifyCurrentPin())) return;
-  clearPinState();
-  document.getElementById('pinModalOverlay').classList.remove('visible');
-  toast('PIN-код отключён');
+  try {
+    if (!(await verifyCurrentPin())) return;
+    clearPinState();
+    document.getElementById('pinModalOverlay').classList.remove('visible');
+    toast('PIN-код отключён');
+  } catch (err) {
+    toast('Не удалось отключить PIN-код: ' + err.message);
+  }
 });
 
 async function submitPinLock() {
-  const entered = document.getElementById('pinLockInput').value;
-  const enteredHash = await sha256Hex(entered);
-  if (enteredHash !== getPinHash()) {
-    toast('Неверный PIN-код');
+  try {
+    const entered = document.getElementById('pinLockInput').value;
+    const enteredHash = await sha256Hex(entered);
+    if (enteredHash !== getPinHash()) {
+      toast('Неверный PIN-код');
+      document.getElementById('pinLockInput').value = '';
+      return;
+    }
+    markPinUnlocked();
+    document.getElementById('pinLockOverlay').classList.remove('visible');
     document.getElementById('pinLockInput').value = '';
-    return;
+  } catch (err) {
+    toast('Не удалось проверить PIN-код: ' + err.message);
   }
-  markPinUnlocked();
-  document.getElementById('pinLockOverlay').classList.remove('visible');
-  document.getElementById('pinLockInput').value = '';
 }
 document.getElementById('pinLockSubmitBtn').addEventListener('click', submitPinLock);
 document.getElementById('pinLockInput').addEventListener('keydown', (e) => {
