@@ -4,6 +4,53 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Семейный бюджет</title>
+<script>
+// Catches anything that fails silently before the app's own error handling can run
+// (a broken CDN script, an old-browser syntax error, an unhandled promise rejection) —
+// registered first, before any other script, so nothing can fail before it's listening.
+(function() {
+  var messages = [];
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>]/g, function(c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]; });
+  }
+  function render() {
+    if (!document.body || !messages.length) return;
+    var box = document.getElementById('__jsErrorBanner');
+    if (!box) {
+      box = document.createElement('div');
+      box.id = '__jsErrorBanner';
+      // In normal document flow (not fixed) and prepended first, so it pushes the
+      // rest of the page down instead of overlaying and blocking clicks on the header.
+      box.style.cssText = 'position:relative;z-index:99999;background:#B3261E;' +
+        'color:#fff;padding:12px 16px;font:13px/1.5 -apple-system,Arial,sans-serif;' +
+        'max-height:45vh;overflow:auto;white-space:pre-wrap;box-shadow:0 2px 10px rgba(0,0,0,.3);';
+      document.body.insertBefore(box, document.body.firstChild);
+    }
+    box.innerHTML = '<b>Ошибка на странице — сообщите этот текст в поддержку:</b><br>' +
+      messages.map(escapeHtml).join('<br>') +
+      '<br><button id="__jsErrorBannerClose" style="margin-top:8px;background:#fff;color:#B3261E;' +
+      'border:none;border-radius:6px;padding:5px 12px;font-weight:700;">Скрыть</button>';
+    var closeBtn = document.getElementById('__jsErrorBannerClose');
+    if (closeBtn) closeBtn.onclick = function() { box.remove(); };
+  }
+  function addMessage(msg) {
+    messages.push(msg);
+    render();
+  }
+  window.addEventListener('error', function(e) {
+    if (e.target && e.target !== window && e.target.tagName) {
+      addMessage('Не удалось загрузить ресурс: ' + (e.target.src || e.target.href || e.target.tagName));
+      return;
+    }
+    addMessage((e.message || 'Ошибка выполнения') + (e.filename ? ' (' + e.filename.split('/').pop() + ':' + e.lineno + ')' : ''));
+  }, true);
+  window.addEventListener('unhandledrejection', function(e) {
+    var reason = e.reason;
+    addMessage('Необработанная ошибка: ' + (reason && reason.message ? reason.message : String(reason)));
+  });
+  document.addEventListener('DOMContentLoaded', render);
+})();
+</script>
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
