@@ -124,9 +124,19 @@
   .pin-lock-overlay.visible { display: flex; }
   .pin-lock-overlay .brand-mark { width: 48px; height: 48px; border-radius: 12px; background: var(--btn-primary); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 800; margin-bottom: 4px; }
   .pin-lock-overlay h2 { margin: 0; font-size: 18px; }
-  .pin-lock-overlay input[type=password] { width: 200px; text-align: center; letter-spacing: 10px; font-size: 22px; }
   .pin-lock-overlay .btn-primary { width: 200px; }
   .pin-lock-overlay .pin-logout-link { background: none; border: none; color: var(--text-secondary); font-size: 13px; text-decoration: underline; cursor: pointer; margin-top: 6px; }
+
+  .pin-digit-group { display: flex; gap: 10px; justify-content: center; margin: 4px 0; }
+  .pin-digit-group input[type=password] {
+    width: 48px; height: 56px;
+    padding: 0;
+    text-align: center;
+    font-size: 24px;
+    font-weight: 700;
+    letter-spacing: 0;
+  }
+  .pin-digit-group input[type=password]:focus { border-color: var(--btn-primary); }
   .month-picker {
     display: flex; align-items: center; gap: 8px;
     background: rgba(255,255,255,0.06);
@@ -451,10 +461,10 @@
   }
   .del-btn:hover { background: #FDEEEE; color: var(--expense-accent); }
   .comment-cell { color: var(--text-secondary); font-size: 12.5px; }
-  .shopping-date-input { width: auto; min-width: 140px; padding: 6px 8px; font-size: 13px; }
+  .shopping-date-input { width: auto; min-width: 150px; padding: 6px 8px; font-size: 16px; }
   .days-remaining { font-size: 11.5px; color: var(--text-secondary); margin-top: 3px; }
   .days-remaining.overdue { color: var(--expense-accent); font-weight: 600; }
-  .inline-name-input { width: 100%; min-width: 140px; padding: 6px 8px; font-size: 13.5px; font-weight: 600; }
+  .inline-name-input { width: 100%; min-width: 140px; padding: 6px 8px; font-size: 16px; font-weight: 600; }
 
   .notepad-input-row { display: flex; gap: 8px; margin-bottom: 14px; }
   .notepad-input-row input[type=text] { flex: 1; }
@@ -469,7 +479,7 @@
   .notepad-item input[type=checkbox] { width: 18px; height: 18px; flex-shrink: 0; accent-color: var(--income-accent); cursor: pointer; }
   .notepad-item span { flex: 1; font-size: 14px; word-break: break-word; }
   .notepad-item.done span { text-decoration: line-through; color: var(--text-secondary); }
-  input.inline-amount-input { width: 96px; min-width: 96px; padding: 6px 8px; font-size: 13.5px; text-align: right; }
+  input.inline-amount-input { width: 112px; min-width: 112px; padding: 6px 8px; font-size: 16px; text-align: right; }
 
   .demo-banner {
     display: none;
@@ -572,7 +582,7 @@
       flex: 1;
       min-width: 0;
       padding: 6px 4px;
-      font-size: 12.5px;
+      font-size: 16px;
     }
     .view-toggle { order: 1; }
     .month-nav-btn { width: 24px; height: 24px; font-size: 12px; }
@@ -777,7 +787,7 @@
       <div class="panel">
         <h2 style="justify-content:space-between;">
           <span>Операции</span>
-          <select id="txPeriodSelect" style="width:auto; padding:6px 10px; font-size:12.5px;"></select>
+          <select id="txPeriodSelect" style="width:auto; padding:6px 10px; font-size:16px;"></select>
         </h2>
         <div style="overflow-x:auto;">
           <table>
@@ -1026,15 +1036,30 @@
     <h2>PIN-код</h2>
     <div class="form-row" id="pinCurrentRow" style="display:none;">
       <label>Текущий PIN-код</label>
-      <input type="password" inputmode="numeric" maxlength="4" id="pinCurrentInput" placeholder="••••">
+      <div class="pin-digit-group" id="pinCurrentDigits">
+        <input type="password" inputmode="numeric" pattern="[0-9]*" maxlength="1" autocomplete="off">
+        <input type="password" inputmode="numeric" pattern="[0-9]*" maxlength="1" autocomplete="off">
+        <input type="password" inputmode="numeric" pattern="[0-9]*" maxlength="1" autocomplete="off">
+        <input type="password" inputmode="numeric" pattern="[0-9]*" maxlength="1" autocomplete="off">
+      </div>
     </div>
     <div class="form-row">
       <label>Новый PIN-код (4 цифры)</label>
-      <input type="password" inputmode="numeric" maxlength="4" id="pinNewInput" placeholder="••••">
+      <div class="pin-digit-group" id="pinNewDigits">
+        <input type="password" inputmode="numeric" pattern="[0-9]*" maxlength="1" autocomplete="off">
+        <input type="password" inputmode="numeric" pattern="[0-9]*" maxlength="1" autocomplete="off">
+        <input type="password" inputmode="numeric" pattern="[0-9]*" maxlength="1" autocomplete="off">
+        <input type="password" inputmode="numeric" pattern="[0-9]*" maxlength="1" autocomplete="off">
+      </div>
     </div>
     <div class="form-row">
       <label>Повторите новый PIN-код</label>
-      <input type="password" inputmode="numeric" maxlength="4" id="pinConfirmInput" placeholder="••••">
+      <div class="pin-digit-group" id="pinConfirmDigits">
+        <input type="password" inputmode="numeric" pattern="[0-9]*" maxlength="1" autocomplete="off">
+        <input type="password" inputmode="numeric" pattern="[0-9]*" maxlength="1" autocomplete="off">
+        <input type="password" inputmode="numeric" pattern="[0-9]*" maxlength="1" autocomplete="off">
+        <input type="password" inputmode="numeric" pattern="[0-9]*" maxlength="1" autocomplete="off">
+      </div>
     </div>
     <button class="btn-primary" id="pinSaveBtn">Сохранить</button>
     <button class="btn-ghost" id="pinDisableBtn" style="width:100%;margin-top:8px;display:none;">Отключить PIN-код</button>
@@ -1045,7 +1070,12 @@
 <div class="pin-lock-overlay" id="pinLockOverlay">
   <div class="brand-mark">₽</div>
   <h2>Введите PIN-код</h2>
-  <input type="password" inputmode="numeric" maxlength="4" id="pinLockInput" placeholder="••••">
+  <div class="pin-digit-group" id="pinLockDigits">
+    <input type="password" inputmode="numeric" pattern="[0-9]*" maxlength="1" autocomplete="off">
+    <input type="password" inputmode="numeric" pattern="[0-9]*" maxlength="1" autocomplete="off">
+    <input type="password" inputmode="numeric" pattern="[0-9]*" maxlength="1" autocomplete="off">
+    <input type="password" inputmode="numeric" pattern="[0-9]*" maxlength="1" autocomplete="off">
+  </div>
   <button type="button" class="btn-primary" id="pinLockSubmitBtn">Войти</button>
   <button type="button" class="pin-logout-link" id="pinLockLogoutBtn">Выйти из аккаунта</button>
 </div>
@@ -1186,12 +1216,48 @@ function isPinUnlockedThisSession() { return sessionStorage.getItem('pinUnlocked
 function markPinUnlocked() { sessionStorage.setItem('pinUnlocked', '1'); }
 function clearPinState() { setPinHash(null); sessionStorage.removeItem('pinUnlocked'); }
 
+// Standard 4-box PIN entry: type a digit, focus jumps to the next box;
+// backspace on an empty box jumps back; pasting a 4-digit code fills all boxes at once.
+function createPinDigitGroup(containerId, onComplete) {
+  const container = document.getElementById(containerId);
+  const inputs = Array.from(container.querySelectorAll('input'));
+  inputs.forEach((inp, idx) => {
+    inp.addEventListener('input', () => {
+      inp.value = inp.value.replace(/\D/g, '').slice(-1);
+      if (inp.value && idx < inputs.length - 1) inputs[idx + 1].focus();
+      if (onComplete && inputs.every(i => i.value)) onComplete(inputs.map(i => i.value).join(''));
+    });
+    inp.addEventListener('keydown', (e) => {
+      if (e.key === 'Backspace' && !inp.value && idx > 0) { inputs[idx - 1].focus(); }
+      if (e.key === 'Enter' && inputs.every(i => i.value) && onComplete) onComplete(inputs.map(i => i.value).join(''));
+    });
+    inp.addEventListener('paste', (e) => {
+      const text = (e.clipboardData || window.clipboardData).getData('text').replace(/\D/g, '');
+      if (!text) return;
+      e.preventDefault();
+      text.split('').slice(0, inputs.length).forEach((ch, i) => { inputs[i].value = ch; });
+      const lastFilled = Math.min(text.length, inputs.length) - 1;
+      if (lastFilled >= 0) inputs[lastFilled].focus();
+      if (onComplete && inputs.every(i => i.value)) onComplete(inputs.map(i => i.value).join(''));
+    });
+  });
+  return {
+    getValue: () => inputs.map(i => i.value).join(''),
+    clear: () => { inputs.forEach(i => i.value = ''); },
+    focus: () => inputs[0].focus(),
+  };
+}
+const pinCurrentDigits = createPinDigitGroup('pinCurrentDigits');
+const pinNewDigits = createPinDigitGroup('pinNewDigits', () => document.getElementById('pinConfirmDigits').querySelector('input').focus());
+const pinConfirmDigits = createPinDigitGroup('pinConfirmDigits', () => document.getElementById('pinSaveBtn').click());
+const pinLockDigits = createPinDigitGroup('pinLockDigits', () => submitPinLock());
+
 function checkPinLock() {
   // Fail open (never lock) if this browser can't do the hash check at all —
   // better than permanently stranding someone behind a PIN screen it can't verify.
   const locked = !!(currentUser && hasCryptoSubtle && getPinHash() && !isPinUnlockedThisSession());
   document.getElementById('pinLockOverlay').classList.toggle('visible', locked);
-  if (locked) document.getElementById('pinLockInput').focus();
+  if (locked) { pinLockDigits.clear(); pinLockDigits.focus(); }
 }
 
 document.getElementById('pinBtn').addEventListener('click', () => {
@@ -1199,10 +1265,11 @@ document.getElementById('pinBtn').addEventListener('click', () => {
   const hasPin = !!getPinHash();
   document.getElementById('pinCurrentRow').style.display = hasPin ? 'block' : 'none';
   document.getElementById('pinDisableBtn').style.display = hasPin ? 'block' : 'none';
-  document.getElementById('pinCurrentInput').value = '';
-  document.getElementById('pinNewInput').value = '';
-  document.getElementById('pinConfirmInput').value = '';
+  pinCurrentDigits.clear();
+  pinNewDigits.clear();
+  pinConfirmDigits.clear();
   document.getElementById('pinModalOverlay').classList.add('visible');
+  (hasPin ? pinCurrentDigits : pinNewDigits).focus();
 });
 document.getElementById('pinCancelBtn').addEventListener('click', () => {
   document.getElementById('pinModalOverlay').classList.remove('visible');
@@ -1211,7 +1278,7 @@ document.getElementById('pinCancelBtn').addEventListener('click', () => {
 async function verifyCurrentPin() {
   const existingHash = getPinHash();
   if (!existingHash) return true;
-  const entered = document.getElementById('pinCurrentInput').value;
+  const entered = pinCurrentDigits.getValue();
   const enteredHash = await sha256Hex(entered);
   if (enteredHash !== existingHash) { toast('Неверный текущий PIN-код'); return false; }
   return true;
@@ -1220,8 +1287,8 @@ async function verifyCurrentPin() {
 document.getElementById('pinSaveBtn').addEventListener('click', async () => {
   try {
     if (!(await verifyCurrentPin())) return;
-    const newPin = document.getElementById('pinNewInput').value;
-    const confirmPin = document.getElementById('pinConfirmInput').value;
+    const newPin = pinNewDigits.getValue();
+    const confirmPin = pinConfirmDigits.getValue();
     if (!/^\d{4}$/.test(newPin)) { toast('PIN-код должен состоять из 4 цифр'); return; }
     if (newPin !== confirmPin) { toast('PIN-коды не совпадают'); return; }
     setPinHash(await sha256Hex(newPin));
@@ -1246,24 +1313,22 @@ document.getElementById('pinDisableBtn').addEventListener('click', async () => {
 
 async function submitPinLock() {
   try {
-    const entered = document.getElementById('pinLockInput').value;
+    const entered = pinLockDigits.getValue();
     const enteredHash = await sha256Hex(entered);
     if (enteredHash !== getPinHash()) {
       toast('Неверный PIN-код');
-      document.getElementById('pinLockInput').value = '';
+      pinLockDigits.clear();
+      pinLockDigits.focus();
       return;
     }
     markPinUnlocked();
     document.getElementById('pinLockOverlay').classList.remove('visible');
-    document.getElementById('pinLockInput').value = '';
+    pinLockDigits.clear();
   } catch (err) {
     toast('Не удалось проверить PIN-код: ' + err.message);
   }
 }
 document.getElementById('pinLockSubmitBtn').addEventListener('click', submitPinLock);
-document.getElementById('pinLockInput').addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') submitPinLock();
-});
 document.getElementById('pinLockLogoutBtn').addEventListener('click', async () => {
   await supabaseClient.auth.signOut();
   currentUser = null;
@@ -1307,10 +1372,11 @@ document.getElementById('authSubmitBtn').addEventListener('click', async () => {
   if (hasCryptoSubtle && !getPinHash()) {
     document.getElementById('pinCurrentRow').style.display = 'none';
     document.getElementById('pinDisableBtn').style.display = 'none';
-    document.getElementById('pinCurrentInput').value = '';
-    document.getElementById('pinNewInput').value = '';
-    document.getElementById('pinConfirmInput').value = '';
+    pinCurrentDigits.clear();
+    pinNewDigits.clear();
+    pinConfirmDigits.clear();
     document.getElementById('pinModalOverlay').classList.add('visible');
+    pinNewDigits.focus();
     toast('Придумайте PIN-код для быстрого входа');
   }
 });
