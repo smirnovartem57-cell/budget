@@ -510,6 +510,23 @@
   }
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
+  .voice-status-bar {
+    position: fixed; left: 0; right: 0; bottom: 0;
+    background: var(--expense-accent); color: #fff;
+    padding: 12px 16px;
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    font-size: 13.5px; font-weight: 600;
+    z-index: 999;
+  }
+  .voice-status-dot {
+    width: 10px; height: 10px; border-radius: 50%; background: #fff; flex-shrink: 0;
+    animation: pulse 1s infinite ease-in-out;
+  }
+  .voice-status-cancel {
+    background: rgba(255,255,255,0.18); border: 1px solid rgba(255,255,255,0.5); color: #fff;
+    border-radius: 8px; padding: 4px 12px; font-size: 12.5px; font-weight: 600; cursor: pointer;
+  }
+
   .loading-dot {
     display: inline-block; width: 6px; height: 6px; border-radius: 50%;
     background: var(--info-accent); margin-right: 6px;
@@ -984,6 +1001,12 @@
 </div>
 
 <div class="toast" id="toast"></div>
+
+<div class="voice-status-bar" id="voiceStatusBar" style="display:none;">
+  <span class="voice-status-dot"></span>
+  <span>Идёт запись голоса…</span>
+  <button type="button" class="voice-status-cancel" id="voiceStatusCancelBtn">Отмена</button>
+</div>
 
 <script>
 /* =========================================================
@@ -1638,16 +1661,20 @@ document.getElementById('notepadInput').addEventListener('keydown', async (e) =>
 const isSafariBrowser = /Safari/.test(navigator.userAgent) && !/Chrome|CriOS|FxiOS|EdgiOS|Android/.test(navigator.userAgent);
 const SpeechRecognitionApi = isSafariBrowser ? null : (window.SpeechRecognition || window.webkitSpeechRecognition);
 const notepadMicBtn = document.getElementById('notepadMicBtn');
+const voiceStatusBar = document.getElementById('voiceStatusBar');
 let activeRecognition = null;
 let micTimeoutId = null;
 
 function stopListening() {
   if (micTimeoutId) { clearTimeout(micTimeoutId); micTimeoutId = null; }
   notepadMicBtn.classList.remove('listening');
+  voiceStatusBar.style.display = 'none';
   const r = activeRecognition;
   activeRecognition = null;
   if (r) { try { r.abort(); } catch (e) {} }
 }
+
+document.getElementById('voiceStatusCancelBtn').addEventListener('click', stopListening);
 
 if (SpeechRecognitionApi) {
   notepadMicBtn.addEventListener('click', () => {
@@ -1688,6 +1715,7 @@ if (SpeechRecognitionApi) {
     try {
       activeRecognition = recognition;
       notepadMicBtn.classList.add('listening');
+      voiceStatusBar.style.display = 'flex';
       recognition.start();
     } catch (err) {
       stopListening();
