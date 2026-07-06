@@ -1632,7 +1632,11 @@ document.getElementById('notepadInput').addEventListener('keydown', async (e) =>
   }
 });
 
-const SpeechRecognitionApi = window.SpeechRecognition || window.webkitSpeechRecognition;
+// Safari's SpeechRecognition implementation is present but known to be
+// unreliable (denying the mic permission can leave the page badly stuck) —
+// treat it as unsupported there and point people to a Chromium-based browser.
+const isSafariBrowser = /Safari/.test(navigator.userAgent) && !/Chrome|CriOS|FxiOS|EdgiOS|Android/.test(navigator.userAgent);
+const SpeechRecognitionApi = isSafariBrowser ? null : (window.SpeechRecognition || window.webkitSpeechRecognition);
 const notepadMicBtn = document.getElementById('notepadMicBtn');
 let activeRecognition = null;
 let micTimeoutId = null;
@@ -1691,7 +1695,10 @@ if (SpeechRecognitionApi) {
     }
   });
 } else {
-  notepadMicBtn.addEventListener('click', () => toast('Голосовой ввод не поддерживается в этом браузере'));
+  const msg = isSafariBrowser
+    ? 'Голосовой ввод ненадёжен в Safari — откройте сайт в Chrome, чтобы им пользоваться'
+    : 'Голосовой ввод не поддерживается в этом браузере';
+  notepadMicBtn.addEventListener('click', () => toast(msg, 4500));
 }
 
 function escapeAttr(s) {
