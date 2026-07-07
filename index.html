@@ -643,9 +643,11 @@
 
     .container { padding: 18px 12px 40px; }
     .panel { padding: 16px; }
-    .summary-card { padding: 14px; }
-    .summary-card .value { font-size: 20px; }
-    .summary-grid { gap: 10px; }
+    .summary-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+    .summary-card { padding: 10px 8px; }
+    .summary-card .label { font-size: 9.5px; margin-bottom: 4px; }
+    .summary-card .value { font-size: 14.5px; }
+    .growth-indicator { font-size: 9.5px; }
 
     table { font-size: 12.5px; }
     th, td { padding: 8px 4px; }
