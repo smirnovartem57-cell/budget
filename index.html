@@ -572,6 +572,8 @@
     white-space: nowrap;
   }
   .btn-tiny:hover { border-color: var(--income-accent); color: var(--income-accent); }
+  .btn-tiny.active { background: var(--income-accent); border-color: var(--income-accent); color: #fff; }
+  .btn-tiny.active:hover { color: #fff; }
   .debt-row-paid { opacity: 0.5; }
   .debt-row-paid .cat-badge { text-decoration: line-through; }
 
@@ -1069,7 +1071,13 @@
     <div style="height:20px;"></div>
 
     <div class="panel">
-      <h2>Динамика дохода <span class="badge-info" id="incomeDynamicsBadge">12 мес</span></h2>
+      <h2 style="justify-content:space-between;">
+        <span>Динамика дохода <span class="badge-info" id="incomeDynamicsBadge">12 мес</span></span>
+        <span style="display:flex; gap:6px;">
+          <button type="button" class="btn-tiny active" id="incomeDynByDayBtn">По дням</button>
+          <button type="button" class="btn-tiny" id="incomeDynByMonthBtn">По месяцам</button>
+        </span>
+      </h2>
       <div class="chart-box"><canvas id="incomeDynamicsChart"></canvas></div>
     </div>
   </div>
@@ -1197,6 +1205,7 @@ let state = {
   expectedIncome: [],
   incomeSort: { key: null, dir: 'asc' },    // key: 'name' | 'amount' | 'date'
   shoppingNotes: [],
+  incomeDynamicsView: 'day', // 'day' | 'month'
 };
 
 let currentUser = null;
@@ -1260,6 +1269,18 @@ function sumForMonths(monthKeys, kind) {
   return state.transactions
     .filter(t => t.kind === kind && set.has(monthKey(t.date)) && hasHappened(t))
     .reduce((s,t) => s + Number(t.amount), 0);
+}
+
+function sumForDay(dateStr, kind) {
+  return state.transactions
+    .filter(t => t.kind === kind && t.date === dateStr && hasHappened(t))
+    .reduce((s,t) => s + Number(t.amount), 0);
+}
+
+function daysInMonthArray(monthKeyStr) {
+  const [y, m] = monthKeyStr.split('-').map(Number);
+  const count = new Date(y, m, 0).getDate();
+  return Array.from({length: count}, (_, i) => `${monthKeyStr}-${String(i+1).padStart(2,'0')}`);
 }
 
 /* ---------------- AUTH ---------------- */
@@ -1601,6 +1622,16 @@ function setViewMode(mode) {
   document.getElementById('labelBalancePeriod').textContent = mode === 'month' ? 'Остаток за месяц' : 'Остаток за год';
   renderEverything();
 }
+
+/* ---------------- UI: INCOME DYNAMICS (DAY / MONTH) ---------------- */
+document.getElementById('incomeDynByDayBtn').addEventListener('click', () => {
+  state.incomeDynamicsView = 'day';
+  renderIncomeDynamics();
+});
+document.getElementById('incomeDynByMonthBtn').addEventListener('click', () => {
+  state.incomeDynamicsView = 'month';
+  renderIncomeDynamics();
+});
 
 function setKind(kind) {
   state.kind = kind;
@@ -2300,15 +2331,30 @@ function renderExpectedIncome() {
 
 let incomeDynamicsChartInstance;
 function renderIncomeDynamics() {
-  const labels = last12Months();
-  const income = labels.map(m => sumForMonths([m], 'income'));
+  document.getElementById('incomeDynByDayBtn').classList.toggle('active', state.incomeDynamicsView === 'day');
+  document.getElementById('incomeDynByMonthBtn').classList.toggle('active', state.incomeDynamicsView === 'month');
+
+  let labels, income, badgeText;
+  if (state.incomeDynamicsView === 'day') {
+    const days = daysInMonthArray(state.selectedMonth);
+    labels = days.map(d => d.slice(8, 10));
+    income = days.map(d => sumForDay(d, 'income'));
+    const monthName = monthLabel(state.selectedMonth);
+    badgeText = monthName.charAt(0).toUpperCase() + monthName.slice(1);
+  } else {
+    const months = last12Months();
+    labels = months.map(m => monthLabel(m).replace(/^(\S+)/, s => s.charAt(0).toUpperCase()+s.slice(1)));
+    income = months.map(m => sumForMonths([m], 'income'));
+    badgeText = '12 мес';
+  }
+  document.getElementById('incomeDynamicsBadge').textContent = badgeText;
 
   const ctx = document.getElementById('incomeDynamicsChart');
   if (incomeDynamicsChartInstance) incomeDynamicsChartInstance.destroy();
   incomeDynamicsChartInstance = new Chart(ctx, {
     type: 'bar',
     data: {
-      labels: labels.map(m => monthLabel(m).replace(/^(\S+)/, s => s.charAt(0).toUpperCase()+s.slice(1))),
+      labels,
       datasets: [
         { label: 'Доход', data: income, backgroundColor: '#2E7D5B99', borderRadius: 4 },
       ]
