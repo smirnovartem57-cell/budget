@@ -485,6 +485,7 @@
     padding: 10px;
     border-bottom: 1px solid var(--border);
     vertical-align: middle;
+    white-space: nowrap;
   }
   tr:last-child td { border-bottom: none; }
   th.sortable { cursor: pointer; user-select: none; }
@@ -643,6 +644,18 @@
 
     .container { padding: 18px 12px 40px; }
     .panel { padding: 16px; }
+    .page-tabs { gap: 5px; }
+    .page-tab-btn {
+      flex: 1;
+      min-width: 0;
+      padding: 8px 4px;
+      font-size: 11.5px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    input[type=date] { min-width: 0; max-width: 100%; }
+    #txCommentHeader, td.tx-comment-cell.comment-cell { display: none; }
     .summary-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
     .summary-card { padding: 10px 8px; }
     .summary-card .label { font-size: 9.5px; margin-bottom: 4px; }
@@ -859,7 +872,7 @@
               <tr>
                 <th class="sortable" id="txSortDate" data-key="date">Дата</th>
                 <th class="sortable" id="txSortCategory" data-key="category">Категория</th>
-                <th>Комментарий</th>
+                <th id="txCommentHeader">Комментарий</th>
                 <th class="sortable" id="txSortAmount" data-key="amount" style="text-align:right;">Сумма</th>
                 <th></th>
               </tr>
@@ -2714,7 +2727,7 @@ function renderTable() {
     tr.innerHTML = `
       <td>${dateFmt}</td>
       <td><span class="cat-badge">${txCategoryLabel(t)}</span></td>
-      <td class="comment-cell">${t.comment || ''}</td>
+      <td class="comment-cell tx-comment-cell">${t.comment || ''}</td>
       <td style="text-align:right;" class="${t.kind === 'income' ? 'amount-income' : 'amount-expense'}">
         ${t.kind === 'income' ? '+' : '−'} ${fmt.format(t.amount)}
       </td>
