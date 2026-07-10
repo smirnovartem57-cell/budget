@@ -920,6 +920,7 @@
           <span>Операции</span>
           <select id="txPeriodSelect" style="width:auto; padding:6px 10px; font-size:16px;"></select>
         </h2>
+        <input type="text" id="txSearchInput" placeholder="Поиск по комментарию, категории или сумме…" style="margin-bottom:12px;">
         <div style="overflow-x:auto;">
           <table>
             <thead>
@@ -1269,6 +1270,7 @@ let state = {
   viewMode: 'month',     // month | year
   txPeriod: 'sync',      // 'sync' | 'all' | 'YYYY-MM'
   txVisibleCount: 5,
+  txSearch: '',
   txSort: { key: null, dir: 'asc' },        // key: 'category' | 'amount' | 'date'
   recurringSort: { key: null, dir: 'asc' }, // key: 'name' | 'amount' | 'date'
   shoppingList: [],
@@ -2824,6 +2826,11 @@ document.getElementById('loadMoreBtn').addEventListener('click', () => {
   state.txVisibleCount += 5;
   renderTable();
 });
+document.getElementById('txSearchInput').addEventListener('input', (e) => {
+  state.txSearch = e.target.value;
+  state.txVisibleCount = 5;
+  renderTable();
+});
 
 function setupSortableHeader(elId, sortState, renderFn) {
   const th = document.getElementById(elId);
@@ -2940,6 +2947,16 @@ function renderTable() {
     : state.transactions.slice()
   ).filter(hasHappened);
 
+  const q = state.txSearch.trim().toLowerCase();
+  if (q) {
+    list = list.filter(t =>
+      (t.comment || '').toLowerCase().includes(q) ||
+      txCategoryLabel(t).toLowerCase().includes(q) ||
+      String(t.amount).includes(q) ||
+      t.date.includes(q)
+    );
+  }
+
   const { key, dir } = state.txSort;
   if (key === 'amount') {
     list.sort((a, b) => (Number(a.amount) - Number(b.amount)) * (dir === 'asc' ? 1 : -1));
@@ -2954,7 +2971,9 @@ function renderTable() {
 
   const visible = list.slice(0, state.txVisibleCount);
   tbody.innerHTML = '';
-  document.getElementById('emptyNote').style.display = list.length ? 'none' : 'block';
+  const emptyNote = document.getElementById('emptyNote');
+  emptyNote.style.display = list.length ? 'none' : 'block';
+  emptyNote.textContent = q ? 'Ничего не найдено' : 'Нет операций за этот период';
   visible.forEach(t => {
     const tr = document.createElement('tr');
     tr.innerHTML = `
