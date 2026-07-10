@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Семейный бюджет</title>
 <meta name="description" content="Семейный бюджет — учёт доходов, расходов, долгов и списка покупок.">
 <meta property="og:title" content="Семейный бюджет">
@@ -64,25 +64,43 @@
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<script src="https://cdn.jsdelivr.net/npm/lucide@0.462.0/dist/umd/lucide.js"></script>
 <style>
-  /* ===================== ПАЛИТРА ===================== */
+  /* ===================== ПАЛИТРА (light premium fintech, ТЗ от 11.07.2026) ===================== */
   :root {
-    --bg-page: #FAFAF9;
-    --border: #E7E5E1;
-    --text-primary: #3A3A38;
-    --text-secondary: #9C9A94;
-    --info-bg: #B7D6F2;
-    --info-accent: #5B94C9;
-    --btn-primary: #185FA5;
-    --btn-primary-hover: #0C447C;
-    --btn-primary-text: #FAFAF9;
-    --graphite: #232733;
-    --graphite-hover: #171A21;
-    --graphite-text: #FAFAF9;
-    --income-accent: #2E7D5B;
-    --expense-accent: #B4483A;
+    --bg-page: #F7F9FC;
+    --bg-secondary: #F1F5FA;
+    --border: #E7EBF2;
+    --border-secondary: #EEF1F6;
+    --text-primary: #17213A;
+    --text-secondary: #66718A;
+    --text-muted: #98A2B5;
+    --info-bg: #EAF0FF;
+    --info-accent: #4F7DF3;
+    --btn-primary: #4F7DF3;
+    --btn-primary-hover: #3E6DE0;
+    --btn-primary-text: #FFFFFF;
+    --graphite: #17213A;
+    --graphite-hover: #0F1729;
+    --graphite-text: #FFFFFF;
+    --income-accent: #25A875;
+    --income-bg: #E7F7F0;
+    --expense-accent: #E45E68;
+    --expense-bg: #FDECEE;
+    --warning: #E89B3C;
+    --warning-bg: #FFF4E4;
+    --mint: #4FC9A4; --mint-bg: #E8F8F2;
+    --purple: #9370E8; --purple-bg: #F1ECFC;
+    --orange: #F2A35E; --orange-bg: #FFF2E7;
+    --pink: #EF769F; --pink-bg: #FDECF2;
     --card-bg: #FFFFFF;
-    --radius: 14px;
+    --radius: 18px;
+    --radius-sm: 14px;
+    --radius-lg: 22px;
+    --shadow-card: 0 4px 12px rgba(23,33,58,0.05), 0 10px 24px rgba(23,33,58,0.05);
+    --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px;
+    --space-5: 20px; --space-6: 24px; --space-7: 32px;
+    --bottom-nav-h: 64px;
   }
 
   * { box-sizing: border-box; }
@@ -146,6 +164,7 @@
     margin-left: 12px;
   }
   .header-btn:hover { background: rgba(255,255,255,0.2); }
+  .header-btn svg { width: 14px; height: 14px; vertical-align: -2px; }
 
   .auth-modal-overlay {
     position: fixed; inset: 0;
@@ -219,6 +238,7 @@
   }
   .month-nav-btn:hover { background: rgba(255,255,255,0.2); }
   .month-nav-btn:disabled { opacity: 0.3; cursor: default; }
+  .month-nav-btn svg { width: 13px; height: 13px; }
   .view-toggle {
     display: flex;
     background: rgba(255,255,255,0.06);
@@ -275,7 +295,7 @@
   /* summary cards */
   .summary-grid {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
     gap: 14px;
     margin-bottom: 26px;
   }
@@ -286,6 +306,7 @@
     background: var(--card-bg);
     border: 1px solid var(--border);
     border-radius: var(--radius);
+    box-shadow: var(--shadow-card);
     padding: 18px 20px;
   }
   .summary-card .label {
@@ -298,13 +319,34 @@
   }
   .summary-card .value {
     font-family: 'Manrope', sans-serif;
-    font-size: 26px;
+    font-size: 28px;
     font-weight: 800;
   }
   .summary-card.income .value { color: var(--income-accent); }
   .summary-card.expense .value { color: var(--expense-accent); }
   .summary-card.balance .value { color: var(--btn-primary); }
+  .summary-card.debts .value { color: var(--warning); }
   .summary-card.balance-total .value { color: var(--graphite); }
+
+  .metric-icon {
+    width: 36px; height: 36px;
+    border-radius: var(--radius-sm);
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 10px;
+  }
+  .metric-icon svg { width: 18px; height: 18px; }
+  .metric-icon.icon-income { background: var(--income-bg); color: var(--income-accent); }
+  .metric-icon.icon-expense { background: var(--expense-bg); color: var(--expense-accent); }
+  .metric-icon.icon-debts { background: var(--warning-bg); color: var(--warning); }
+  .metric-icon.icon-balance { background: rgba(255,255,255,0.18); color: #fff; }
+
+  .summary-card.hero {
+    grid-column: 1 / -1;
+    background: linear-gradient(135deg, var(--graphite) 0%, var(--btn-primary) 100%);
+    border: none;
+  }
+  .summary-card.hero .label, .summary-card.hero .value, .summary-card.hero .growth-indicator { color: #fff; }
+  .summary-card.hero .value { font-size: 34px; }
 
   /* main grid */
   .main-grid {
@@ -322,6 +364,7 @@
     background: var(--card-bg);
     border: 1px solid var(--border);
     border-radius: var(--radius);
+    box-shadow: var(--shadow-card);
     padding: 22px;
     margin-bottom: 20px;
   }
@@ -335,9 +378,10 @@
     row-gap: 6px;
     gap: 8px;
   }
+  .panel h2 svg { width: 16px; height: 16px; vertical-align: -3px; margin-right: 2px; }
   .panel h2 .badge-info {
     background: var(--info-bg);
-    color: #0C2B44;
+    color: var(--text-primary);
     font-size: 11px;
     font-weight: 700;
     padding: 3px 9px;
@@ -379,7 +423,7 @@
     background: var(--info-bg);
     border-radius: 8px;
     font-size: 12.5px;
-    color: #0C2B44;
+    color: var(--text-primary);
     display: flex;
     align-items: center;
     flex-wrap: wrap;
@@ -395,14 +439,14 @@
 
   .ai-summary-toggle { display: flex; gap: 8px; margin-bottom: 10px; }
   .ai-summary-toggle button {
-    flex: 1; padding: 8px; border-radius: 10px; border: 1px solid var(--border);
+    flex: 1; padding: 8px; border-radius: var(--radius-sm); border: 1px solid var(--border);
     background: var(--bg-page); color: var(--text-secondary);
     font-weight: 700; font-size: 13px; cursor: pointer; transition: all .15s;
   }
   .ai-summary-toggle button.active { background: var(--info-accent); color: #fff; border-color: var(--info-accent); }
   .ai-summary-text { font-size: 13.5px; line-height: 1.5; color: var(--text-primary); margin-bottom: 8px; }
   .ai-summary-highlights { list-style: none; padding: 0; margin: 0 0 8px; display: flex; flex-direction: column; gap: 5px; }
-  .ai-summary-highlights li { font-size: 12.5px; padding: 6px 10px; background: var(--info-bg); border-radius: 8px; color: #0C2B44; }
+  .ai-summary-highlights li { font-size: 12.5px; padding: 6px 10px; background: var(--info-bg); border-radius: 8px; color: var(--text-primary); }
   .ai-summary-meta { font-size: 11px; color: var(--text-secondary); }
   .kind-toggle {
     display: flex;
@@ -412,7 +456,7 @@
   .kind-toggle button {
     flex: 1;
     padding: 10px;
-    border-radius: 10px;
+    border-radius: var(--radius-sm);
     border: 1px solid var(--border);
     background: var(--bg-page);
     color: var(--text-secondary);
@@ -431,7 +475,7 @@
     width: 100%;
     padding: 12px 14px;
     border: 1px solid var(--border);
-    border-radius: 10px;
+    border-radius: var(--radius-sm);
     font-family: 'Inter', sans-serif;
     font-size: 16px;
     color: var(--text-primary);
@@ -464,25 +508,27 @@
   .page-tabs { display: flex; gap: 8px; margin-bottom: 20px; }
   .page-tab-btn {
     padding: 10px 18px;
-    border-radius: 10px;
+    border-radius: var(--radius-sm);
     border: 1px solid var(--border);
     background: var(--card-bg);
     color: var(--text-secondary);
     font-weight: 700;
     font-size: 13.5px;
     cursor: pointer;
+    transition: all .15s;
   }
   .page-tab-btn.active {
-    background: var(--graphite);
-    color: var(--graphite-text);
-    border-color: var(--graphite);
+    background: var(--btn-primary);
+    color: #fff;
+    border-color: var(--btn-primary);
   }
 
   .btn-primary, .btn-secondary, .btn-ghost {
     border: none;
-    border-radius: 10px;
+    border-radius: var(--radius-sm);
     font-weight: 700;
     font-size: 14px;
+    min-height: 44px;
     padding: 11px 18px;
     cursor: pointer;
     font-family: 'Inter', sans-serif;
@@ -490,8 +536,8 @@
   }
   .btn-primary { background: var(--btn-primary); color: var(--btn-primary-text); width: 100%; }
   .btn-primary:hover { background: var(--btn-primary-hover); }
-  .btn-secondary { background: var(--graphite); color: var(--graphite-text); }
-  .btn-secondary:hover { background: var(--graphite-hover); }
+  .btn-secondary { background: var(--info-bg); color: var(--btn-primary); }
+  .btn-secondary:hover { background: #DCE7FF; }
   .btn-ghost {
     background: transparent;
     border: 1px solid var(--border);
@@ -513,6 +559,9 @@
     .charts-grid { grid-template-columns: minmax(0, 1fr); }
   }
   .chart-box { position: relative; height: 260px; }
+  .chart-center-label { position: absolute; top: 42%; left: 50%; transform: translate(-50%, -50%); text-align: center; pointer-events: none; }
+  .chart-center-value { font-family: 'Manrope', sans-serif; font-weight: 800; font-size: 20px; color: var(--text-primary); }
+  .chart-center-caption { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
   .empty-note {
     color: var(--text-secondary);
     font-size: 13.5px;
@@ -546,7 +595,7 @@
   .cat-badge {
     display: inline-block;
     background: var(--info-bg);
-    color: #0C2B44;
+    color: var(--text-primary);
     font-size: 12px;
     font-weight: 600;
     padding: 3px 10px;
@@ -554,6 +603,16 @@
   }
   .amount-income { color: var(--income-accent); font-weight: 700; }
   .amount-expense { color: var(--expense-accent); font-weight: 700; }
+  .recent-tx-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px dashed var(--border); }
+  .recent-tx-row:last-child { border-bottom: none; }
+  .recent-tx-icon { width: 36px; height: 36px; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .recent-tx-icon svg { width: 16px; height: 16px; }
+  .recent-tx-icon.income { background: var(--income-bg); color: var(--income-accent); }
+  .recent-tx-icon.expense { background: var(--expense-bg); color: var(--expense-accent); }
+  .recent-tx-info { flex: 1; min-width: 0; }
+  .recent-tx-cat { font-size: 13.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .recent-tx-date { font-size: 11.5px; color: var(--text-secondary); margin-top: 2px; }
+  .recent-tx-amount { font-size: 14px; font-weight: 700; flex-shrink: 0; }
   .amount-paid { color: var(--income-accent) !important; }
   .amount-income input, .amount-expense input { color: inherit; font-weight: inherit; }
   .del-btn {
@@ -565,7 +624,8 @@
     padding: 4px 8px;
     border-radius: 6px;
   }
-  .del-btn:hover { background: #FDEEEE; color: var(--expense-accent); }
+  .del-btn:hover { background: var(--expense-bg); color: var(--expense-accent); }
+  .del-btn svg { width: 14px; height: 14px; display: block; }
   .comment-cell { color: var(--text-secondary); font-size: 12.5px; }
   input.shopping-date-input { width: auto; min-width: 150px; padding: 6px 8px; font-size: 16px; }
   .days-remaining { font-size: 11.5px; color: var(--text-secondary); margin-top: 3px; }
@@ -594,8 +654,10 @@
   .notepad-input-row input[type=text] { flex: 1; }
   .mic-btn {
     border: 1px solid var(--border); background: var(--card-bg); color: var(--text-primary);
-    border-radius: 10px; width: 42px; height: 42px; font-size: 18px; cursor: pointer; flex-shrink: 0;
+    border-radius: var(--radius-sm); width: 44px; height: 44px; font-size: 18px; cursor: pointer; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
   }
+  .mic-btn svg { width: 18px; height: 18px; }
   .mic-btn.listening { background: var(--expense-accent); color: #fff; border-color: var(--expense-accent); animation: pulse 1s infinite ease-in-out; }
   .notepad-list { list-style: none; margin: 0; padding: 0; }
   .notepad-item { display: flex; align-items: center; gap: 10px; padding: 8px 2px; border-bottom: 1px dashed var(--border); }
@@ -647,6 +709,7 @@
   .btn-tiny.active { background: var(--income-accent); border-color: var(--income-accent); color: #fff; }
   .btn-tiny.active:hover { color: #fff; }
   .btn-tiny.icon-btn { padding: 6px 9px; font-size: 13px; }
+  .btn-tiny svg { width: 14px; height: 14px; display: block; }
   .debt-row-paid { opacity: 0.5; }
   .debt-row-paid .cat-badge { text-decoration: line-through; }
 
@@ -780,7 +843,10 @@
     .summary-card { padding: 10px 8px; }
     .summary-card .label { font-size: 9.5px; margin-bottom: 4px; }
     .summary-card .value { font-size: 14.5px; }
+    .summary-card.hero .value { font-size: 22px; }
     .growth-indicator { font-size: 9.5px; }
+    .metric-icon { width: 28px; height: 28px; margin-bottom: 6px; }
+    .metric-icon svg { width: 14px; height: 14px; }
 
     table { font-size: 12.5px; }
     th, td { padding: 8px 4px; }
@@ -795,6 +861,41 @@
       vertical-align: bottom;
     }
   }
+
+  /* ===================== BOTTOM NAVIGATION ===================== */
+  .bottom-nav {
+    display: none;
+    position: fixed; left: 0; right: 0; bottom: 0;
+    height: var(--bottom-nav-h);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    background: var(--card-bg);
+    border-top: 1px solid var(--border);
+    box-shadow: 0 -4px 16px rgba(23,33,58,0.06);
+    z-index: 1000;
+    align-items: center; justify-content: space-around;
+  }
+  .bottom-nav-btn {
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    background: none; border: none; color: var(--text-muted);
+    font-size: 10.5px; font-weight: 600; font-family: 'Inter', sans-serif;
+    padding: 6px 4px; cursor: pointer;
+  }
+  .bottom-nav-btn svg { width: 22px; height: 22px; }
+  .bottom-nav-btn.active { color: var(--btn-primary); }
+  .bottom-nav-add {
+    width: 52px; height: 52px; border-radius: 50%;
+    background: var(--btn-primary); color: #fff; border: none;
+    display: flex; align-items: center; justify-content: center;
+    margin-top: -28px; box-shadow: 0 6px 16px rgba(79,125,243,0.4); cursor: pointer;
+  }
+  .bottom-nav-add svg { width: 24px; height: 24px; }
+  @media (max-width: 767px) {
+    .bottom-nav { display: flex; }
+    .page-tabs { display: none; }
+    .container { padding-bottom: calc(60px + var(--bottom-nav-h) + env(safe-area-inset-bottom, 0px)); }
+    .toast { bottom: calc(24px + var(--bottom-nav-h) + env(safe-area-inset-bottom, 0px)); }
+    .voice-status-bar { bottom: calc(var(--bottom-nav-h) + env(safe-area-inset-bottom, 0px)); }
+  }
 </style>
 </head>
 <body>
@@ -806,7 +907,7 @@
       <h1>Семейный бюджет</h1>
       <div class="subtitle" id="authStatusLabel">Демо-режим</div>
     </div>
-    <button type="button" class="header-btn" id="pinBtn" style="display:none;">🔒 PIN</button>
+    <button type="button" class="header-btn" id="pinBtn" style="display:none;"><i data-lucide="lock"></i> PIN</button>
     <button type="button" class="header-btn" id="authBtn">Войти</button>
   </div>
   <div class="month-picker">
@@ -814,10 +915,10 @@
       <button type="button" class="view-toggle-btn active" id="viewModeMonthBtn">Месяц</button>
       <button type="button" class="view-toggle-btn" id="viewModeYearBtn">Год</button>
     </div>
-    <button type="button" class="month-nav-btn" id="monthPrevBtn" title="Предыдущий период">◀</button>
+    <button type="button" class="month-nav-btn" id="monthPrevBtn" title="Предыдущий период"><i data-lucide="chevron-left"></i></button>
     <select id="monthSelect"></select>
     <select id="yearSelect" style="display:none;"></select>
-    <button type="button" class="month-nav-btn" id="monthNextBtn" title="Следующий период">▶</button>
+    <button type="button" class="month-nav-btn" id="monthNextBtn" title="Следующий период"><i data-lucide="chevron-right"></i></button>
   </div>
 </div>
 
@@ -843,21 +944,37 @@
 
   <div id="budgetView">
   <div class="summary-grid">
+    <div class="summary-card balance hero">
+      <div class="metric-icon icon-balance"><i data-lucide="wallet"></i></div>
+      <div class="label" id="labelBalancePeriod">Остаток за месяц</div>
+      <div class="value" id="balanceMonth">—</div>
+      <div class="growth-indicator" id="growthBalance"></div>
+    </div>
     <div class="summary-card income">
+      <div class="metric-icon icon-income"><i data-lucide="trending-up"></i></div>
       <div class="label" id="labelIncomePeriod">Доход за месяц</div>
       <div class="value" id="sumIncomeMonth">—</div>
       <div class="growth-indicator" id="growthIncome"></div>
     </div>
     <div class="summary-card expense">
+      <div class="metric-icon icon-expense"><i data-lucide="trending-down"></i></div>
       <div class="label" id="labelExpensePeriod">Расход за месяц</div>
       <div class="value" id="sumExpenseMonth">—</div>
       <div class="growth-indicator" id="growthExpense"></div>
     </div>
-    <div class="summary-card balance">
-      <div class="label" id="labelBalancePeriod">Остаток за месяц</div>
-      <div class="value" id="balanceMonth">—</div>
-      <div class="growth-indicator" id="growthBalance"></div>
+    <div class="summary-card debts">
+      <div class="metric-icon icon-debts"><i data-lucide="hand-coins"></i></div>
+      <div class="label">Непогашенные долги</div>
+      <div class="value" id="debtsMonthTotal">—</div>
     </div>
+  </div>
+
+  <div class="panel" id="recentTxPanel">
+    <h2 style="justify-content:space-between;">
+      <span>Последние операции</span>
+      <span class="badge-info" id="recentTxSeeAllBtn" style="cursor:pointer;">Смотреть все →</span>
+    </h2>
+    <div id="recentTxList"></div>
   </div>
 
   <div class="panel" id="aiSummaryPanel" style="display:none;">
@@ -874,12 +991,12 @@
 
   <div class="panel">
     <h2 style="justify-content:space-between;">
-      <span>📝 Список покупок на сегодня</span>
+      <span><i data-lucide="notebook-pen"></i> Список покупок на сегодня</span>
       <span class="badge-info" id="notepadDateLabel"></span>
     </h2>
     <div class="notepad-input-row">
       <input type="text" id="notepadInput" placeholder="Например: молоко, хлеб...">
-      <button type="button" class="mic-btn" id="notepadMicBtn" title="Добавить голосом">🎤</button>
+      <button type="button" class="mic-btn" id="notepadMicBtn" title="Добавить голосом"><i data-lucide="mic"></i></button>
       <button type="button" class="btn-primary" style="width:auto; padding:0 18px;" id="notepadAddBtn">Добавить</button>
     </div>
     <ul class="notepad-list" id="notepadList"></ul>
@@ -892,7 +1009,7 @@
       <h2 style="justify-content:space-between;">
         <span>Новая операция</span>
         <label class="ai-toggle-label" title="Подсказывать категорию по правилам, истории и словарю">
-          <input type="checkbox" id="aiAutoCatToggle"> 🤖 Автокатегория
+          <input type="checkbox" id="aiAutoCatToggle"> <i data-lucide="sparkles" style="width:14px;height:14px;vertical-align:-2px;"></i> Автокатегория
         </label>
       </h2>
       <div class="kind-toggle">
@@ -957,7 +1074,7 @@
         <label>Комментарий (необязательно)</label>
         <div class="notepad-input-row" style="margin-bottom:0;">
           <input type="text" id="commentInput" placeholder="Например: аванс за проект">
-          <button type="button" class="mic-btn" id="txMicBtn" title="Добавить голосом">🎤</button>
+          <button type="button" class="mic-btn" id="txMicBtn" title="Добавить голосом"><i data-lucide="mic"></i></button>
         </div>
       </div>
 
@@ -1025,7 +1142,7 @@
       <div style="height:20px;"></div>
 
       <!-- TRANSACTIONS -->
-      <div class="panel">
+      <div class="panel" id="txPanel">
         <h2 style="justify-content:space-between;">
           <span>Операции</span>
           <select id="txPeriodSelect" style="width:auto; padding:6px 10px; font-size:16px;"></select>
@@ -1240,10 +1357,12 @@
 
     <div style="display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap:14px; margin-top:20px;">
       <div class="summary-card income">
+        <div class="metric-icon icon-income"><i data-lucide="trending-up"></i></div>
         <div class="label">Текущий месяц</div>
         <div class="value" id="incomeCurrentMonthValue">—</div>
       </div>
       <div class="summary-card income">
+        <div class="metric-icon icon-income"><i data-lucide="trending-up"></i></div>
         <div class="label" id="incomeReportMonthLabel">Отчётный месяц</div>
         <div class="value" id="incomeReportMonthValue">—</div>
         <div class="growth-indicator" id="incomeCompareGrowth"></div>
@@ -1342,6 +1461,14 @@
   <span>Идёт запись голоса…</span>
   <button type="button" class="voice-status-cancel" id="voiceStatusCancelBtn">Отмена</button>
 </div>
+
+<nav class="bottom-nav" id="bottomNav">
+  <button type="button" class="bottom-nav-btn active" id="navBudgetBtn"><i data-lucide="wallet"></i><span>Бюджет</span></button>
+  <button type="button" class="bottom-nav-btn" id="navDebtsBtn"><i data-lucide="hand-coins"></i><span>Долги</span></button>
+  <button type="button" class="bottom-nav-add" id="navAddBtn" title="Новая операция"><i data-lucide="plus"></i></button>
+  <button type="button" class="bottom-nav-btn" id="navShoppingBtn"><i data-lucide="shopping-cart"></i><span>Покупки</span></button>
+  <button type="button" class="bottom-nav-btn" id="navIncomeBtn"><i data-lucide="banknote"></i><span>Доходы</span></button>
+</nav>
 
 <script>
 /* =========================================================
@@ -1582,6 +1709,10 @@ document.getElementById('pinBtn').addEventListener('click', () => {
   pinConfirmDigits.clear();
   document.getElementById('pinModalOverlay').classList.add('visible');
   (hasPin ? pinCurrentDigits : pinNewDigits).focus();
+});
+
+document.getElementById('recentTxSeeAllBtn').addEventListener('click', () => {
+  document.getElementById('txPanel').scrollIntoView({ behavior: 'smooth' });
 });
 document.getElementById('pinCancelBtn').addEventListener('click', () => {
   document.getElementById('pinModalOverlay').classList.remove('visible');
@@ -1830,11 +1961,26 @@ document.getElementById('tabDebtsBtn').addEventListener('click', () => switchPag
 document.getElementById('tabShoppingBtn').addEventListener('click', () => switchPageTab('shopping'));
 document.getElementById('tabIncomeBtn').addEventListener('click', () => switchPageTab('income'));
 
+document.getElementById('navBudgetBtn').addEventListener('click', () => switchPageTab('budget'));
+document.getElementById('navDebtsBtn').addEventListener('click', () => switchPageTab('debts'));
+document.getElementById('navShoppingBtn').addEventListener('click', () => switchPageTab('shopping'));
+document.getElementById('navIncomeBtn').addEventListener('click', () => switchPageTab('income'));
+document.getElementById('navAddBtn').addEventListener('click', () => {
+  switchPageTab('budget');
+  const amountInput = document.getElementById('amountInput');
+  amountInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  amountInput.focus();
+});
+
 function switchPageTab(tab) {
   document.getElementById('tabBudgetBtn').classList.toggle('active', tab === 'budget');
   document.getElementById('tabDebtsBtn').classList.toggle('active', tab === 'debts');
   document.getElementById('tabShoppingBtn').classList.toggle('active', tab === 'shopping');
   document.getElementById('tabIncomeBtn').classList.toggle('active', tab === 'income');
+  document.getElementById('navBudgetBtn').classList.toggle('active', tab === 'budget');
+  document.getElementById('navDebtsBtn').classList.toggle('active', tab === 'debts');
+  document.getElementById('navShoppingBtn').classList.toggle('active', tab === 'shopping');
+  document.getElementById('navIncomeBtn').classList.toggle('active', tab === 'income');
   document.getElementById('budgetView').style.display = tab === 'budget' ? '' : 'none';
   document.getElementById('debtsView').style.display = tab === 'debts' ? '' : 'none';
   document.getElementById('shoppingView').style.display = tab === 'shopping' ? '' : 'none';
@@ -2590,6 +2736,10 @@ async function updateDebtField(id, field, rawValue) {
   await loadAll();
 }
 
+function computeUnpaidDebtsTotal() {
+  return state.debts.filter(d => !d.is_paid).reduce((s, d) => s + Number(d.amount), 0);
+}
+
 function renderDebts() {
   const grid = document.getElementById('debtsByPersonGrid');
   const unpaid = state.debts.filter(d => !d.is_paid);
@@ -2598,14 +2748,15 @@ function renderDebts() {
   const people = Object.keys(byPerson).sort();
   grid.innerHTML = people.length
     ? people.map(name => `
-        <div class="summary-card income">
+        <div class="summary-card debts">
+          <div class="metric-icon icon-debts"><i data-lucide="hand-coins"></i></div>
           <div class="label">${name}</div>
           <div class="value">${fmt.format(byPerson[name])}</div>
         </div>
       `).join('')
     : '<div class="empty-note">Пока нет долгов</div>';
 
-  const total = unpaid.reduce((s, d) => s + Number(d.amount), 0);
+  const total = computeUnpaidDebtsTotal();
   document.getElementById('debtsTotalBadge').textContent = fmt.format(total);
 
   const tbody = document.getElementById('debtsTableBody');
@@ -2630,8 +2781,8 @@ function renderDebts() {
           onchange="updateDebtField('${d.id}','amount', this.value.replace(/\s/g,'').replace(',', '.'))">
       </td>
       <td style="white-space:nowrap;">
-        <button class="btn-tiny icon-btn" onclick="toggleDebtPaid('${d.id}', ${d.is_paid ? 'false' : 'true'})" title="${d.is_paid ? 'Вернуть в долги' : 'Отметить оплаченным'}">${d.is_paid ? '↺' : '✓'}</button>
-        <button class="del-btn" onclick="deleteDebt('${d.id}')" title="Удалить">✕</button>
+        <button class="btn-tiny icon-btn" onclick="toggleDebtPaid('${d.id}', ${d.is_paid ? 'false' : 'true'})" title="${d.is_paid ? 'Вернуть в долги' : 'Отметить оплаченным'}">${d.is_paid ? '<i data-lucide="undo-2"></i>' : '<i data-lucide="check"></i>'}</button>
+        <button class="del-btn" onclick="deleteDebt('${d.id}')" title="Удалить"><i data-lucide="x"></i></button>
       </td>
     `;
     tbody.appendChild(tr);
@@ -2747,7 +2898,7 @@ function renderShoppingNotes() {
     li.innerHTML = `
       <input type="checkbox" ${item.is_done ? 'checked' : ''} onchange="toggleShoppingNote('${item.id}', this.checked)">
       <span>${escapeAttr(item.text)}</span>
-      <button class="del-btn" onclick="deleteShoppingNote('${item.id}')">✕</button>
+      <button class="del-btn" onclick="deleteShoppingNote('${item.id}')"><i data-lucide="x"></i></button>
     `;
     ul.appendChild(li);
   });
@@ -2961,7 +3112,7 @@ function renderShoppingList() {
       </td>
       <td style="white-space:nowrap;">
         <button class="btn-tiny icon-btn" onclick="markShoppingBought('${item.id}')" title="Отметить купленным">🛒</button>
-        <button class="del-btn" onclick="deleteShoppingItem('${item.id}')" title="Удалить">✕</button>
+        <button class="del-btn" onclick="deleteShoppingItem('${item.id}')" title="Удалить"><i data-lucide="x"></i></button>
       </td>
     `;
     tbody.appendChild(tr);
@@ -3131,7 +3282,7 @@ function renderExpectedIncome() {
           onblur="this.value = fmt.format(parseFloat(this.value.replace(/\s/g,'').replace(',', '.')) || ${item.amount})"
           onchange="updateIncomeField('${item.id}','amount', this.value.replace(/\s/g,'').replace(',', '.'))">
       </td>
-      <td style="white-space:nowrap; display:flex; gap:4px; align-items:center;"><button class="btn-tiny icon-btn" onclick="markIncomeReceived('${item.id}')" title="Добавить в операции">📥</button><button class="btn-tiny icon-btn ${item.is_received ? 'active' : ''}" onclick="toggleIncomeReceivedFlag('${item.id}')" title="${item.is_received ? 'Деньги пришли — нажмите, чтобы снять отметку' : 'Отметить, что деньги пришли'}">✓</button><button class="del-btn" onclick="deleteExpectedIncome('${item.id}')" title="Удалить">✕</button></td>
+      <td style="white-space:nowrap; display:flex; gap:4px; align-items:center;"><button class="btn-tiny icon-btn" onclick="markIncomeReceived('${item.id}')" title="Добавить в операции"><i data-lucide="download"></i></button><button class="btn-tiny icon-btn ${item.is_received ? 'active' : ''}" onclick="toggleIncomeReceivedFlag('${item.id}')" title="${item.is_received ? 'Деньги пришли — нажмите, чтобы снять отметку' : 'Отметить, что деньги пришли'}"><i data-lucide="check"></i></button><button class="del-btn" onclick="deleteExpectedIncome('${item.id}')" title="Удалить"><i data-lucide="x"></i></button></td>
     `;
     tbody.appendChild(tr);
   });
@@ -3284,7 +3435,7 @@ function renderRecurring() {
         ${endFmt ? `<div class="days-remaining">до ${endFmt}</div>` : ''}
       </td>
       <td style="text-align:right;" class="amount-expense ${isPaid ? 'amount-paid' : ''}" title="${isPaid ? 'Платёж за этот месяц уже прошёл' : ''}">${fmt.format(g.amount)}</td>
-      <td><button class="del-btn" onclick="deleteRecurringGroup('${groupId}')">✕</button></td>
+      <td><button class="del-btn" onclick="deleteRecurringGroup('${groupId}')"><i data-lucide="x"></i></button></td>
     `;
     tbody.appendChild(tr);
   });
@@ -3540,6 +3691,7 @@ function renderSummary() {
   document.getElementById('sumIncomeMonth').textContent = fmt.format(incomePeriod);
   document.getElementById('sumExpenseMonth').textContent = fmt.format(expensePeriod);
   document.getElementById('balanceMonth').textContent = fmt.format(incomePeriod - expensePeriod);
+  document.getElementById('debtsMonthTotal').textContent = fmt.format(computeUnpaidDebtsTotal());
 
   const gIncome = formatGrowth(incomePeriod, incomePrev);
   const gExpense = formatGrowth(expensePeriod, expensePrev);
@@ -3551,6 +3703,22 @@ function renderSummary() {
 
 function txCategoryLabel(t) {
   return t.subcategory ? `${t.category} · ${t.subcategory}` : t.category;
+}
+
+function renderRecentTransactions() {
+  const list = state.transactions.filter(hasHappened)
+    .sort((a, b) => (b.date + 'T' + (b.time || '00:00')).localeCompare(a.date + 'T' + (a.time || '00:00')))
+    .slice(0, 5);
+  const box = document.getElementById('recentTxList');
+  box.innerHTML = list.map(t => `
+    <div class="recent-tx-row">
+      <div class="recent-tx-icon ${t.kind}"><i data-lucide="${t.kind === 'income' ? 'arrow-down-left' : 'arrow-up-right'}"></i></div>
+      <div class="recent-tx-info">
+        <div class="recent-tx-cat">${txCategoryLabel(t)}</div>
+        <div class="recent-tx-date">${t.date}</div>
+      </div>
+      <div class="recent-tx-amount ${t.kind === 'income' ? 'amount-income' : 'amount-expense'}">${t.kind === 'income' ? '+' : '−'} ${fmt.format(t.amount)}</div>
+    </div>`).join('') || '<div class="empty-note">Нет операций</div>';
 }
 
 /* ---------------- RENDER: TABLE ---------------- */
@@ -3608,7 +3776,7 @@ function renderTable() {
           onblur="this.value = fmt.format(parseFloat(this.value.replace(/\s/g,'').replace(',', '.')) || ${t.amount})"
           onchange="updateTxAmount('${t.id}', this.value.replace(/\s/g,'').replace(',', '.'))">
       </td>
-      <td><button class="del-btn" onclick="deleteTx('${t.id}')">✕</button></td>
+      <td><button class="del-btn" onclick="deleteTx('${t.id}')"><i data-lucide="x"></i></button></td>
     `;
     tbody.appendChild(tr);
   });
@@ -3692,7 +3860,7 @@ function renderDynamicsChart() {
   });
 }
 
-const PIE_COLORS = ['#185FA5','#5B94C9','#B7D6F2','#232733','#9C9A94','#2E7D5B','#B4483A','#E7B9B4','#7A9CB0'];
+const PIE_COLORS = ['#4F7DF3','#4FC9A4','#F2A35E','#9370E8','#EF769F','#25A875','#E45E68','#E89B3C','#17213A'];
 
 function renderCategoryPie(canvasId, boxId, kind) {
   const months = activeMonths();
@@ -3706,10 +3874,14 @@ function renderCategoryPie(canvasId, boxId, kind) {
   if (!box.querySelector('canvas')) {
     box.innerHTML = `<canvas id="${canvasId}"></canvas>`;
   }
+  if (!box.querySelector('.chart-center-label')) {
+    box.insertAdjacentHTML('beforeend', '<div class="chart-center-label"><div class="chart-center-value"></div><div class="chart-center-caption">Всего</div></div>');
+  }
   const byCategory = {};
   periodTx.forEach(t => { byCategory[t.category] = (byCategory[t.category] || 0) + Number(t.amount); });
   const labels = Object.keys(byCategory);
   const data = Object.values(byCategory);
+  const total = data.reduce((a, b) => a + b, 0);
 
   const ctx = document.getElementById(canvasId);
   const existing = Chart.getChart(ctx);
@@ -3719,12 +3891,14 @@ function renderCategoryPie(canvasId, boxId, kind) {
     data: { labels, datasets: [{ data, backgroundColor: PIE_COLORS, borderWidth: 2, borderColor: '#fff' }] },
     options: {
       responsive: true, maintainAspectRatio: false,
+      cutout: '68%',
       plugins: {
         legend: { position: 'bottom', labels: { font: { family: 'Inter', size: 11 }, boxWidth: 10 } },
         tooltip: { callbacks: { label: (c) => `${c.label}: ${fmt.format(c.raw)}` } }
       }
     }
   });
+  box.querySelector('.chart-center-value').textContent = fmt.format(total);
 }
 
 /* ---------------- MASTER RENDER ---------------- */
@@ -3737,6 +3911,7 @@ function renderEverything() {
   renderSummary();
   initAiSummaryPanel();
   renderTable();
+  renderRecentTransactions();
   renderDynamicsChart();
   renderCategoryPie('incomeChart', 'incomeChartBox', 'income');
   renderCategoryPie('expenseChart', 'expenseChartBox', 'expense');
@@ -3746,6 +3921,7 @@ function renderEverything() {
   renderExpectedIncome();
   renderIncomeDynamics();
   renderShoppingNotes();
+  lucide.createIcons();
 }
 
 loadAll();
