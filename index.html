@@ -2033,6 +2033,28 @@ function suggestCategoryForComment(comment, kind) {
   return findRuleMatch(normalized, kind) || findHistoryMatch(normalized, kind) || findDictionaryMatch(normalized, kind);
 }
 
+// Priority 4: only reached when rules/history/dictionary found nothing.
+// Calls the categorize-operation Supabase Edge Function, which holds the
+// Anthropic key server-side (never exposed to the browser) and is asked to
+// pick strictly from the categories that already exist — it returns
+// { error: 'ai_not_configured' } gracefully if no key has been set yet.
+async function callAiCategorization(comment, kind) {
+  if (!isConfigured || !supabaseClient) return null;
+  try {
+    const { data, error } = await withTimeout(
+      supabaseClient.functions.invoke('categorize-operation', {
+        body: { comment, kind, categories: state.categories, subcategories: state.categories },
+      }),
+      8000,
+      'Сервер ИИ не отвечает'
+    );
+    if (error || !data || data.error || !data.category || typeof data.confidence !== 'number') return null;
+    return { category: data.category, subcategory: data.subcategory || null, confidence: data.confidence, source: 'ai' };
+  } catch (e) {
+    return null;
+  }
+}
+
 async function logAiAction(actionType, entityType, entityId, requestData, responseData, confidence, status) {
   if (!isConfigured || !supabaseClient) return;
   try {
@@ -2083,19 +2105,7 @@ aiAutoCatToggle.addEventListener('change', () => {
   if (!aiAutoCatToggle.checked) { pendingSuggestion = null; hideCatSuggestion(); }
 });
 
-document.getElementById('commentInput').addEventListener('blur', () => {
-  // Note: pendingSuggestion is intentionally NOT cleared unconditionally here.
-  // A redundant re-blur (e.g. the user refocuses the comment then clicks away
-  // again without changing it) must not wipe out a still-relevant suggestion
-  // the submit handler hasn't logged yet.
-  const settings = getAiSettings();
-  if (!settings.autoCategorize) { hideCatSuggestion(); return; }
-  const comment = document.getElementById('commentInput').value.trim();
-  if (comment.length < 3) { hideCatSuggestion(); return; }
-
-  const suggestion = suggestCategoryForComment(comment, state.kind);
-  if (!suggestion || suggestion.confidence < 0.5) { hideCatSuggestion(); return; }
-
+function applySuggestionByConfidenceTier(suggestion, settings) {
   const sel = document.getElementById('categorySelect');
   const currentCat = sel.value;
   const currentSub = document.getElementById('nameRow').classList.contains('visible')
@@ -2118,6 +2128,29 @@ document.getElementById('commentInput').addEventListener('blur', () => {
   } else {
     showCatSuggestion(suggestion);
   }
+}
+
+document.getElementById('commentInput').addEventListener('blur', async () => {
+  // Note: pendingSuggestion is intentionally NOT cleared unconditionally here.
+  // A redundant re-blur (e.g. the user refocuses the comment then clicks away
+  // again without changing it) must not wipe out a still-relevant suggestion
+  // the submit handler hasn't logged yet.
+  const settings = getAiSettings();
+  if (!settings.autoCategorize) { hideCatSuggestion(); return; }
+  const comment = document.getElementById('commentInput').value.trim();
+  if (comment.length < 3) { hideCatSuggestion(); return; }
+  const kind = state.kind;
+
+  let suggestion = suggestCategoryForComment(comment, kind);
+  if (!suggestion) {
+    suggestion = await callAiCategorization(comment, kind);
+    // The user may have edited/cleared the comment or submitted the form
+    // while the AI call was in flight — a stale suggestion must not land.
+    if (document.getElementById('commentInput').value.trim() !== comment || state.kind !== kind) return;
+  }
+  if (!suggestion || suggestion.confidence < 0.5) { hideCatSuggestion(); return; }
+
+  applySuggestionByConfidenceTier(suggestion, settings);
 });
 
 function syncQuickCatButtons() {
