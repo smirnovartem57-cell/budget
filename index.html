@@ -1829,12 +1829,33 @@ function populateCategorySelect() {
       }
     }
   };
-  if (list.length) sel.dispatchEvent(new Event('change'));
+  if (list.length) {
+    const lastUsed = getLastUsedTx(state.kind);
+    if (lastUsed && list.some(c => c.name === lastUsed.category)) {
+      sel.value = lastUsed.category;
+    }
+    sel.dispatchEvent(new Event('change'));
+  }
 }
 
 function namesForCategory(categoryName) {
   const nameKind = state.kind === 'income' ? 'income_name' : 'expense_name';
   return state.categories.filter(c => c.kind === nameKind && c.parent_category === categoryName).map(c => c.name);
+}
+
+// Remembers the last category/name used per kind (income/expense), so the
+// form pre-selects it next time instead of always resetting to the first
+// option — most days you're re-entering the same handful of categories.
+function getLastUsedTx(kind) {
+  try {
+    const raw = localStorage.getItem('lastTx_' + kind);
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) { return null; }
+}
+function saveLastUsedTx(kind, category, subcategory) {
+  try {
+    localStorage.setItem('lastTx_' + kind, JSON.stringify({ category, subcategory: subcategory || null }));
+  } catch (e) { /* localStorage unavailable (private mode etc.) — not critical */ }
 }
 
 function populateNameSelect(categoryName) {
@@ -1856,6 +1877,11 @@ function populateNameSelect(categoryName) {
   sel.onchange = () => {
     document.getElementById('newNameInline').classList.toggle('visible', sel.value === '__new__');
   };
+
+  const lastUsed = getLastUsedTx(state.kind);
+  if (lastUsed && lastUsed.category === categoryName && lastUsed.subcategory && names.includes(lastUsed.subcategory)) {
+    sel.value = lastUsed.subcategory;
+  }
 }
 
 document.getElementById('newNameSave').addEventListener('click', async () => {
@@ -1919,6 +1945,7 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
 
   const { error } = await supabaseClient.from('transactions').insert(payloads);
   if (error) { toast('Ошибка: ' + error.message); return; }
+  saveLastUsedTx(state.kind, category, subcategory);
   toast(isRecurring ? `Добавлено платежей: ${payloads.length}` : 'Операция добавлена');
   document.getElementById('amountInput').value = '';
   document.getElementById('commentInput').value = '';
