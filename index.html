@@ -2279,17 +2279,20 @@ function computeSummaryStats(period) {
 }
 
 async function callAiSummary(stats) {
-  if (!isConfigured || !supabaseClient) return null;
+  if (!isConfigured || !supabaseClient) return { error: 'client_not_configured' };
   try {
     const { data, error } = await withTimeout(
       supabaseClient.functions.invoke('generate-summary', { body: { stats } }),
       10000,
       'Сервер ИИ не отвечает'
     );
-    if (error || !data || data.error || typeof data.summary !== 'string') return null;
+    if (error) return { error: 'invoke_error', detail: error.message || String(error) };
+    if (!data) return { error: 'no_data' };
+    if (data.error) return { error: data.error, detail: data.detail };
+    if (typeof data.summary !== 'string') return { error: 'bad_shape', detail: JSON.stringify(data).slice(0, 200) };
     return { summary: data.summary, highlights: Array.isArray(data.highlights) ? data.highlights : [] };
   } catch (e) {
-    return null;
+    return { error: 'exception', detail: (e && e.message) || String(e) };
   }
 }
 
@@ -2337,8 +2340,9 @@ async function requestAiSummary() {
   aiSummaryLoading = false;
   btn.disabled = false;
   btn.textContent = prevLabel;
-  if (!result) {
-    body.innerHTML = `<div class="empty-note">Не удалось получить ИИ-сводку. Попробуйте позже.</div>`;
+  if (result.error) {
+    const debugMsg = result.error + (result.detail ? ': ' + result.detail : '');
+    body.innerHTML = `<div class="empty-note">Не удалось получить ИИ-сводку. Попробуйте позже.<br><span style="font-size:10px;opacity:.6;">(${escapeHtml(debugMsg)})</span></div>`;
     return;
   }
   renderAiSummaryResult(result);
