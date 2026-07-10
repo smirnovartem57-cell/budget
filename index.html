@@ -610,6 +610,24 @@
   }
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
+  .loading-bar {
+    position: fixed; top: 0; left: 0; height: 3px; width: 0;
+    background: var(--info-accent);
+    z-index: 200;
+    opacity: 0;
+    pointer-events: none;
+  }
+  .loading-bar.active {
+    opacity: 1;
+    width: 70%;
+    transition: width 6s cubic-bezier(0.1, 0.5, 0.1, 1), opacity .2s ease;
+  }
+  .loading-bar.active.done {
+    width: 100%;
+    transition: width .25s ease, opacity .25s ease .1s;
+    opacity: 0;
+  }
+
   .voice-status-bar {
     position: fixed; left: 0; right: 0; bottom: 0;
     background: var(--expense-accent); color: #fff;
@@ -1199,6 +1217,7 @@
 </div>
 
 <div class="toast" id="toast"></div>
+<div class="loading-bar" id="loadingBar"></div>
 
 <div class="voice-status-bar" id="voiceStatusBar" style="display:none;">
   <span class="voice-status-dot"></span>
@@ -1267,6 +1286,23 @@ function toast(msg, duration = 2200) {
   t.classList.add('show');
   clearTimeout(t.__hideTimer);
   t.__hideTimer = setTimeout(() => t.classList.remove('show'), duration);
+}
+
+// Thin top progress bar shown while data is loading/saving. Uses
+// pointer-events:none so it can never block clicks, unlike the earlier
+// fixed-position error banner mistake.
+function showLoadingBar() {
+  const bar = document.getElementById('loadingBar');
+  clearTimeout(bar.__hideTimer);
+  bar.classList.remove('done');
+  // Force reflow so re-triggering the animation works if called again mid-flight.
+  void bar.offsetWidth;
+  bar.classList.add('active');
+}
+function hideLoadingBar() {
+  const bar = document.getElementById('loadingBar');
+  bar.classList.add('done');
+  bar.__hideTimer = setTimeout(() => bar.classList.remove('active', 'done'), 300);
 }
 
 // On a flaky connection a fetch can hang indefinitely — never resolving, never
@@ -1576,6 +1612,7 @@ async function loadAll() {
     renderEverything();
     return;
   }
+  showLoadingBar();
   try {
     const { data: { session } } = await withTimeout(supabaseClient.auth.getSession(), 12000, 'Сервер не отвечает — проверьте интернет-соединение');
     currentUser = session ? session.user : null;
@@ -1633,6 +1670,8 @@ async function loadAll() {
     // throws instead of returning a graceful {error} — without this catch the page
     // is left stuck with nothing rendered and no indication of what went wrong.
     toast('Не удалось подключиться к серверу: ' + (err.message || 'проверьте интернет-соединение'), 5000);
+  } finally {
+    hideLoadingBar();
   }
   renderEverything();
 }
