@@ -504,6 +504,7 @@
   .amount-income { color: var(--income-accent); font-weight: 700; }
   .amount-expense { color: var(--expense-accent); font-weight: 700; }
   .amount-paid { color: var(--income-accent) !important; }
+  .amount-income input, .amount-expense input { color: inherit; font-weight: inherit; }
   .del-btn {
     background: transparent;
     border: none;
@@ -525,6 +526,12 @@
   input.income-name-input { min-width: 100px; }
   input.income-date-input { min-width: 105px; }
   input.income-amount-input { width: 90px; min-width: 90px; }
+  input.debts-name-input, input.debts-date-input { font-size: 13.5px; }
+  input.debts-name-input { min-width: 90px; }
+  input.debts-date-input { min-width: 105px; }
+  input.debts-amount-input { width: 90px; min-width: 90px; }
+  input.tx-date-input { font-size: 13.5px; min-width: 105px; }
+  input.tx-amount-input { width: 82px; min-width: 82px; font-size: 13.5px; }
 
   .notepad-input-row { display: flex; gap: 8px; margin-bottom: 14px; }
   .notepad-input-row input[type=text] { flex: 1; }
@@ -664,8 +671,13 @@
     }
     input[type=date] { min-width: 0; max-width: 100%; }
     #txCommentHeader, td.tx-comment-cell.comment-cell { display: none; }
+    #debtsCommentHeader, td.debts-comment-cell.comment-cell { display: none; }
     input.income-name-input, input.income-date-input { font-size: 16px; min-width: 88px; }
     input.income-amount-input { width: 80px; min-width: 80px; }
+    input.debts-name-input, input.debts-date-input { font-size: 16px; min-width: 76px; }
+    input.debts-amount-input { width: 72px; min-width: 72px; }
+    input.tx-date-input { font-size: 16px; min-width: 76px; }
+    input.tx-amount-input { width: 64px; min-width: 64px; font-size: 16px; }
     .summary-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
     .summary-card { padding: 10px 8px; }
     .summary-card .label { font-size: 9.5px; margin-bottom: 4px; }
@@ -953,7 +965,7 @@
                 <tr>
                   <th class="sortable" id="debtsSortDate" data-key="date">Дата</th>
                   <th>Кто должен</th>
-                  <th>Комментарий</th>
+                  <th id="debtsCommentHeader">Комментарий</th>
                   <th style="text-align:right;">Сумма</th>
                   <th></th>
                 </tr>
@@ -1919,6 +1931,31 @@ async function toggleDebtPaid(id, isPaid) {
   await loadAll();
 }
 
+async function updateDebtDate(id, newDate) {
+  if (!isConfigured) { toast('Сначала подключите базу данных'); return; }
+  if (!newDate) { toast('Укажите дату'); await loadAll(); return; }
+  const { error } = await supabaseClient.from('debts').update({ date: newDate }).eq('id', id);
+  if (error) { toast('Ошибка: ' + error.message); return; }
+  toast('Дата обновлена');
+  await loadAll();
+}
+
+async function updateDebtField(id, field, rawValue) {
+  if (!isConfigured) { toast('Сначала подключите базу данных'); return; }
+  let value = rawValue;
+  if (field === 'amount') {
+    value = parseFloat(rawValue);
+    if (!value || value <= 0) { toast('Сумма должна быть больше нуля'); await loadAll(); return; }
+  } else if (field === 'debtor_name') {
+    value = rawValue.trim();
+    if (!value) { toast('Имя не может быть пустым'); await loadAll(); return; }
+  }
+  const { error } = await supabaseClient.from('debts').update({ [field]: value }).eq('id', id);
+  if (error) { toast('Ошибка: ' + error.message); return; }
+  toast('Обновлено');
+  await loadAll();
+}
+
 function renderDebts() {
   const grid = document.getElementById('debtsByPersonGrid');
   const unpaid = state.debts.filter(d => !d.is_paid);
@@ -1948,15 +1985,19 @@ function renderDebts() {
   list.forEach(d => {
     const tr = document.createElement('tr');
     if (d.is_paid) tr.className = 'debt-row-paid';
-    const dateFmt = new Date(d.date).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
     tr.innerHTML = `
-      <td>${dateFmt}</td>
-      <td><span class="cat-badge">${d.debtor_name}</span></td>
-      <td class="comment-cell">${d.comment || ''}</td>
-      <td style="text-align:right;" class="amount-income">${fmt.format(d.amount)}</td>
+      <td><input type="date" class="shopping-date-input debts-date-input" value="${d.date}" min="2020-01-01" max="2099-12-31" onchange="updateDebtDate('${d.id}', this.value)"></td>
+      <td><input type="text" class="inline-name-input debts-name-input" value="${escapeAttr(d.debtor_name)}" onchange="updateDebtField('${d.id}','debtor_name', this.value)"></td>
+      <td class="comment-cell debts-comment-cell">${d.comment || ''}</td>
+      <td style="text-align:right;" class="amount-income">
+        <input type="text" inputmode="numeric" class="inline-amount-input debts-amount-input" value="${fmt.format(d.amount)}"
+          onfocus="this.value = String(${d.amount}).replace(/\s/g,'')"
+          onblur="this.value = fmt.format(parseFloat(this.value.replace(/\s/g,'').replace(',', '.')) || ${d.amount})"
+          onchange="updateDebtField('${d.id}','amount', this.value.replace(/\s/g,'').replace(',', '.'))">
+      </td>
       <td style="white-space:nowrap;">
-        <button class="btn-tiny" onclick="toggleDebtPaid('${d.id}', ${d.is_paid ? 'false' : 'true'})">${d.is_paid ? 'Вернуть в долги' : 'Оплачено'}</button>
-        <button class="del-btn" onclick="deleteDebt('${d.id}')">✕</button>
+        <button class="btn-tiny icon-btn" onclick="toggleDebtPaid('${d.id}', ${d.is_paid ? 'false' : 'true'})" title="${d.is_paid ? 'Вернуть в долги' : 'Отметить оплаченным'}">${d.is_paid ? '↺' : '✓'}</button>
+        <button class="del-btn" onclick="deleteDebt('${d.id}')" title="Удалить">✕</button>
       </td>
     `;
     tbody.appendChild(tr);
@@ -2556,6 +2597,25 @@ async function deleteTx(id) {
   await loadAll();
 }
 
+async function updateTxDate(id, newDate) {
+  if (!isConfigured) { toast('Сначала подключите базу данных'); return; }
+  if (!newDate) { toast('Укажите дату'); await loadAll(); return; }
+  const { error } = await supabaseClient.from('transactions').update({ date: newDate }).eq('id', id);
+  if (error) { toast('Ошибка: ' + error.message); return; }
+  toast('Дата обновлена');
+  await loadAll();
+}
+
+async function updateTxAmount(id, rawValue) {
+  if (!isConfigured) { toast('Сначала подключите базу данных'); return; }
+  const value = parseFloat(rawValue);
+  if (!value || value <= 0) { toast('Сумма должна быть больше нуля'); await loadAll(); return; }
+  const { error } = await supabaseClient.from('transactions').update({ amount: value }).eq('id', id);
+  if (error) { toast('Ошибка: ' + error.message); return; }
+  toast('Обновлено');
+  await loadAll();
+}
+
 /* ---------------- MONTH / YEAR SELECT ---------------- */
 document.getElementById('monthSelect').addEventListener('change', (e) => {
   state.selectedMonth = e.target.value;
@@ -2801,13 +2861,16 @@ function renderTable() {
   document.getElementById('emptyNote').style.display = list.length ? 'none' : 'block';
   visible.forEach(t => {
     const tr = document.createElement('tr');
-    const dateFmt = new Date(t.date).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
     tr.innerHTML = `
-      <td>${dateFmt}</td>
+      <td><input type="date" class="shopping-date-input tx-date-input" value="${t.date}" min="2020-01-01" max="2099-12-31" onchange="updateTxDate('${t.id}', this.value)"></td>
       <td><span class="cat-badge">${txCategoryLabel(t)}</span></td>
       <td class="comment-cell tx-comment-cell">${t.comment || ''}</td>
       <td style="text-align:right;" class="${t.kind === 'income' ? 'amount-income' : 'amount-expense'}">
-        ${t.kind === 'income' ? '+' : '−'} ${fmt.format(t.amount)}
+        ${t.kind === 'income' ? '+' : '−'}
+        <input type="text" inputmode="numeric" class="inline-amount-input tx-amount-input" value="${fmt.format(t.amount)}"
+          onfocus="this.value = String(${t.amount}).replace(/\s/g,'')"
+          onblur="this.value = fmt.format(parseFloat(this.value.replace(/\s/g,'').replace(',', '.')) || ${t.amount})"
+          onchange="updateTxAmount('${t.id}', this.value.replace(/\s/g,'').replace(',', '.'))">
       </td>
       <td><button class="del-btn" onclick="deleteTx('${t.id}')">✕</button></td>
     `;
