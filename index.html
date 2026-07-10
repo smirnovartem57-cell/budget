@@ -845,7 +845,10 @@
 
       <div class="form-row">
         <label>Комментарий (необязательно)</label>
-        <input type="text" id="commentInput" placeholder="Например: аванс за проект">
+        <div class="notepad-input-row" style="margin-bottom:0;">
+          <input type="text" id="commentInput" placeholder="Например: аванс за проект">
+          <button type="button" class="mic-btn" id="txMicBtn" title="Добавить голосом">🎤</button>
+        </div>
       </div>
 
       <button class="btn-primary" id="submitBtn">Добавить</button>
@@ -2202,12 +2205,13 @@ const SpeechRecognitionApi = window.SpeechRecognition || window.webkitSpeechReco
 const notepadMicBtn = document.getElementById('notepadMicBtn');
 const voiceStatusBar = document.getElementById('voiceStatusBar');
 let activeRecognition = null;
+let activeMicBtn = null;
 let micTimeoutId = null;
 let micStarting = false;
 
 function stopListening() {
   if (micTimeoutId) { clearTimeout(micTimeoutId); micTimeoutId = null; }
-  notepadMicBtn.classList.remove('listening');
+  if (activeMicBtn) { activeMicBtn.classList.remove('listening'); activeMicBtn = null; }
   voiceStatusBar.style.display = 'none';
   const r = activeRecognition;
   activeRecognition = null;
@@ -2216,7 +2220,7 @@ function stopListening() {
 
 document.getElementById('voiceStatusCancelBtn').addEventListener('click', stopListening);
 
-function startRecognition() {
+function startRecognition(micBtn, onTranscript) {
   // A fresh instance per attempt avoids browsers getting stuck when an old
   // instance is reused across start/stop cycles.
   const recognition = new SpeechRecognitionApi();
@@ -2226,7 +2230,7 @@ function startRecognition() {
 
   recognition.addEventListener('result', async (e) => {
     const transcript = e.results[0][0].transcript;
-    await addShoppingNote(transcript);
+    await onTranscript(transcript);
   });
   recognition.addEventListener('end', stopListening);
   recognition.addEventListener('error', (e) => {
@@ -2250,7 +2254,8 @@ function startRecognition() {
 
   try {
     activeRecognition = recognition;
-    notepadMicBtn.classList.add('listening');
+    activeMicBtn = micBtn;
+    micBtn.classList.add('listening');
     voiceStatusBar.style.display = 'flex';
     recognition.start();
   } catch (err) {
@@ -2259,8 +2264,15 @@ function startRecognition() {
   }
 }
 
-if (SpeechRecognitionApi) {
-  notepadMicBtn.addEventListener('click', async () => {
+// Wires a mic button to the shared SpeechRecognition flow: permission
+// preflight (for reliable Safari/iPhone behavior), start/stop toggling and
+// error handling all live here once, instead of being duplicated per button.
+function wireVoiceButton(micBtn, onTranscript) {
+  if (!SpeechRecognitionApi) {
+    micBtn.addEventListener('click', () => toast('Голосовой ввод не поддерживается в этом браузере', 4500));
+    return;
+  }
+  micBtn.addEventListener('click', async () => {
     if (activeRecognition) { stopListening(); return; }
     if (!isConfigured) { toast('Сначала подключите базу данных'); return; }
     if (micStarting) return;
@@ -2283,11 +2295,26 @@ if (SpeechRecognitionApi) {
       micStarting = false;
     }
 
-    startRecognition();
+    startRecognition(micBtn, onTranscript);
   });
-} else {
-  notepadMicBtn.addEventListener('click', () => toast('Голосовой ввод не поддерживается в этом браузере', 4500));
 }
+
+wireVoiceButton(notepadMicBtn, addShoppingNote);
+
+// Comment field for Новая операция: extract a leading amount ("500 рублей на
+// такси" -> amount 500, comment "на такси") if the amount field is still
+// empty, otherwise just dictate straight into the comment.
+wireVoiceButton(document.getElementById('txMicBtn'), async (transcript) => {
+  const commentInput = document.getElementById('commentInput');
+  const amountInput = document.getElementById('amountInput');
+  const match = transcript.match(/\d+([.,]\d+)?/);
+  let comment = transcript;
+  if (match && !amountInput.value) {
+    amountInput.value = match[0].replace(',', '.');
+    comment = (transcript.slice(0, match.index) + transcript.slice(match.index + match[0].length)).trim();
+  }
+  commentInput.value = comment;
+});
 
 function escapeAttr(s) {
   return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
