@@ -516,10 +516,10 @@
   }
   .del-btn:hover { background: #FDEEEE; color: var(--expense-accent); }
   .comment-cell { color: var(--text-secondary); font-size: 12.5px; }
-  .shopping-date-input { width: auto; min-width: 150px; padding: 6px 8px; font-size: 16px; }
+  input.shopping-date-input { width: auto; min-width: 150px; padding: 6px 8px; font-size: 16px; }
   .days-remaining { font-size: 11.5px; color: var(--text-secondary); margin-top: 3px; }
   .days-remaining.overdue { color: var(--expense-accent); font-weight: 600; }
-  .inline-name-input { width: 100%; min-width: 140px; padding: 6px 8px; font-size: 16px; font-weight: 600; }
+  input.inline-name-input { width: 100%; min-width: 140px; padding: 6px 8px; font-size: 16px; font-weight: 600; }
   /* Smaller on desktop; kept at 16px on mobile in the breakpoint below so
      iOS doesn't auto-zoom the page when these are focused. */
   input.income-name-input, input.income-date-input { font-size: 13.5px; }
@@ -533,6 +533,9 @@
   input.tx-date-input { font-size: 13.5px; min-width: 105px; }
   input.tx-amount-input { width: 82px; min-width: 82px; font-size: 13.5px; }
   input.recurring-date-input { font-size: 13.5px; min-width: 105px; }
+  input.shopping-name-input { font-size: 13.5px; min-width: 100px; }
+  input.shopping-date-input { font-size: 13.5px; min-width: 105px; }
+  input.shopping-amount-input { width: 90px; min-width: 90px; font-size: 13.5px; }
 
   .notepad-input-row { display: flex; gap: 8px; margin-bottom: 14px; }
   .notepad-input-row input[type=text] { flex: 1; }
@@ -691,6 +694,7 @@
     input[type=date] { min-width: 0; max-width: 100%; }
     #txCommentHeader, td.tx-comment-cell.comment-cell { display: none; }
     #debtsCommentHeader, td.debts-comment-cell.comment-cell { display: none; }
+    #shoppingCommentHeader, td.shopping-comment-cell.comment-cell { display: none; }
     input.income-name-input, input.income-date-input { font-size: 16px; min-width: 88px; }
     input.income-amount-input { width: 80px; min-width: 80px; }
     input.debts-name-input, input.debts-date-input { font-size: 16px; min-width: 76px; }
@@ -698,6 +702,8 @@
     input.tx-date-input { font-size: 16px; min-width: 76px; }
     input.tx-amount-input { width: 64px; min-width: 64px; font-size: 16px; }
     input.recurring-date-input { font-size: 16px; min-width: 76px; }
+    input.shopping-name-input, input.shopping-date-input { font-size: 16px; min-width: 76px; }
+    input.shopping-amount-input { width: 64px; min-width: 64px; font-size: 16px; }
     .summary-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
     .summary-card { padding: 10px 8px; }
     .summary-card .label { font-size: 9.5px; margin-bottom: 4px; }
@@ -1040,7 +1046,7 @@
                 <tr>
                   <th class="sortable" id="shoppingSortName" data-key="name">Название</th>
                   <th class="sortable" id="shoppingSortDate" data-key="date">Планируемая дата</th>
-                  <th>Комментарий</th>
+                  <th id="shoppingCommentHeader">Комментарий</th>
                   <th class="sortable" id="shoppingSortAmount" data-key="amount" style="text-align:right;">Сумма</th>
                   <th></th>
                 </tr>
@@ -2365,21 +2371,21 @@ function renderShoppingList() {
     const tr = document.createElement('tr');
     const remaining = item.planned_date ? daysRemainingLabel(item.planned_date) : '';
     tr.innerHTML = `
-      <td><input type="text" class="inline-name-input" value="${escapeAttr(item.name)}" onchange="updateShoppingField('${item.id}','name', this.value)"></td>
+      <td><input type="text" class="inline-name-input shopping-name-input" value="${escapeAttr(item.name)}" onchange="updateShoppingField('${item.id}','name', this.value)"></td>
       <td>
         <input type="date" class="shopping-date-input" value="${item.planned_date || ''}" min="2020-01-01" max="2099-12-31" onchange="updateShoppingDate('${item.id}', this.value)">
         ${remaining ? `<div class="days-remaining ${remaining.overdue ? 'overdue' : ''}">${remaining.text}</div>` : ''}
       </td>
-      <td class="comment-cell">${item.comment || ''}</td>
+      <td class="comment-cell shopping-comment-cell">${item.comment || ''}</td>
       <td style="text-align:right;">
-        <input type="text" inputmode="numeric" class="inline-amount-input" value="${fmt.format(item.amount)}"
+        <input type="text" inputmode="numeric" class="inline-amount-input shopping-amount-input" value="${fmt.format(item.amount)}"
           onfocus="this.value = String(${item.amount}).replace(/\s/g,'')"
           onblur="this.value = fmt.format(parseFloat(this.value.replace(/\s/g,'').replace(',', '.')) || ${item.amount})"
           onchange="updateShoppingField('${item.id}','amount', this.value.replace(/\s/g,'').replace(',', '.'))">
       </td>
       <td style="white-space:nowrap;">
-        <button class="btn-tiny" onclick="markShoppingBought('${item.id}')">Куплено</button>
-        <button class="del-btn" onclick="deleteShoppingItem('${item.id}')">✕</button>
+        <button class="btn-tiny icon-btn" onclick="markShoppingBought('${item.id}')" title="Отметить купленным">🛒</button>
+        <button class="del-btn" onclick="deleteShoppingItem('${item.id}')" title="Удалить">✕</button>
       </td>
     `;
     tbody.appendChild(tr);
