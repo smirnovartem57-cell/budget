@@ -532,6 +532,7 @@
   input.debts-amount-input { width: 90px; min-width: 90px; }
   input.tx-date-input { font-size: 13.5px; min-width: 105px; }
   input.tx-amount-input { width: 82px; min-width: 82px; font-size: 13.5px; }
+  input.recurring-date-input { font-size: 13.5px; min-width: 105px; }
 
   .notepad-input-row { display: flex; gap: 8px; margin-bottom: 14px; }
   .notepad-input-row input[type=text] { flex: 1; }
@@ -696,6 +697,7 @@
     input.debts-amount-input { width: 72px; min-width: 72px; }
     input.tx-date-input { font-size: 16px; min-width: 76px; }
     input.tx-amount-input { width: 64px; min-width: 64px; font-size: 16px; }
+    input.recurring-date-input { font-size: 16px; min-width: 76px; }
     .summary-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
     .summary-card { padding: 10px 8px; }
     .summary-card .label { font-size: 9.5px; margin-bottom: 4px; }
@@ -2629,6 +2631,27 @@ async function deleteRecurringGroup(groupId) {
   await loadAll();
 }
 
+// Moves every occurrence in the recurring group to the same day-of-month as
+// the newly picked date (clamped to the last day for short months), rather
+// than editing a single transaction — otherwise the group's earliest date
+// would just be recomputed from the other unchanged rows on next render.
+async function updateRecurringGroupDate(groupId, newDateStr) {
+  if (!isConfigured) { toast('Сначала подключите базу данных'); return; }
+  if (!newDateStr) { toast('Укажите дату'); await loadAll(); return; }
+  const newDay = new Date(newDateStr + 'T00:00:00').getDate();
+  const groupTxs = state.transactions.filter(t => t.recurring_group_id === groupId);
+  for (const t of groupTxs) {
+    const d = new Date(t.date + 'T00:00:00');
+    const lastDayOfMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+    d.setDate(Math.min(newDay, lastDayOfMonth));
+    const updatedDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const { error } = await supabaseClient.from('transactions').update({ date: updatedDate }).eq('id', t.id);
+    if (error) { toast('Ошибка: ' + error.message); return; }
+  }
+  toast('Дата обновлена для всех платежей');
+  await loadAll();
+}
+
 function renderRecurring() {
   const groups = {};
   const today = new Date().toISOString().slice(0, 10);
@@ -2669,13 +2692,15 @@ function renderRecurring() {
   active.forEach(([groupId, g]) => {
     total += g.amount;
     const tr = document.createElement('tr');
-    const startFmt = new Date(g.minDate).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
     const endFmt = g.endDate ? new Date(g.endDate).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '';
     const isPaid = g.currentMonthDate && g.currentMonthDate <= today;
     if (!isPaid) remaining += g.amount;
     tr.innerHTML = `
       <td><span class="cat-badge">${g.subcategory ? `${g.category} · ${g.subcategory}` : g.category}</span></td>
-      <td>${startFmt}${endFmt ? `<div class="days-remaining">до ${endFmt}</div>` : ''}</td>
+      <td>
+        <input type="date" class="shopping-date-input recurring-date-input" value="${g.minDate}" min="2020-01-01" max="2099-12-31" onchange="updateRecurringGroupDate('${groupId}', this.value)">
+        ${endFmt ? `<div class="days-remaining">до ${endFmt}</div>` : ''}
+      </td>
       <td style="text-align:right;" class="amount-expense ${isPaid ? 'amount-paid' : ''}" title="${isPaid ? 'Платёж за этот месяц уже прошёл' : ''}">${fmt.format(g.amount)}</td>
       <td><button class="del-btn" onclick="deleteRecurringGroup('${groupId}')">✕</button></td>
     `;
