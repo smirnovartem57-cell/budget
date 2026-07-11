@@ -59,51 +59,55 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
-<meta name="theme-color" content="#185FA5">
+<meta name="theme-color" content="#4F7DF3">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 <script src="https://cdn.jsdelivr.net/npm/lucide@0.462.0/dist/umd/lucide.js"></script>
 <style>
-  /* ===================== ПАЛИТРА (light premium fintech, ТЗ от 11.07.2026) ===================== */
+  /* ===================== ПАЛИТРА (light premium fintech, ТЗ от 11.07.2026, обновлено) ===================== */
   :root {
-    --bg-page: #F7F9FC;
-    --bg-secondary: #F1F5FA;
-    --border: #E7EBF2;
-    --border-secondary: #EEF1F6;
-    --text-primary: #17213A;
-    --text-secondary: #66718A;
+    --bg-page: #F5F7FB;
+    --bg-secondary: #EFF3F9;
+    --border: #E4EAF2;
+    --border-secondary: #ECF1F8;
+    --text-primary: #101828;
+    --text-secondary: #667085;
     --text-muted: #98A2B5;
     --info-bg: #EAF0FF;
     --info-accent: #4F7DF3;
     --btn-primary: #4F7DF3;
-    --btn-primary-hover: #3E6DE0;
+    --btn-primary-hover: #3F6FE5;
     --btn-primary-text: #FFFFFF;
     --graphite: #17213A;
     --graphite-hover: #0F1729;
     --graphite-text: #FFFFFF;
-    --income-accent: #25A875;
+    --income-accent: #18A875;
     --income-bg: #E7F7F0;
-    --expense-accent: #E45E68;
+    --expense-accent: #EF5A67;
     --expense-bg: #FDECEE;
-    --warning: #E89B3C;
+    --warning: #F59A3D;
     --warning-bg: #FFF4E4;
     --mint: #4FC9A4; --mint-bg: #E8F8F2;
     --purple: #9370E8; --purple-bg: #F1ECFC;
     --orange: #F2A35E; --orange-bg: #FFF2E7;
     --pink: #EF769F; --pink-bg: #FDECF2;
     --card-bg: #FFFFFF;
-    --radius: 18px;
-    --radius-sm: 14px;
-    --radius-lg: 22px;
-    --shadow-card: 0 4px 12px rgba(23,33,58,0.05), 0 10px 24px rgba(23,33,58,0.05);
+    --radius: 16px;
+    --radius-sm: 10px;
+    --radius-lg: 20px;
+    --shadow-card: 0 8px 24px rgba(16, 24, 40, 0.06);
     --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px;
-    --space-5: 20px; --space-6: 24px; --space-7: 32px;
+    --space-5: 24px; --space-6: 32px; --space-7: 40px;
     --bottom-nav-h: 64px;
   }
 
   * { box-sizing: border-box; }
+  button:focus-visible, a:focus-visible, [tabindex]:focus-visible {
+    outline: 2px solid var(--btn-primary);
+    outline-offset: 2px;
+  }
   html, body {
     margin: 0; padding: 0;
     background: var(--bg-page);
@@ -118,9 +122,10 @@
 
   /* ===================== LAYOUT ===================== */
   .app-header {
-    background: var(--graphite);
-    color: var(--graphite-text);
-    padding: 20px 28px;
+    background: var(--card-bg);
+    color: var(--text-primary);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 28px;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -136,6 +141,7 @@
     width: 34px; height: 34px;
     border-radius: 9px;
     background: var(--btn-primary);
+    color: #fff;
     display: flex; align-items: center; justify-content: center;
     font-family: 'Manrope', sans-serif;
     font-weight: 800;
@@ -148,13 +154,13 @@
     margin: 0;
   }
   .app-header .subtitle {
-    color: #9CA3AF;
+    color: var(--text-secondary);
     font-size: 13px;
   }
   .header-btn {
-    background: rgba(255,255,255,0.1);
-    border: 1px solid rgba(255,255,255,0.2);
-    color: var(--graphite-text);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
     padding: 6px 14px;
     border-radius: 999px;
     font-size: 12.5px;
@@ -163,7 +169,7 @@
     font-family: 'Inter', sans-serif;
     margin-left: 12px;
   }
-  .header-btn:hover { background: rgba(255,255,255,0.2); }
+  .header-btn:hover { background: var(--border); }
   .header-btn svg { width: 14px; height: 14px; vertical-align: -2px; }
 
   .auth-modal-overlay {
@@ -182,6 +188,31 @@
     max-width: 90vw;
   }
   .auth-modal h2 { margin: 0 0 16px; font-size: 17px; }
+  .confirm-dialog-overlay {
+    position: fixed; inset: 0;
+    background: rgba(16,24,40,0.5);
+    display: none;
+    align-items: center; justify-content: center;
+    z-index: 300;
+    opacity: 0;
+    transition: opacity .2s ease;
+  }
+  .confirm-dialog-overlay.visible { display: flex; opacity: 1; }
+  .confirm-dialog {
+    background: var(--card-bg);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-card);
+    padding: 24px;
+    width: 340px;
+    max-width: 90vw;
+    transform: translateY(8px) scale(0.98);
+    transition: transform .2s ease;
+  }
+  .confirm-dialog-overlay.visible .confirm-dialog { transform: translateY(0) scale(1); }
+  .confirm-dialog-message { margin: 0 0 4px; font-size: 15.5px; font-weight: 700; color: var(--text-primary); }
+  .confirm-dialog-submessage { margin: 0 0 20px; font-size: 13.5px; color: var(--text-secondary); }
+  .confirm-dialog-actions { display: flex; gap: 10px; justify-content: flex-end; }
+  .confirm-dialog-actions button { min-width: 96px; }
   .pin-lock-overlay {
     position: fixed; inset: 0;
     background: var(--bg-page);
@@ -210,25 +241,25 @@
   .pin-digit-group input[type=password]:focus { border-color: var(--btn-primary); }
   .month-picker {
     display: flex; align-items: center; gap: 8px;
-    background: rgba(255,255,255,0.06);
+    background: var(--bg-secondary);
     padding: 6px 6px 6px 14px;
     border-radius: 999px;
   }
   .month-picker select {
     background: transparent;
     border: none;
-    color: var(--graphite-text);
+    color: var(--text-primary);
     font-family: 'Inter', sans-serif;
     font-weight: 600;
     font-size: 14px;
     padding: 6px 8px;
   }
-  .month-picker select:focus { outline: none; }
+  .month-picker select:focus { outline: none; box-shadow: 0 0 0 2px var(--btn-primary) inset; border-radius: 999px; }
   .month-picker option { color: #111; }
   .month-nav-btn {
-    background: rgba(255,255,255,0.1);
+    background: var(--bg-page);
     border: none;
-    color: var(--graphite-text);
+    color: var(--text-secondary);
     width: 26px; height: 26px;
     border-radius: 50%;
     cursor: pointer;
@@ -236,12 +267,13 @@
     display: flex; align-items: center; justify-content: center;
     flex-shrink: 0;
   }
-  .month-nav-btn:hover { background: rgba(255,255,255,0.2); }
+  .month-nav-btn:hover { background: var(--border); }
   .month-nav-btn:disabled { opacity: 0.3; cursor: default; }
   .month-nav-btn svg { width: 13px; height: 13px; }
   .view-toggle {
     display: flex;
-    background: rgba(255,255,255,0.06);
+    background: var(--card-bg);
+    border: 1px solid var(--border);
     border-radius: 999px;
     padding: 2px;
     margin-right: 2px;
@@ -249,7 +281,7 @@
   .view-toggle-btn {
     background: transparent;
     border: none;
-    color: #9CA3AF;
+    color: var(--text-secondary);
     font-size: 12.5px;
     font-weight: 700;
     padding: 5px 12px;
@@ -506,6 +538,7 @@
   .recurring-check-label input { width: auto; }
 
   .page-tabs { display: flex; gap: 8px; margin-bottom: 20px; }
+  .app-header .page-tabs { margin-bottom: 0; }
   .page-tab-btn {
     padding: 10px 18px;
     border-radius: var(--radius-sm);
@@ -523,7 +556,7 @@
     border-color: var(--btn-primary);
   }
 
-  .btn-primary, .btn-secondary, .btn-ghost {
+  .btn-primary, .btn-secondary, .btn-ghost, .btn-danger {
     border: none;
     border-radius: var(--radius-sm);
     font-weight: 700;
@@ -538,6 +571,8 @@
   .btn-primary:hover { background: var(--btn-primary-hover); }
   .btn-secondary { background: var(--info-bg); color: var(--btn-primary); }
   .btn-secondary:hover { background: #DCE7FF; }
+  .btn-danger { background: var(--expense-accent); color: #fff; }
+  .btn-danger:hover { background: #DB4854; }
   .btn-ghost {
     background: transparent;
     border: 1px solid var(--border);
@@ -870,7 +905,7 @@
     padding-bottom: env(safe-area-inset-bottom, 0px);
     background: var(--card-bg);
     border-top: 1px solid var(--border);
-    box-shadow: 0 -4px 16px rgba(23,33,58,0.06);
+    box-shadow: 0 -4px 16px rgba(16,24,40,0.06);
     z-index: 1000;
     align-items: center; justify-content: space-around;
   }
@@ -881,7 +916,7 @@
     padding: 6px 4px; cursor: pointer;
   }
   .bottom-nav-btn svg { width: 22px; height: 22px; }
-  .bottom-nav-btn.active { color: var(--btn-primary); }
+  .bottom-nav-btn.active { color: var(--btn-primary); background: var(--info-bg); border-radius: var(--radius-sm); }
   .bottom-nav-add {
     width: 52px; height: 52px; border-radius: 50%;
     background: var(--btn-primary); color: #fff; border: none;
@@ -910,15 +945,21 @@
     <button type="button" class="header-btn" id="pinBtn" style="display:none;"><i data-lucide="lock"></i> PIN</button>
     <button type="button" class="header-btn" id="authBtn">Войти</button>
   </div>
+  <div class="page-tabs">
+    <button type="button" class="page-tab-btn active" id="tabBudgetBtn">Бюджет</button>
+    <button type="button" class="page-tab-btn" id="tabDebtsBtn">Долги</button>
+    <button type="button" class="page-tab-btn" id="tabShoppingBtn">Покупки</button>
+    <button type="button" class="page-tab-btn" id="tabIncomeBtn">Доходы</button>
+  </div>
   <div class="month-picker">
     <div class="view-toggle">
       <button type="button" class="view-toggle-btn active" id="viewModeMonthBtn">Месяц</button>
       <button type="button" class="view-toggle-btn" id="viewModeYearBtn">Год</button>
     </div>
-    <button type="button" class="month-nav-btn" id="monthPrevBtn" title="Предыдущий период"><i data-lucide="chevron-left"></i></button>
+    <button type="button" class="month-nav-btn" id="monthPrevBtn" title="Предыдущий период" aria-label="Предыдущий период"><i data-lucide="chevron-left"></i></button>
     <select id="monthSelect"></select>
     <select id="yearSelect" style="display:none;"></select>
-    <button type="button" class="month-nav-btn" id="monthNextBtn" title="Следующий период"><i data-lucide="chevron-right"></i></button>
+    <button type="button" class="month-nav-btn" id="monthNextBtn" title="Следующий период" aria-label="Следующий период"><i data-lucide="chevron-right"></i></button>
   </div>
 </div>
 
@@ -933,13 +974,6 @@
   <div id="demoBanner" class="demo-banner">
     <span>👀 Вы просматриваете демо-данные — это не ваши реальные записи.</span>
     <button type="button" class="header-btn-inline" id="demoBannerLoginBtn">Войти</button>
-  </div>
-
-  <div class="page-tabs">
-    <button type="button" class="page-tab-btn active" id="tabBudgetBtn">Бюджет</button>
-    <button type="button" class="page-tab-btn" id="tabDebtsBtn">Долги</button>
-    <button type="button" class="page-tab-btn" id="tabShoppingBtn">Покупки</button>
-    <button type="button" class="page-tab-btn" id="tabIncomeBtn">Доходы</button>
   </div>
 
   <div id="budgetView">
@@ -996,7 +1030,7 @@
     </h2>
     <div class="notepad-input-row">
       <input type="text" id="notepadInput" placeholder="Например: молоко, хлеб...">
-      <button type="button" class="mic-btn" id="notepadMicBtn" title="Добавить голосом"><i data-lucide="mic"></i></button>
+      <button type="button" class="mic-btn" id="notepadMicBtn" title="Добавить голосом" aria-label="Добавить голосом"><i data-lucide="mic"></i></button>
       <button type="button" class="btn-primary" style="width:auto; padding:0 18px;" id="notepadAddBtn">Добавить</button>
     </div>
     <ul class="notepad-list" id="notepadList"></ul>
@@ -1074,7 +1108,7 @@
         <label>Комментарий (необязательно)</label>
         <div class="notepad-input-row" style="margin-bottom:0;">
           <input type="text" id="commentInput" placeholder="Например: аванс за проект">
-          <button type="button" class="mic-btn" id="txMicBtn" title="Добавить голосом"><i data-lucide="mic"></i></button>
+          <button type="button" class="mic-btn" id="txMicBtn" title="Добавить голосом" aria-label="Добавить голосом"><i data-lucide="mic"></i></button>
         </div>
       </div>
 
@@ -1449,6 +1483,17 @@
   <button type="button" class="pin-logout-link" id="pinLockLogoutBtn">Выйти из аккаунта</button>
 </div>
 
+<div class="confirm-dialog-overlay" id="confirmDialogOverlay">
+  <div class="confirm-dialog">
+    <p class="confirm-dialog-message" id="confirmDialogMessage"></p>
+    <p class="confirm-dialog-submessage" id="confirmDialogSubmessage"></p>
+    <div class="confirm-dialog-actions">
+      <button type="button" class="btn-ghost" id="confirmDialogCancelBtn">Отмена</button>
+      <button type="button" class="btn-danger" id="confirmDialogConfirmBtn">Удалить</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 <div class="loading-bar" id="loadingBar"></div>
 <div class="reload-banner" id="reloadBanner">
@@ -1535,6 +1580,32 @@ function toast(msg, duration = 2200) {
   t.classList.add('show');
   clearTimeout(t.__hideTimer);
   t.__hideTimer = setTimeout(() => t.classList.remove('show'), duration);
+}
+
+function confirmDialog(message, { submessage = 'Это действие нельзя будет отменить.', confirmLabel = 'Удалить', cancelLabel = 'Отмена' } = {}) {
+  return new Promise((resolve) => {
+    const overlay = document.getElementById('confirmDialogOverlay');
+    document.getElementById('confirmDialogMessage').textContent = message;
+    document.getElementById('confirmDialogSubmessage').textContent = submessage;
+    const confirmBtn = document.getElementById('confirmDialogConfirmBtn');
+    const cancelBtn = document.getElementById('confirmDialogCancelBtn');
+    confirmBtn.textContent = confirmLabel;
+    cancelBtn.textContent = cancelLabel;
+    const cleanup = (result) => {
+      overlay.classList.remove('visible');
+      confirmBtn.removeEventListener('click', onConfirm);
+      cancelBtn.removeEventListener('click', onCancel);
+      overlay.removeEventListener('click', onOverlayClick);
+      resolve(result);
+    };
+    const onConfirm = () => cleanup(true);
+    const onCancel = () => cleanup(false);
+    const onOverlayClick = (e) => { if (e.target === overlay) cleanup(false); };
+    confirmBtn.addEventListener('click', onConfirm);
+    cancelBtn.addEventListener('click', onCancel);
+    overlay.addEventListener('click', onOverlayClick);
+    overlay.classList.add('visible');
+  });
 }
 
 // Thin top progress bar shown while data is loading/saving. Uses
@@ -2696,7 +2767,7 @@ document.getElementById('debtSubmitBtn').addEventListener('click', async () => {
 });
 
 async function deleteDebt(id) {
-  if (!confirm('Удалить этот долг?')) return;
+  if (!(await confirmDialog('Удалить этот долг?'))) return;
   const { error } = await supabaseClient.from('debts').delete().eq('id', id);
   if (error) { toast('Ошибка: ' + error.message); return; }
   toast('Удалено');
@@ -2782,7 +2853,7 @@ function renderDebts() {
       </td>
       <td style="white-space:nowrap;">
         <button class="btn-tiny icon-btn" onclick="toggleDebtPaid('${d.id}', ${d.is_paid ? 'false' : 'true'})" title="${d.is_paid ? 'Вернуть в долги' : 'Отметить оплаченным'}">${d.is_paid ? '<i data-lucide="undo-2"></i>' : '<i data-lucide="check"></i>'}</button>
-        <button class="del-btn" onclick="deleteDebt('${d.id}')" title="Удалить"><i data-lucide="x"></i></button>
+        <button class="del-btn" onclick="deleteDebt('${d.id}')" title="Удалить" aria-label="Удалить"><i data-lucide="x"></i></button>
       </td>
     `;
     tbody.appendChild(tr);
@@ -2812,7 +2883,7 @@ document.getElementById('shoppingSubmitBtn').addEventListener('click', async () 
 });
 
 async function deleteShoppingItem(id) {
-  if (!confirm('Удалить эту покупку из списка?')) return;
+  if (!(await confirmDialog('Удалить эту покупку из списка?'))) return;
   const { error } = await supabaseClient.from('shopping_list').delete().eq('id', id);
   if (error) { toast('Ошибка: ' + error.message); return; }
   toast('Удалено');
@@ -2847,7 +2918,7 @@ async function markShoppingBought(id) {
   if (!isConfigured) { toast('Сначала подключите базу данных'); return; }
   const item = state.shoppingList.find(i => i.id === id);
   if (!item) return;
-  if (!confirm(`Отметить «${item.name}» как купленное и добавить в расходы?`)) return;
+  if (!(await confirmDialog(`Отметить «${item.name}» как купленное?`, { submessage: 'Позиция будет перенесена в операции как расход.', confirmLabel: 'Купить' }))) return;
   const { error: insErr } = await supabaseClient.from('transactions').insert({
     kind: 'expense', category: 'Обязательный', subcategory: null,
     amount: item.amount, date: new Date().toISOString().slice(0, 10),
@@ -2881,6 +2952,7 @@ async function toggleShoppingNote(id, isDone) {
 
 async function deleteShoppingNote(id) {
   if (!isConfigured) { toast('Сначала подключите базу данных'); return; }
+  if (!(await confirmDialog('Удалить заметку?'))) return;
   const { error } = await supabaseClient.from('shopping_notes').delete().eq('id', id);
   if (error) { toast('Ошибка: ' + error.message); return; }
   await loadAll();
@@ -2898,7 +2970,7 @@ function renderShoppingNotes() {
     li.innerHTML = `
       <input type="checkbox" ${item.is_done ? 'checked' : ''} onchange="toggleShoppingNote('${item.id}', this.checked)">
       <span>${escapeAttr(item.text)}</span>
-      <button class="del-btn" onclick="deleteShoppingNote('${item.id}')"><i data-lucide="x"></i></button>
+      <button class="del-btn" onclick="deleteShoppingNote('${item.id}')" title="Удалить" aria-label="Удалить"><i data-lucide="x"></i></button>
     `;
     ul.appendChild(li);
   });
@@ -3112,7 +3184,7 @@ function renderShoppingList() {
       </td>
       <td style="white-space:nowrap;">
         <button class="btn-tiny icon-btn" onclick="markShoppingBought('${item.id}')" title="Отметить купленным">🛒</button>
-        <button class="del-btn" onclick="deleteShoppingItem('${item.id}')" title="Удалить"><i data-lucide="x"></i></button>
+        <button class="del-btn" onclick="deleteShoppingItem('${item.id}')" title="Удалить" aria-label="Удалить"><i data-lucide="x"></i></button>
       </td>
     `;
     tbody.appendChild(tr);
@@ -3158,7 +3230,7 @@ document.getElementById('incomeSubmitBtn').addEventListener('click', async () =>
 });
 
 async function deleteExpectedIncome(id) {
-  if (!confirm('Удалить этот ожидаемый доход из списка?')) return;
+  if (!(await confirmDialog('Удалить этот ожидаемый доход из списка?'))) return;
   const { error } = await supabaseClient.from('expected_income').delete().eq('id', id);
   if (error) { toast('Ошибка: ' + error.message); return; }
   toast('Удалено');
@@ -3168,7 +3240,7 @@ async function deleteExpectedIncome(id) {
 async function deleteAllExpectedIncome() {
   if (!isConfigured) { toast('Сначала подключите базу данных'); return; }
   if (!state.expectedIncome.length) { toast('Список уже пуст'); return; }
-  if (!confirm(`Удалить ВСЕ ожидаемые доходы (${state.expectedIncome.length} шт., включая будущие месяцы)? Это действие нельзя отменить.`)) return;
+  if (!(await confirmDialog('Удалить все ожидаемые доходы?', { submessage: `Будет удалено ${state.expectedIncome.length} записей, включая будущие месяцы.`, confirmLabel: 'Удалить всё' }))) return;
   const query = supabaseClient.from('expected_income').delete();
   const { error } = currentUser ? await query.eq('user_id', currentUser.id) : await query.is('user_id', null);
   if (error) { toast('Ошибка: ' + error.message); return; }
@@ -3282,7 +3354,7 @@ function renderExpectedIncome() {
           onblur="this.value = fmt.format(parseFloat(this.value.replace(/\s/g,'').replace(',', '.')) || ${item.amount})"
           onchange="updateIncomeField('${item.id}','amount', this.value.replace(/\s/g,'').replace(',', '.'))">
       </td>
-      <td style="white-space:nowrap; display:flex; gap:4px; align-items:center;"><button class="btn-tiny icon-btn" onclick="markIncomeReceived('${item.id}')" title="Добавить в операции"><i data-lucide="download"></i></button><button class="btn-tiny icon-btn ${item.is_received ? 'active' : ''}" onclick="toggleIncomeReceivedFlag('${item.id}')" title="${item.is_received ? 'Деньги пришли — нажмите, чтобы снять отметку' : 'Отметить, что деньги пришли'}"><i data-lucide="check"></i></button><button class="del-btn" onclick="deleteExpectedIncome('${item.id}')" title="Удалить"><i data-lucide="x"></i></button></td>
+      <td style="white-space:nowrap; display:flex; gap:4px; align-items:center;"><button class="btn-tiny icon-btn" onclick="markIncomeReceived('${item.id}')" title="Добавить в операции" aria-label="Добавить в операции"><i data-lucide="download"></i></button><button class="btn-tiny icon-btn ${item.is_received ? 'active' : ''}" onclick="toggleIncomeReceivedFlag('${item.id}')" title="${item.is_received ? 'Деньги пришли — нажмите, чтобы снять отметку' : 'Отметить, что деньги пришли'}" aria-label="${item.is_received ? 'Деньги пришли — нажмите, чтобы снять отметку' : 'Отметить, что деньги пришли'}"><i data-lucide="check"></i></button><button class="del-btn" onclick="deleteExpectedIncome('${item.id}')" title="Удалить" aria-label="Удалить"><i data-lucide="x"></i></button></td>
     `;
     tbody.appendChild(tr);
   });
@@ -3357,7 +3429,7 @@ function renderIncomeDynamics() {
 
 /* ---------------- RECURRING EXPENSES ---------------- */
 async function deleteRecurringGroup(groupId) {
-  if (!confirm('Удалить весь ежемесячный расход (все платежи)?')) return;
+  if (!(await confirmDialog('Удалить весь ежемесячный расход?', { submessage: 'Будут удалены все платежи этой серии. Это действие нельзя будет отменить.', confirmLabel: 'Удалить всё' }))) return;
   const { error } = await supabaseClient.from('transactions').delete().eq('recurring_group_id', groupId);
   if (error) { toast('Ошибка: ' + error.message); return; }
   toast('Удалено');
@@ -3435,7 +3507,7 @@ function renderRecurring() {
         ${endFmt ? `<div class="days-remaining">до ${endFmt}</div>` : ''}
       </td>
       <td style="text-align:right;" class="amount-expense ${isPaid ? 'amount-paid' : ''}" title="${isPaid ? 'Платёж за этот месяц уже прошёл' : ''}">${fmt.format(g.amount)}</td>
-      <td><button class="del-btn" onclick="deleteRecurringGroup('${groupId}')"><i data-lucide="x"></i></button></td>
+      <td><button class="del-btn" onclick="deleteRecurringGroup('${groupId}')" title="Удалить" aria-label="Удалить"><i data-lucide="x"></i></button></td>
     `;
     tbody.appendChild(tr);
   });
@@ -3446,7 +3518,7 @@ function renderRecurring() {
 
 /* ---------------- DELETE TRANSACTION ---------------- */
 async function deleteTx(id) {
-  if (!confirm('Удалить эту операцию?')) return;
+  if (!(await confirmDialog('Удалить эту операцию?'))) return;
   const { error } = await supabaseClient.from('transactions').delete().eq('id', id);
   if (error) { toast('Ошибка: ' + error.message); return; }
   toast('Удалено');
@@ -3776,7 +3848,7 @@ function renderTable() {
           onblur="this.value = fmt.format(parseFloat(this.value.replace(/\s/g,'').replace(',', '.')) || ${t.amount})"
           onchange="updateTxAmount('${t.id}', this.value.replace(/\s/g,'').replace(',', '.'))">
       </td>
-      <td><button class="del-btn" onclick="deleteTx('${t.id}')"><i data-lucide="x"></i></button></td>
+      <td><button class="del-btn" onclick="deleteTx('${t.id}')" title="Удалить" aria-label="Удалить"><i data-lucide="x"></i></button></td>
     `;
     tbody.appendChild(tr);
   });
