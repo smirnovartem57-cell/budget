@@ -177,7 +177,7 @@
     background: rgba(0,0,0,0.5);
     display: none;
     align-items: center; justify-content: center;
-    z-index: 200;
+    z-index: 1100;
   }
   .auth-modal-overlay.visible { display: flex; }
   .auth-modal {
@@ -193,7 +193,7 @@
     background: rgba(16,24,40,0.5);
     display: none;
     align-items: center; justify-content: center;
-    z-index: 300;
+    z-index: 1100;
     opacity: 0;
     transition: opacity .2s ease;
   }
@@ -219,7 +219,7 @@
     display: none;
     flex-direction: column; align-items: center; justify-content: center;
     gap: 14px;
-    z-index: 500;
+    z-index: 1100;
     padding: 24px;
     text-align: center;
   }
@@ -379,6 +379,7 @@
   }
   .summary-card.hero .label, .summary-card.hero .value, .summary-card.hero .growth-indicator { color: #fff; }
   .summary-card.hero .value { font-size: 34px; }
+  .sparkline-box { position: relative; height: 28px; margin-top: 8px; }
 
   /* main grid */
   .main-grid {
@@ -882,6 +883,7 @@
     .growth-indicator { font-size: 9.5px; }
     .metric-icon { width: 28px; height: 28px; margin-bottom: 6px; }
     .metric-icon svg { width: 14px; height: 14px; }
+    .sparkline-box { height: 18px; margin-top: 4px; }
 
     table { font-size: 12.5px; }
     th, td { padding: 8px 4px; }
@@ -930,6 +932,69 @@
     .container { padding-bottom: calc(60px + var(--bottom-nav-h) + env(safe-area-inset-bottom, 0px)); }
     .toast { bottom: calc(24px + var(--bottom-nav-h) + env(safe-area-inset-bottom, 0px)); }
     .voice-status-bar { bottom: calc(var(--bottom-nav-h) + env(safe-area-inset-bottom, 0px)); }
+  }
+
+  /* ===================== QUICK ACTIONS (mobile) ===================== */
+  .quick-actions-grid { display: none; }
+  @media (max-width: 767px) {
+    .quick-actions-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+  }
+  .quick-action-card {
+    display: flex; align-items: center; gap: 12px;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-card);
+    padding: 16px;
+    text-align: left;
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+  }
+  .quick-action-icon {
+    width: 40px; height: 40px; flex-shrink: 0;
+    border-radius: var(--radius-sm);
+    background: var(--info-bg); color: var(--btn-primary);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .quick-action-icon svg { width: 20px; height: 20px; }
+  .quick-action-title { font-size: 13.5px; font-weight: 700; color: var(--text-primary); }
+  .quick-action-sub { font-size: 11.5px; color: var(--text-secondary); margin-top: 1px; }
+
+  /* ===================== BOTTOM SHEET (mobile form container) ===================== */
+  .bottom-sheet-overlay { }
+  .bottom-sheet { }
+  @media (max-width: 767px) {
+    .bottom-sheet-overlay {
+      position: fixed; inset: 0;
+      background: rgba(16,24,40,0.5);
+      display: none;
+      align-items: flex-end; justify-content: center;
+      z-index: 1100;
+      opacity: 0;
+      transition: opacity .25s ease;
+    }
+    .bottom-sheet-overlay.visible { display: flex; opacity: 1; }
+    .bottom-sheet {
+      position: relative;
+      background: var(--card-bg);
+      width: 100%;
+      max-height: 88vh;
+      overflow-y: auto;
+      border-radius: 20px 20px 0 0;
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+      transform: translateY(100%);
+      transition: transform .25s ease;
+    }
+    .bottom-sheet-overlay.visible .bottom-sheet { transform: translateY(0); }
+    .bottom-sheet-handle { width: 40px; height: 4px; background: var(--border); border-radius: 999px; margin: 10px auto 0; }
+    .bottom-sheet-close {
+      position: absolute; top: 12px; right: 12px;
+      width: 32px; height: 32px; border-radius: 50%;
+      background: var(--bg-secondary); border: none; color: var(--text-secondary);
+      display: flex; align-items: center; justify-content: center; cursor: pointer;
+    }
+    .bottom-sheet-close svg { width: 16px; height: 16px; }
+    .bottom-sheet .panel { box-shadow: none; border: none; margin-bottom: 0; }
   }
 </style>
 </head>
@@ -983,18 +1048,21 @@
       <div class="label" id="labelBalancePeriod">Остаток за месяц</div>
       <div class="value" id="balanceMonth">—</div>
       <div class="growth-indicator" id="growthBalance"></div>
+      <div class="sparkline-box"><canvas id="sparkBalance"></canvas></div>
     </div>
     <div class="summary-card income">
       <div class="metric-icon icon-income"><i data-lucide="trending-up"></i></div>
       <div class="label" id="labelIncomePeriod">Доход за месяц</div>
       <div class="value" id="sumIncomeMonth">—</div>
       <div class="growth-indicator" id="growthIncome"></div>
+      <div class="sparkline-box"><canvas id="sparkIncome"></canvas></div>
     </div>
     <div class="summary-card expense">
       <div class="metric-icon icon-expense"><i data-lucide="trending-down"></i></div>
       <div class="label" id="labelExpensePeriod">Расход за месяц</div>
       <div class="value" id="sumExpenseMonth">—</div>
       <div class="growth-indicator" id="growthExpense"></div>
+      <div class="sparkline-box"><canvas id="sparkExpense"></canvas></div>
     </div>
     <div class="summary-card debts">
       <div class="metric-icon icon-debts"><i data-lucide="hand-coins"></i></div>
@@ -1037,8 +1105,29 @@
     <div class="empty-note" id="notepadEmptyNote" style="display:none;">Список пуст — добавьте что-нибудь голосом или текстом</div>
   </div>
 
+  <div class="quick-actions-grid">
+    <button type="button" class="quick-action-card" id="quickActionNewTx">
+      <div class="quick-action-icon"><i data-lucide="plus-circle"></i></div>
+      <div>
+        <div class="quick-action-title">Новая операция</div>
+        <div class="quick-action-sub">Доход или расход</div>
+      </div>
+    </button>
+    <button type="button" class="quick-action-card" id="quickActionDebt">
+      <div class="quick-action-icon"><i data-lucide="users"></i></div>
+      <div>
+        <div class="quick-action-title">Долг по людям</div>
+        <div class="quick-action-sub">Кому должны</div>
+      </div>
+    </button>
+  </div>
+
   <div class="main-grid">
-    <!-- FORM -->
+    <!-- FORM (inline on desktop; slides up as a bottom sheet on mobile, opened via the quick-action card above or the bottom-nav "+" button) -->
+    <div class="bottom-sheet-overlay" id="txSheetOverlay">
+    <div class="bottom-sheet">
+    <div class="bottom-sheet-handle"></div>
+    <button type="button" class="bottom-sheet-close" id="txSheetCloseBtn" aria-label="Закрыть"><i data-lucide="x"></i></button>
     <div class="panel">
       <h2 style="justify-content:space-between;">
         <span>Новая операция</span>
@@ -1113,6 +1202,8 @@
       </div>
 
       <button class="btn-primary" id="submitBtn">Добавить</button>
+    </div>
+    </div>
     </div>
 
     <div>
@@ -2036,11 +2127,20 @@ document.getElementById('navBudgetBtn').addEventListener('click', () => switchPa
 document.getElementById('navDebtsBtn').addEventListener('click', () => switchPageTab('debts'));
 document.getElementById('navShoppingBtn').addEventListener('click', () => switchPageTab('shopping'));
 document.getElementById('navIncomeBtn').addEventListener('click', () => switchPageTab('income'));
-document.getElementById('navAddBtn').addEventListener('click', () => {
+function openTxSheet() {
   switchPageTab('budget');
-  const amountInput = document.getElementById('amountInput');
-  amountInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  amountInput.focus();
+  document.getElementById('txSheetOverlay').classList.add('visible');
+  setTimeout(() => document.getElementById('amountInput').focus(), 300);
+}
+function closeTxSheet() {
+  document.getElementById('txSheetOverlay').classList.remove('visible');
+}
+document.getElementById('navAddBtn').addEventListener('click', openTxSheet);
+document.getElementById('quickActionNewTx').addEventListener('click', openTxSheet);
+document.getElementById('quickActionDebt').addEventListener('click', () => switchPageTab('debts'));
+document.getElementById('txSheetCloseBtn').addEventListener('click', closeTxSheet);
+document.getElementById('txSheetOverlay').addEventListener('click', (e) => {
+  if (e.target.id === 'txSheetOverlay') closeTxSheet();
 });
 
 function switchPageTab(tab) {
@@ -2735,6 +2835,7 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
   document.getElementById('recurringCheckbox').checked = false;
   document.getElementById('recurringEndDateRow').style.display = 'none';
   hideCatSuggestion();
+  closeTxSheet();
   await loadAll();
 });
 
@@ -3771,6 +3872,40 @@ function renderSummary() {
   const gi = document.getElementById('growthIncome'); gi.textContent = gIncome.text; gi.className = 'growth-indicator ' + gIncome.dir;
   const ge = document.getElementById('growthExpense'); ge.textContent = gExpense.text; ge.className = 'growth-indicator ' + gExpense.dir;
   const gb = document.getElementById('growthBalance'); gb.textContent = gBalance.text; gb.className = 'growth-indicator ' + gBalance.dir;
+
+  const sparkMonths = lastNMonthKeys(todayStr().slice(0, 7), 6);
+  const incomeSeries = sparkMonths.map(k => sumForMonths([k], 'income'));
+  const expenseSeries = sparkMonths.map(k => sumForMonths([k], 'expense'));
+  const balanceSeries = incomeSeries.map((v, i) => v - expenseSeries[i]);
+  renderSparkline('sparkIncome', incomeSeries, getComputedStyle(document.documentElement).getPropertyValue('--income-accent').trim());
+  renderSparkline('sparkExpense', expenseSeries, getComputedStyle(document.documentElement).getPropertyValue('--expense-accent').trim());
+  renderSparkline('sparkBalance', balanceSeries, 'rgba(255,255,255,0.9)');
+}
+
+function lastNMonthKeys(endKey, n) {
+  const [y, m] = endKey.split('-').map(Number);
+  const keys = [];
+  for (let i = n - 1; i >= 0; i--) {
+    const d = new Date(y, m - 1 - i, 1);
+    keys.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+  }
+  return keys;
+}
+
+function renderSparkline(canvasId, values, color) {
+  const ctx = document.getElementById(canvasId);
+  if (!ctx) return;
+  const existing = Chart.getChart(ctx);
+  if (existing) existing.destroy();
+  new Chart(ctx, {
+    type: 'line',
+    data: { labels: values.map((_, i) => i), datasets: [{ data: values, borderColor: color, borderWidth: 2, pointRadius: 0, tension: 0.35, fill: false }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: { x: { display: false }, y: { display: false } },
+      plugins: { legend: { display: false }, tooltip: { enabled: false } },
+    },
+  });
 }
 
 function txCategoryLabel(t) {
@@ -3787,7 +3922,7 @@ function renderRecentTransactions() {
       <div class="recent-tx-icon ${t.kind}"><i data-lucide="${t.kind === 'income' ? 'arrow-down-left' : 'arrow-up-right'}"></i></div>
       <div class="recent-tx-info">
         <div class="recent-tx-cat">${txCategoryLabel(t)}</div>
-        <div class="recent-tx-date">${t.date}</div>
+        <div class="recent-tx-date">${t.date}${t.comment ? ' · ' + escapeHtml(t.comment) : ''}</div>
       </div>
       <div class="recent-tx-amount ${t.kind === 'income' ? 'amount-income' : 'amount-expense'}">${t.kind === 'income' ? '+' : '−'} ${fmt.format(t.amount)}</div>
     </div>`).join('') || '<div class="empty-note">Нет операций</div>';
