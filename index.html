@@ -660,6 +660,57 @@
   .chart-center-label { position: absolute; top: 42%; left: 50%; transform: translate(-50%, -50%); text-align: center; pointer-events: none; }
   .chart-center-value { font-family: 'Manrope', sans-serif; font-weight: 800; font-size: 20px; color: var(--text-primary); white-space: nowrap; font-variant-numeric: tabular-nums; }
   .chart-center-caption { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+  .category-ranking-total { font-family: 'Manrope', sans-serif; font-weight: 800; font-size: 20px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .category-ranking-total-caption { font-size: 11px; color: var(--text-muted); margin-bottom: 14px; }
+  .category-ranking-row { margin-bottom: 12px; }
+  .category-ranking-row:last-child { margin-bottom: 0; }
+  .category-ranking-row-head { display: flex; align-items: baseline; gap: 6px; margin-bottom: 5px; }
+  .category-ranking-name { font-size: 13.5px; font-weight: 600; color: var(--text-primary); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+  .category-ranking-amount { font-size: 13px; font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; flex-shrink: 0; }
+  .category-ranking-pct { font-size: 11.5px; color: var(--text-secondary); flex-shrink: 0; width: 42px; text-align: right; }
+  .category-ranking-bar-track { height: 8px; border-radius: 5px; background: var(--bg-secondary); overflow: hidden; }
+  .category-ranking-bar-fill { height: 100%; border-radius: 5px; }
+  .category-ranking-more-btn { margin-top: 10px; background: none; border: none; color: var(--btn-primary); font-size: 12.5px; font-weight: 600; cursor: pointer; padding: 4px 0; }
+
+  .monthly-fact-row { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px dashed var(--border); }
+  .monthly-fact-row:last-child { border-bottom: none; }
+  .monthly-fact-month { font-size: 13px; font-weight: 600; color: var(--text-primary); width: 44px; flex-shrink: 0; }
+  .monthly-fact-amount { font-size: 13.5px; font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; flex: 1; }
+  .monthly-fact-row .growth-indicator { font-size: 11.5px; flex-shrink: 0; }
+
+  .period-compare-row { display: flex; gap: 16px; margin-bottom: 12px; }
+  .period-compare-col { flex: 1; min-width: 0; }
+  .period-compare-label { font-size: 11.5px; color: var(--text-secondary); margin-bottom: 4px; }
+  .period-compare-amount { font-family: 'Manrope', sans-serif; font-weight: 800; font-size: 19px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .period-compare-delta { font-size: 13px; font-weight: 600; padding: 10px 12px; border-radius: var(--radius-sm); margin-bottom: 14px; background: var(--bg-secondary); }
+  .period-compare-delta.up { background: var(--income-bg); color: var(--income-accent); }
+  .period-compare-delta.down { background: var(--expense-bg); color: var(--expense-accent); }
+  .period-compare-factors-title { font-size: 12px; font-weight: 700; color: var(--text-secondary); margin-bottom: 8px; }
+  .period-compare-factor-row { display: flex; justify-content: space-between; gap: 8px; padding: 6px 0; border-bottom: 1px dashed var(--border); font-size: 13px; }
+  .period-compare-factor-row:last-child { border-bottom: none; }
+  .period-compare-factor-name { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .period-compare-factor-amount { font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; flex-shrink: 0; }
+  .period-compare-factor-amount.up { color: var(--income-accent); }
+  .period-compare-factor-amount.down { color: var(--expense-accent); }
+
+  .recurring-due-soon { font-size: 12.5px; color: var(--text-secondary); margin: -6px 0 14px; }
+  .recurring-due-soon strong { color: var(--text-primary); font-variant-numeric: tabular-nums; }
+
+  .payments-timeline { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 4px; -webkit-overflow-scrolling: touch; }
+  .payments-timeline-item { flex: 0 0 auto; min-width: 92px; max-width: 92px; background: var(--bg-secondary); border-radius: var(--radius-sm); padding: 10px 10px; text-align: center; }
+  .payments-timeline-item.due-soon { background: var(--warning-bg); }
+  .payments-timeline-date { font-size: 11px; color: var(--text-secondary); margin-bottom: 4px; }
+  .payments-timeline-amount { font-size: 13.5px; font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .payments-timeline-name { font-size: 10.5px; color: var(--text-muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .recurring-breakdown-row { margin-bottom: 12px; }
+  .recurring-breakdown-row:last-child { margin-bottom: 0; }
+  .recurring-breakdown-row-head { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 5px; font-size: 13px; }
+  .recurring-breakdown-name { font-weight: 600; color: var(--text-primary); }
+  .recurring-breakdown-amount { font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .recurring-breakdown-bar-track { height: 8px; border-radius: 5px; background: var(--bg-secondary); overflow: hidden; }
+  .recurring-breakdown-bar-fill { height: 100%; border-radius: 5px; background: var(--btn-primary); }
   .empty-note {
     color: var(--text-secondary);
     font-size: 13.5px;
@@ -1322,6 +1373,18 @@
         <div class="chart-box"><canvas id="dynamicsChart"></canvas></div>
       </div>
 
+      <!-- MONTHLY FACT (expense-only, MoM change, no budget target involved) -->
+      <div class="panel">
+        <h2><span>Факт по месяцам</span> <span class="badge-info">6 мес</span></h2>
+        <div id="monthlyFactList"></div>
+      </div>
+
+      <!-- PERIOD COMPARISON -->
+      <div class="panel">
+        <h2 id="periodComparisonTitle">Сравнение периодов</h2>
+        <div id="periodComparisonBox"></div>
+      </div>
+
       <!-- SUBSCRIPTIONS -->
       <div class="panel">
         <h2 style="justify-content:space-between;">
@@ -1356,6 +1419,7 @@
           <span><img class="h2-icon" src="icons/payments.png" alt="">Ежемесячные расходы</span>
           <span class="badge-info" id="recurringTotalBadge">0 ₽</span>
         </h2>
+        <div class="recurring-due-soon" id="recurringDueSoon"></div>
         <div style="overflow-x:auto;">
           <table>
             <thead>
@@ -1384,14 +1448,26 @@
         </div>
       </div>
 
+      <!-- UPCOMING PAYMENTS TIMELINE -->
+      <div class="panel">
+        <h2>Ближайшие платежи</h2>
+        <div class="payments-timeline" id="paymentsTimeline"></div>
+      </div>
+
+      <!-- RECURRING EXPENSES STRUCTURE -->
+      <div class="panel">
+        <h2>Структура регулярных расходов</h2>
+        <div id="recurringBreakdown"></div>
+      </div>
+
       <div class="charts-grid">
         <div class="panel" style="margin-bottom:0;">
           <h2>Доходы по категориям</h2>
-          <div class="chart-box" id="incomeChartBox"><canvas id="incomeChart"></canvas></div>
+          <div class="category-ranking" id="incomeCategoryRanking"></div>
         </div>
         <div class="panel" style="margin-bottom:0;">
           <h2>Расходы по категориям</h2>
-          <div class="chart-box" id="expenseChartBox"><canvas id="expenseChart"></canvas></div>
+          <div class="category-ranking" id="expenseCategoryRanking"></div>
         </div>
       </div>
 
@@ -1890,6 +1966,7 @@ let state = {
   categoryRules: [],
   subscriptions: [],
   subscriptionsSort: { key: null, dir: 'asc' }, // key: 'name' | 'amount' | 'date'
+  categoryRankingExpanded: { income: false, expense: false },
 };
 
 let currentUser = null;
@@ -2016,6 +2093,13 @@ function hasHappened(t) {
 function monthLabel(key) {
   const [y, m] = key.split('-');
   const names = ['январь','февраль','март','апрель','май','июнь','июль','август','сентябрь','октябрь','ноябрь','декабрь'];
+  return `${names[parseInt(m)-1]} ${y}`;
+}
+
+// Instrumental case ("с июнем", not "с июнь") — only needed for the "X по сравнению с Y" phrasing.
+function monthLabelInstrumental(key) {
+  const [y, m] = key.split('-');
+  const names = ['январём','февралём','мартом','апрелем','маем','июнем','июлем','августом','сентябрём','октябрём','ноябрём','декабрём'];
   return `${names[parseInt(m)-1]} ${y}`;
 }
 
@@ -3211,7 +3295,7 @@ function renderDebtsSummary() {
   document.getElementById('debtsTabBalance').textContent = fmt.format(incomePeriod - expensePeriod);
 
   const gIncome = formatGrowth(incomePeriod, incomePrev);
-  const gExpense = formatGrowth(expensePeriod, expensePrev);
+  const gExpense = formatGrowth(expensePeriod, expensePrev, { invert: true });
   const gBalance = formatGrowth(incomePeriod - expensePeriod, incomePrev - expensePrev);
   const g1 = document.getElementById('growthDebtsTabIncome'); g1.textContent = gIncome.text; g1.className = 'growth-indicator ' + gIncome.dir;
   const g2 = document.getElementById('growthDebtsTabExpense'); g2.textContent = gExpense.text; g2.className = 'growth-indicator ' + gExpense.dir;
@@ -3805,7 +3889,7 @@ function renderShoppingSummary() {
   document.getElementById('shoppingTabDebtsTotal').textContent = fmt.format(debtsTotal);
   document.getElementById('shoppingTabBalance').textContent = fmt.format(incomePeriod - expensePeriod);
 
-  const gExpense = formatGrowth(expensePeriod, expensePrev);
+  const gExpense = formatGrowth(expensePeriod, expensePrev, { invert: true });
   const gBalance = formatGrowth(incomePeriod - expensePeriod, incomePrev - expensePrev);
   const g1 = document.getElementById('growthShoppingTabExpense'); g1.textContent = gExpense.text; g1.className = 'growth-indicator ' + gExpense.dir;
   const g2 = document.getElementById('growthShoppingTabBalance'); g2.textContent = gBalance.text; g2.className = 'growth-indicator ' + gBalance.dir;
@@ -4053,7 +4137,7 @@ function renderIncomeSummary() {
   document.getElementById('incomeTabBalance').textContent = fmt.format(incomePeriod - expensePeriod);
 
   const gExpected = formatGrowth(expectedTotal, expectedPrevTotal);
-  const gExpense = formatGrowth(expensePeriod, expensePrev);
+  const gExpense = formatGrowth(expensePeriod, expensePrev, { invert: true });
   const gBalance = formatGrowth(incomePeriod - expensePeriod, incomePrev - expensePrev);
   const g1 = document.getElementById('growthIncomeExpected'); g1.textContent = gExpected.text; g1.className = 'growth-indicator ' + gExpected.dir;
   const g2 = document.getElementById('growthIncomeTabExpense'); g2.textContent = gExpense.text; g2.className = 'growth-indicator ' + gExpense.dir;
@@ -4182,6 +4266,7 @@ function renderIncomeDynamics() {
   }
   document.getElementById('incomeDynamicsBadge').textContent = badgeText;
 
+  const isNarrow = window.innerWidth <= 480;
   const ctx = document.getElementById('incomeDynamicsChart');
   if (incomeDynamicsChartInstance) incomeDynamicsChartInstance.destroy();
   incomeDynamicsChartInstance = new Chart(ctx, {
@@ -4196,8 +4281,14 @@ function renderIncomeDynamics() {
       responsive: true, maintainAspectRatio: false,
       plugins: { legend: { display: false } },
       scales: {
-        y: { ticks: { callback: v => fmt.format(v) }, grid: { color: '#E7E5E1' } },
-        x: { grid: { display: false } }
+        y: {
+          ticks: { callback: v => fmt.format(v), maxTicksLimit: isNarrow ? 4 : undefined },
+          grid: { color: '#E7E5E1' }
+        },
+        x: {
+          grid: { display: false },
+          ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: isNarrow ? 5 : undefined }
+        }
       }
     }
   });
@@ -4316,6 +4407,111 @@ function renderRecurring() {
   document.getElementById('recurringTotalBadge').textContent = fmt.format(total);
   document.getElementById('recurringTotalFooter').textContent = fmt.format(total);
   document.getElementById('recurringRemainingFooter').textContent = fmt.format(remaining);
+}
+
+// One row per still-active recurring expense "template" (category/subcategory + monthly amount),
+// grouped by recurring_group_id the same way renderRecurring() does internally — kept as a
+// separate helper rather than refactoring renderRecurring() itself to avoid touching
+// already-verified rendering logic.
+function getActiveRecurringGroups() {
+  const groups = {};
+  const today = todayStr();
+  state.transactions.forEach(t => {
+    if (!t.is_recurring || !t.recurring_group_id) return;
+    if (!groups[t.recurring_group_id]) {
+      groups[t.recurring_group_id] = { category: t.category, subcategory: t.subcategory, amount: Number(t.amount), endDate: t.recurring_end_date, minDate: t.date };
+    } else if (t.date < groups[t.recurring_group_id].minDate) {
+      groups[t.recurring_group_id].minDate = t.date;
+    }
+  });
+  return Object.values(groups).filter(g => !g.endDate || g.endDate >= today);
+}
+
+function renderRecurringDueSoon() {
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const horizon = new Date(today); horizon.setDate(horizon.getDate() + 7);
+  const todayS = todayStr();
+  const horizonS = horizon.toISOString().slice(0, 10);
+
+  const dueTx = state.transactions
+    .filter(t => t.is_recurring && t.date >= todayS && t.date <= horizonS)
+    .reduce((s, t) => s + Number(t.amount), 0);
+  const dueSubs = state.subscriptions
+    .filter(s => s.is_active && s.next_billing_date && s.next_billing_date >= todayS && s.next_billing_date <= horizonS)
+    .reduce((s, sub) => s + Number(sub.amount), 0);
+  const total = dueTx + dueSubs;
+
+  const el = document.getElementById('recurringDueSoon');
+  el.innerHTML = total > 0
+    ? `<strong>${fmt.format(total)}</strong> спишется в ближайшие 7 дней`
+    : 'На ближайшие 7 дней платежей нет';
+}
+
+function renderPaymentsTimeline() {
+  const box = document.getElementById('paymentsTimeline');
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const horizon = new Date(today); horizon.setDate(horizon.getDate() + 10);
+  const todayS = todayStr();
+  const horizonS = horizon.toISOString().slice(0, 10);
+
+  const items = [];
+  state.transactions.forEach(t => {
+    if (!t.is_recurring || t.date < todayS || t.date > horizonS) return;
+    items.push({ date: t.date, amount: Number(t.amount), name: t.subcategory ? `${t.category} · ${t.subcategory}` : t.category });
+  });
+  state.subscriptions.forEach(s => {
+    if (!s.is_active || !s.next_billing_date || s.next_billing_date < todayS || s.next_billing_date > horizonS) return;
+    items.push({ date: s.next_billing_date, amount: Number(s.amount), name: s.name });
+  });
+  items.sort((a, b) => a.date.localeCompare(b.date));
+
+  if (!items.length) {
+    box.innerHTML = '<div class="empty-note">На ближайшие 7 дней платежей нет</div>';
+    return;
+  }
+  box.innerHTML = items.map(it => {
+    const d = new Date(it.date + 'T00:00:00');
+    const soon = (d - today) / 86400000 <= 2;
+    const dateShort = `${String(d.getDate()).padStart(2, '0')} ${monthLabel(it.date.slice(0, 7)).slice(0, 3)}`;
+    return `
+      <div class="payments-timeline-item ${soon ? 'due-soon' : ''}">
+        <div class="payments-timeline-date">${dateShort}</div>
+        <div class="payments-timeline-amount">${fmt.format(it.amount)}</div>
+        <div class="payments-timeline-name">${escapeHtml(it.name)}</div>
+      </div>`;
+  }).join('');
+}
+
+function renderRecurringBreakdown() {
+  const box = document.getElementById('recurringBreakdown');
+  const groups = getActiveRecurringGroups();
+  const buckets = { 'Обязательные платежи': 0, 'Подписки': 0, 'Кредиты': 0, 'Другие': 0 };
+  groups.forEach(g => {
+    if (g.category === 'Кредит') buckets['Кредиты'] += g.amount;
+    else if (g.category === 'Обязательный') buckets['Обязательные платежи'] += g.amount;
+    else buckets['Другие'] += g.amount;
+  });
+  state.subscriptions.filter(s => s.is_active).forEach(s => { buckets['Подписки'] += Number(s.amount); });
+
+  const total = Object.values(buckets).reduce((a, b) => a + b, 0);
+  if (!total) {
+    box.innerHTML = '<div class="empty-note">Добавьте регулярные расходы, чтобы заранее планировать бюджет</div>';
+    return;
+  }
+  box.innerHTML = Object.entries(buckets)
+    .filter(([, amount]) => amount > 0)
+    .sort((a, b) => b[1] - a[1])
+    .map(([name, amount]) => {
+      const pct = total ? (amount / total * 100) : 0;
+      return `
+        <div class="recurring-breakdown-row">
+          <div class="recurring-breakdown-row-head">
+            <span class="recurring-breakdown-name">${name}</span>
+            <span class="recurring-breakdown-amount">${fmt.format(amount)}</span>
+          </div>
+          <div class="recurring-breakdown-bar-track"><div class="recurring-breakdown-bar-fill" style="width:${pct}%;"></div></div>
+        </div>`;
+    }).join('');
 }
 
 /* ---------------- DELETE TRANSACTION ---------------- */
@@ -4545,13 +4741,17 @@ function txActiveMonths() {
 }
 
 /* ---------------- RENDER: SUMMARY ---------------- */
-function formatGrowth(current, previous) {
+function formatGrowth(current, previous, { invert = false } = {}) {
   if (!previous) {
     return current > 0 ? { text: 'нет данных за пред. период', dir: '' } : { text: '', dir: '' };
   }
   const pct = ((current - previous) / previous) * 100;
-  const dir = pct > 0.05 ? 'up' : (pct < -0.05 ? 'down' : '');
-  const arrow = pct > 0.05 ? '▲' : (pct < -0.05 ? '▼' : '•');
+  // "up"/"down" describe whether the change is good or bad for this metric, not
+  // literal sign — for expense-like metrics a rise is bad, so invert flips the sense.
+  const rose = pct > 0.05;
+  const fell = pct < -0.05;
+  const dir = rose ? (invert ? 'down' : 'up') : fell ? (invert ? 'up' : 'down') : '';
+  const arrow = rose ? '▲' : (fell ? '▼' : '•');
   const periodWord = state.viewMode === 'year' ? 'к пред. году' : 'к пред. месяцу';
   return { text: `${arrow} ${Math.abs(pct).toFixed(1)}% ${periodWord}`, dir };
 }
@@ -4573,7 +4773,7 @@ function renderSummary() {
   document.getElementById('debtsMonthCount').textContent = unpaidDebtsCount ? `${unpaidDebtsCount} ${pluralDolg(unpaidDebtsCount)}` : '';
 
   const gIncome = formatGrowth(incomePeriod, incomePrev);
-  const gExpense = formatGrowth(expensePeriod, expensePrev);
+  const gExpense = formatGrowth(expensePeriod, expensePrev, { invert: true });
   const gBalance = formatGrowth(incomePeriod - expensePeriod, incomePrev - expensePrev);
   const gi = document.getElementById('growthIncome'); gi.textContent = gIncome.text; gi.className = 'growth-indicator ' + gIncome.dir;
   const ge = document.getElementById('growthExpense'); ge.textContent = gExpense.text; ge.className = 'growth-indicator ' + gExpense.dir;
@@ -4721,6 +4921,93 @@ function allYears() {
   return Array.from(new Set(fullMonthRange().map(k => k.split('-')[0]))).sort();
 }
 
+function renderMonthlyFactList() {
+  const box = document.getElementById('monthlyFactList');
+  const months = lastNMonthKeys(todayStr().slice(0, 7), 6);
+  const hasAnyExpense = months.some(m => sumForMonths([m], 'expense') > 0);
+  if (!hasAnyExpense) {
+    box.innerHTML = '<div class="empty-note">Нет расходов за последние 6 месяцев</div>';
+    return;
+  }
+  box.innerHTML = months.map((m, i) => {
+    const amount = sumForMonths([m], 'expense');
+    const prevKey = i > 0 ? months[i - 1] : lastNMonthKeys(m, 2)[0];
+    const prevAmount = sumForMonths([prevKey], 'expense');
+    const g = formatGrowth(amount, prevAmount, { invert: true });
+    const monthShort = monthLabel(m).slice(0, 3).replace(/^(\S)/, s => s.toUpperCase());
+    return `
+      <div class="monthly-fact-row">
+        <span class="monthly-fact-month">${monthShort}</span>
+        <span class="monthly-fact-amount">${fmt.format(amount)}</span>
+        <span class="growth-indicator ${g.dir}">${g.text}</span>
+      </div>`;
+  }).join('');
+}
+
+function renderPeriodComparison() {
+  const box = document.getElementById('periodComparisonBox');
+  const curMonths = activeMonths();
+  const prevMonths = previousPeriodMonths();
+  const curExpense = sumForMonths(curMonths, 'expense');
+  const prevExpense = sumForMonths(prevMonths, 'expense');
+
+  const curLabelRaw = state.viewMode === 'year' ? state.selectedYear : monthLabel(state.selectedMonth);
+  const prevLabelRaw = state.viewMode === 'year'
+    ? String(Number(state.selectedYear) - 1)
+    : (prevMonths.length ? monthLabel(prevMonths[prevMonths.length - 1]) : '');
+  const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+  const prevLabelInstrumental = state.viewMode === 'year'
+    ? prevLabelRaw
+    : (prevMonths.length ? monthLabelInstrumental(prevMonths[prevMonths.length - 1]) : '');
+  document.getElementById('periodComparisonTitle').textContent = prevLabelRaw
+    ? `${cap(curLabelRaw)} по сравнению с ${prevLabelInstrumental}`
+    : 'Сравнение периодов';
+
+  if (!prevExpense) {
+    box.innerHTML = '<div class="empty-note">Нет данных за предыдущий период для сравнения</div>';
+    return;
+  }
+
+  const delta = curExpense - prevExpense;
+  const g = formatGrowth(curExpense, prevExpense, { invert: true });
+
+  const curTx = state.transactions.filter(t => curMonths.includes(monthKey(t.date)) && t.kind === 'expense' && hasHappened(t));
+  const prevTx = state.transactions.filter(t => prevMonths.includes(monthKey(t.date)) && t.kind === 'expense' && hasHappened(t));
+  const curByCat = {}; curTx.forEach(t => { curByCat[t.category] = (curByCat[t.category] || 0) + Number(t.amount); });
+  const prevByCat = {}; prevTx.forEach(t => { prevByCat[t.category] = (prevByCat[t.category] || 0) + Number(t.amount); });
+  const allCats = new Set([...Object.keys(curByCat), ...Object.keys(prevByCat)]);
+  const catDeltas = [...allCats]
+    .map(cat => ({ cat, delta: (curByCat[cat] || 0) - (prevByCat[cat] || 0) }))
+    .filter(d => d.delta !== 0)
+    .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta))
+    .slice(0, 5);
+
+  let html = `
+    <div class="period-compare-row">
+      <div class="period-compare-col">
+        <div class="period-compare-label">${cap(curLabelRaw)}</div>
+        <div class="period-compare-amount">${fmt.format(curExpense)}</div>
+      </div>
+      <div class="period-compare-col">
+        <div class="period-compare-label">${cap(prevLabelRaw)}</div>
+        <div class="period-compare-amount">${fmt.format(prevExpense)}</div>
+      </div>
+    </div>
+    <div class="period-compare-delta ${g.dir}">
+      Расходы ${delta >= 0 ? 'выросли' : 'снизились'} на ${fmt.format(Math.abs(delta))} — ${g.text}
+    </div>`;
+
+  if (catDeltas.length) {
+    html += `<div class="period-compare-factors-title">Что повлияло на изменение</div>`;
+    html += catDeltas.map(d => `
+      <div class="period-compare-factor-row">
+        <span class="period-compare-factor-name">${escapeHtml(d.cat)}</span>
+        <span class="period-compare-factor-amount ${d.delta > 0 ? 'down' : 'up'}">${d.delta > 0 ? '+' : '−'}${fmt.format(Math.abs(d.delta))}</span>
+      </div>`).join('');
+  }
+  box.innerHTML = html;
+}
+
 function renderDynamicsChart() {
   document.getElementById('dynamicsByDayBtn').classList.toggle('active', state.dynamicsView === 'day');
   document.getElementById('dynamicsByMonthBtn').classList.toggle('active', state.dynamicsView === 'month');
@@ -4780,9 +5067,7 @@ function renderDynamicsChart() {
   });
 }
 
-const PIE_COLORS = ['#4F7DF3','#4FC9A4','#F2A35E','#9370E8','#EF769F','#25A875','#E45E68','#E89B3C','#17213A'];
-
-function renderCategoryPie(canvasId, boxId, kind) {
+function renderCategoryRanking(boxId, kind) {
   const months = activeMonths();
   const periodTx = state.transactions.filter(t => months.includes(monthKey(t.date)) && t.kind === kind && hasHappened(t));
   const box = document.getElementById(boxId);
@@ -4791,34 +5076,54 @@ function renderCategoryPie(canvasId, boxId, kind) {
     box.innerHTML = `<div class="empty-note">Нет данных за ${periodLabel}</div>`;
     return;
   }
-  if (!box.querySelector('canvas')) {
-    box.innerHTML = `<canvas id="${canvasId}"></canvas>`;
-  }
-  if (!box.querySelector('.chart-center-label')) {
-    box.insertAdjacentHTML('beforeend', '<div class="chart-center-label"><div class="chart-center-value"></div><div class="chart-center-caption">Всего</div></div>');
-  }
   const byCategory = {};
   periodTx.forEach(t => { byCategory[t.category] = (byCategory[t.category] || 0) + Number(t.amount); });
-  const labels = Object.keys(byCategory);
-  const data = Object.values(byCategory);
-  const total = data.reduce((a, b) => a + b, 0);
+  const sorted = Object.entries(byCategory).sort((a, b) => b[1] - a[1]);
+  const total = sorted.reduce((s, [, v]) => s + v, 0);
+  const expanded = state.categoryRankingExpanded[kind];
+  const rest = sorted.slice(5);
+  const restTotal = rest.reduce((s, [, v]) => s + v, 0);
+  const rows = expanded ? sorted : sorted.slice(0, 5);
+  const accentVar = kind === 'income' ? '--income-accent' : '--expense-accent';
 
-  const ctx = document.getElementById(canvasId);
-  const existing = Chart.getChart(ctx);
-  if (existing) existing.destroy();
-  new Chart(ctx, {
-    type: 'doughnut',
-    data: { labels, datasets: [{ data, backgroundColor: PIE_COLORS, borderWidth: 2, borderColor: '#fff' }] },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      cutout: '68%',
-      plugins: {
-        legend: { position: 'bottom', labels: { font: { family: 'Inter', size: 11 }, boxWidth: 10 } },
-        tooltip: { callbacks: { label: (c) => `${c.label}: ${fmt.format(c.raw)}` } }
-      }
+  const rowHtml = ([name, amount]) => {
+    const pct = total ? (amount / total * 100) : 0;
+    return `
+      <div class="category-ranking-row">
+        <div class="category-ranking-row-head">
+          <span class="category-ranking-name">${escapeHtml(name)}</span>
+          <span class="category-ranking-amount">${fmt.format(amount)}</span>
+          <span class="category-ranking-pct">${pct.toFixed(1)}%</span>
+        </div>
+        <div class="category-ranking-bar-track"><div class="category-ranking-bar-fill" style="width:${pct}%; background:var(${accentVar});"></div></div>
+      </div>`;
+  };
+
+  let html = `<div class="category-ranking-total">${fmt.format(total)}</div><div class="category-ranking-total-caption">Всего за ${periodLabel}</div>`;
+  html += rows.map(rowHtml).join('');
+  if (rest.length) {
+    if (!expanded) {
+      const restPct = total ? (restTotal / total * 100) : 0;
+      html += `
+        <div class="category-ranking-row">
+          <div class="category-ranking-row-head">
+            <span class="category-ranking-name">Остальные категории</span>
+            <span class="category-ranking-amount">${fmt.format(restTotal)}</span>
+            <span class="category-ranking-pct">${restPct.toFixed(1)}%</span>
+          </div>
+          <div class="category-ranking-bar-track"><div class="category-ranking-bar-fill" style="width:${restPct}%; background:var(--text-muted);"></div></div>
+        </div>
+        <button type="button" class="category-ranking-more-btn" onclick="toggleCategoryRankingExpand('${kind}')">Показать все категории</button>`;
+    } else {
+      html += `<button type="button" class="category-ranking-more-btn" onclick="toggleCategoryRankingExpand('${kind}')">Свернуть</button>`;
     }
-  });
-  box.querySelector('.chart-center-value').textContent = fmt.format(total);
+  }
+  box.innerHTML = html;
+}
+
+function toggleCategoryRankingExpand(kind) {
+  state.categoryRankingExpanded[kind] = !state.categoryRankingExpanded[kind];
+  renderCategoryRanking(kind === 'income' ? 'incomeCategoryRanking' : 'expenseCategoryRanking', kind);
 }
 
 /* ---------------- MASTER RENDER ---------------- */
@@ -4833,13 +5138,18 @@ function renderEverything() {
   renderTable();
   renderRecentTransactions();
   renderDynamicsChart();
-  renderCategoryPie('incomeChart', 'incomeChartBox', 'income');
-  renderCategoryPie('expenseChart', 'expenseChartBox', 'expense');
+  renderMonthlyFactList();
+  renderPeriodComparison();
+  renderCategoryRanking('incomeCategoryRanking', 'income');
+  renderCategoryRanking('expenseCategoryRanking', 'expense');
   renderDebtsSummary();
   renderDebts();
   renderSubscriptionsSummary();
   renderSubscriptions();
   renderRecurring();
+  renderRecurringDueSoon();
+  renderPaymentsTimeline();
+  renderRecurringBreakdown();
   renderShoppingSummary();
   renderShoppingList();
   renderIncomeSummary();
