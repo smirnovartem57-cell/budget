@@ -213,6 +213,41 @@
   .confirm-dialog-submessage { margin: 0 0 20px; font-size: 13.5px; color: var(--text-secondary); }
   .confirm-dialog-actions { display: flex; gap: 10px; justify-content: flex-end; }
   .confirm-dialog-actions button { min-width: 96px; }
+  .action-menu-overlay {
+    position: fixed; inset: 0;
+    background: rgba(16,24,40,0.5);
+    display: none;
+    align-items: center; justify-content: center;
+    z-index: 1100;
+    opacity: 0;
+    transition: opacity .2s ease;
+  }
+  .action-menu-overlay.visible { display: flex; opacity: 1; }
+  .action-menu {
+    background: var(--card-bg);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-card);
+    padding: 8px;
+    width: 260px;
+    max-width: 90vw;
+    transform: translateY(8px) scale(0.98);
+    transition: transform .2s ease;
+  }
+  .action-menu-overlay.visible .action-menu { transform: translateY(0) scale(1); }
+  .action-menu-item {
+    display: flex; align-items: center; gap: 10px;
+    width: 100%;
+    background: none; border: none;
+    padding: 12px 10px;
+    border-radius: var(--radius-sm);
+    font-family: 'Inter', sans-serif;
+    font-size: 13.5px; font-weight: 600;
+    color: var(--text-primary);
+    cursor: pointer; text-align: left;
+  }
+  .action-menu-item:hover { background: var(--bg-secondary); }
+  .action-menu-item svg { width: 17px; height: 17px; flex-shrink: 0; }
+  .action-menu-item.danger { color: var(--expense-accent); }
   .pin-lock-overlay {
     position: fixed; inset: 0;
     background: var(--bg-page);
@@ -371,6 +406,7 @@
   .metric-icon.icon-expense { background: var(--expense-bg); color: var(--expense-accent); }
   .metric-icon.icon-debts { background: var(--warning-bg); color: var(--warning); }
   .metric-icon.icon-balance { background: rgba(255,255,255,0.18); color: #fff; }
+  .metric-icon.icon-primary { background: var(--info-bg); color: var(--btn-primary); }
 
   .summary-card.hero {
     grid-column: 1 / -1;
@@ -996,6 +1032,22 @@
     .bottom-sheet-close svg { width: 16px; height: 16px; }
     .bottom-sheet .panel { box-shadow: none; border: none; margin-bottom: 0; }
   }
+
+  /* ===================== RESPONSIVE CARD TABLE (mobile) ===================== */
+  @media (max-width: 767px) {
+    .responsive-card-table thead, .responsive-card-table tfoot { display: none; }
+    .responsive-card-table, .responsive-card-table tbody, .responsive-card-table tr, .responsive-card-table td { display: block; width: 100%; }
+    .responsive-card-table tr {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-card);
+      padding: 14px;
+      margin-bottom: 12px;
+    }
+    .responsive-card-table td { padding: 3px 0 !important; border: none !important; white-space: normal !important; text-align: left !important; }
+    .responsive-card-table td:last-child { display: flex; gap: 8px; margin-top: 8px; }
+  }
 </style>
 </head>
 <body>
@@ -1068,6 +1120,7 @@
       <div class="metric-icon icon-debts"><i data-lucide="hand-coins"></i></div>
       <div class="label">Непогашенные долги</div>
       <div class="value" id="debtsMonthTotal">—</div>
+      <div class="growth-indicator" id="debtsMonthCount"></div>
     </div>
   </div>
 
@@ -1412,6 +1465,36 @@
   </div>
 
   <div id="incomeView" style="display:none;">
+    <div class="summary-grid">
+      <div class="summary-card income">
+        <div class="metric-icon icon-income"><i data-lucide="trending-up"></i></div>
+        <div class="label">Ожидаемый доход</div>
+        <div class="value" id="incomeExpectedTotal">—</div>
+        <div class="growth-indicator" id="growthIncomeExpected"></div>
+        <div class="sparkline-box"><canvas id="sparkIncomeExpected"></canvas></div>
+      </div>
+      <div class="summary-card expense">
+        <div class="metric-icon icon-expense"><i data-lucide="trending-down"></i></div>
+        <div class="label">Расход за месяц</div>
+        <div class="value" id="incomeTabExpenseMonth">—</div>
+        <div class="growth-indicator" id="growthIncomeTabExpense"></div>
+        <div class="sparkline-box"><canvas id="sparkIncomeTabExpense"></canvas></div>
+      </div>
+      <div class="summary-card debts">
+        <div class="metric-icon icon-debts"><i data-lucide="hand-coins"></i></div>
+        <div class="label">Непогашенные долги</div>
+        <div class="value" id="incomeTabDebtsTotal">—</div>
+        <div class="growth-indicator" id="incomeTabDebtsCount"></div>
+      </div>
+      <div class="summary-card balance">
+        <div class="metric-icon icon-primary"><i data-lucide="wallet"></i></div>
+        <div class="label">Остаток за месяц</div>
+        <div class="value" id="incomeTabBalance">—</div>
+        <div class="growth-indicator" id="growthIncomeTabBalance"></div>
+        <div class="sparkline-box"><canvas id="sparkIncomeTabBalance"></canvas></div>
+      </div>
+    </div>
+
     <div class="main-grid">
       <!-- EXPECTED INCOME FORM -->
       <div class="panel">
@@ -1452,11 +1535,11 @@
             <span>Ожидаемые доходы за <span id="incomeMonthLabel">этот месяц</span></span>
             <span style="display:flex; align-items:center; gap:8px;">
               <span class="badge-info" id="incomeTotalBadge">0 ₽</span>
-              <button type="button" class="btn-tiny" id="deleteAllExpectedIncomeBtn">Удалить все</button>
+              <button type="button" class="btn-tiny icon-btn" id="incomeListMenuBtn" title="Ещё" aria-label="Ещё"><i data-lucide="more-horizontal"></i></button>
             </span>
           </h2>
           <div style="overflow-x:auto;">
-            <table>
+            <table class="responsive-card-table">
               <thead>
                 <tr>
                   <th class="sortable" id="incomeSortName" data-key="name">Название</th>
@@ -1585,6 +1668,10 @@
   </div>
 </div>
 
+<div class="action-menu-overlay" id="actionMenuOverlay">
+  <div class="action-menu" id="actionMenuList"></div>
+</div>
+
 <div class="toast" id="toast"></div>
 <div class="loading-bar" id="loadingBar"></div>
 <div class="reload-banner" id="reloadBanner">
@@ -1698,6 +1785,27 @@ function confirmDialog(message, { submessage = 'Это действие нель
     overlay.classList.add('visible');
   });
 }
+
+// items: [{ label, icon, danger?, onClick }]
+function openActionMenu(items) {
+  const overlay = document.getElementById('actionMenuOverlay');
+  const list = document.getElementById('actionMenuList');
+  list.innerHTML = items.map((it, i) => `
+    <button type="button" class="action-menu-item ${it.danger ? 'danger' : ''}" data-idx="${i}">
+      <i data-lucide="${it.icon}"></i><span>${escapeHtml(it.label)}</span>
+    </button>`).join('');
+  lucide.createIcons();
+  list.querySelectorAll('.action-menu-item').forEach((btn, i) => {
+    btn.addEventListener('click', () => {
+      overlay.classList.remove('visible');
+      items[i].onClick();
+    }, { once: true });
+  });
+  overlay.classList.add('visible');
+}
+document.getElementById('actionMenuOverlay').addEventListener('click', (e) => {
+  if (e.target.id === 'actionMenuOverlay') e.currentTarget.classList.remove('visible');
+});
 
 // Thin top progress bar shown while data is loading/saving. Uses
 // pointer-events:none so it can never block clicks, unlike the earlier
@@ -3237,6 +3345,13 @@ function pluralDays(n) {
   return 'дней';
 }
 
+function pluralDolg(n) {
+  const mod10 = n % 10, mod100 = n % 100;
+  if (mod10 === 1 && mod100 !== 11) return 'долг';
+  if ([2, 3, 4].includes(mod10) && ![12, 13, 14].includes(mod100)) return 'долга';
+  return 'долгов';
+}
+
 function daysRemainingLabel(dateStr) {
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const target = new Date(dateStr + 'T00:00:00');
@@ -3348,7 +3463,11 @@ async function deleteAllExpectedIncome() {
   toast('Все ожидаемые доходы удалены');
   await loadAll();
 }
-document.getElementById('deleteAllExpectedIncomeBtn').addEventListener('click', deleteAllExpectedIncome);
+document.getElementById('incomeListMenuBtn').addEventListener('click', () => {
+  openActionMenu([
+    { label: 'Удалить все', icon: 'trash-2', danger: true, onClick: deleteAllExpectedIncome },
+  ]);
+});
 
 async function updateIncomeDate(id, newDate) {
   if (!isConfigured) { toast('Сначала подключите базу данных'); return; }
@@ -3410,6 +3529,49 @@ async function toggleIncomeReceivedFlag(id) {
   await loadAll();
 }
 
+function renderIncomeSummary() {
+  const currentMonthKey = todayStr().slice(0, 7);
+  const prevMonthKey = lastNMonthKeys(currentMonthKey, 2)[0];
+  const curMonths = activeMonths();
+  const prevMonths = previousPeriodMonths();
+
+  const expectedForMonth = (k) => state.expectedIncome
+    .filter(item => item.expected_date && monthKey(item.expected_date) === k)
+    .reduce((s, item) => s + Number(item.amount), 0);
+  const expectedTotal = expectedForMonth(currentMonthKey);
+  const expectedPrevTotal = expectedForMonth(prevMonthKey);
+
+  const expensePeriod = sumForMonths(curMonths, 'expense');
+  const expensePrev = sumForMonths(prevMonths, 'expense');
+  const incomePeriod = sumForMonths(curMonths, 'income');
+  const incomePrev = sumForMonths(prevMonths, 'income');
+  const debtsTotal = computeUnpaidDebtsTotal();
+
+  document.getElementById('incomeExpectedTotal').textContent = fmt.format(expectedTotal);
+  document.getElementById('incomeTabExpenseMonth').textContent = fmt.format(expensePeriod);
+  document.getElementById('incomeTabDebtsTotal').textContent = fmt.format(debtsTotal);
+  document.getElementById('incomeTabBalance').textContent = fmt.format(incomePeriod - expensePeriod);
+
+  const gExpected = formatGrowth(expectedTotal, expectedPrevTotal);
+  const gExpense = formatGrowth(expensePeriod, expensePrev);
+  const gBalance = formatGrowth(incomePeriod - expensePeriod, incomePrev - expensePrev);
+  const g1 = document.getElementById('growthIncomeExpected'); g1.textContent = gExpected.text; g1.className = 'growth-indicator ' + gExpected.dir;
+  const g2 = document.getElementById('growthIncomeTabExpense'); g2.textContent = gExpense.text; g2.className = 'growth-indicator ' + gExpense.dir;
+  const g3 = document.getElementById('growthIncomeTabBalance'); g3.textContent = gBalance.text; g3.className = 'growth-indicator ' + gBalance.dir;
+
+  const unpaidCount = state.debts.filter(d => !d.is_paid).length;
+  document.getElementById('incomeTabDebtsCount').textContent = unpaidCount ? `${unpaidCount} ${pluralDolg(unpaidCount)}` : '';
+
+  const sparkMonths = lastNMonthKeys(currentMonthKey, 6);
+  const expectedSeries = sparkMonths.map(expectedForMonth);
+  const expenseSeries = sparkMonths.map(k => sumForMonths([k], 'expense'));
+  const incomeSeries = sparkMonths.map(k => sumForMonths([k], 'income'));
+  const balanceSeries = incomeSeries.map((v, i) => v - expenseSeries[i]);
+  renderSparkline('sparkIncomeExpected', expectedSeries, getComputedStyle(document.documentElement).getPropertyValue('--income-accent').trim());
+  renderSparkline('sparkIncomeTabExpense', expenseSeries, getComputedStyle(document.documentElement).getPropertyValue('--expense-accent').trim());
+  renderSparkline('sparkIncomeTabBalance', balanceSeries, getComputedStyle(document.documentElement).getPropertyValue('--btn-primary').trim());
+}
+
 function renderExpectedIncome() {
   const { key, dir } = state.incomeSort;
   const currentMonthKey = todayStr().slice(0, 7);
@@ -3439,26 +3601,65 @@ function renderExpectedIncome() {
   list.forEach(item => {
     const tr = document.createElement('tr');
     const remaining = item.expected_date ? daysRemainingLabel(item.expected_date) : '';
-    tr.innerHTML = `
-      <td>
-        ${item.category ? `<div style="margin-bottom:4px;"><span class="cat-badge">${item.category}</span></div>` : ''}
-        ${item.is_recurring ? '<div class="days-remaining">🔁 Ежемесячно</div>' : ''}
-        <input type="text" class="inline-name-input income-name-input" value="${escapeAttr(item.name)}" onchange="updateIncomeField('${item.id}','name', this.value)">
-      </td>
-      <td>
-        <input type="date" class="shopping-date-input income-date-input" value="${item.expected_date || ''}" min="2020-01-01" max="2099-12-31" onchange="updateIncomeDate('${item.id}', this.value)">
-        ${remaining && !remaining.overdue ? `<div class="days-remaining">${remaining.text}</div>` : ''}
-      </td>
-      <td style="text-align:right;">
-        <input type="text" inputmode="numeric" class="inline-amount-input income-amount-input" value="${fmt.format(item.amount)}"
-          onfocus="this.value = String(${item.amount}).replace(/\s/g,'')"
-          onblur="this.value = fmt.format(parseFloat(this.value.replace(/\s/g,'').replace(',', '.')) || ${item.amount})"
-          onchange="updateIncomeField('${item.id}','amount', this.value.replace(/\s/g,'').replace(',', '.'))">
-      </td>
-      <td style="white-space:nowrap; display:flex; gap:4px; align-items:center;"><button class="btn-tiny icon-btn" onclick="markIncomeReceived('${item.id}')" title="Добавить в операции" aria-label="Добавить в операции"><i data-lucide="download"></i></button><button class="btn-tiny icon-btn ${item.is_received ? 'active' : ''}" onclick="toggleIncomeReceivedFlag('${item.id}')" title="${item.is_received ? 'Деньги пришли — нажмите, чтобы снять отметку' : 'Отметить, что деньги пришли'}" aria-label="${item.is_received ? 'Деньги пришли — нажмите, чтобы снять отметку' : 'Отметить, что деньги пришли'}"><i data-lucide="check"></i></button><button class="del-btn" onclick="deleteExpectedIncome('${item.id}')" title="Удалить" aria-label="Удалить"><i data-lucide="x"></i></button></td>
-    `;
+    if (incomeEditingIds.has(item.id)) {
+      tr.innerHTML = `
+        <td>
+          <input type="text" class="inline-name-input income-name-input" value="${escapeAttr(item.name)}" onchange="updateIncomeField('${item.id}','name', this.value)">
+        </td>
+        <td>
+          <input type="date" class="shopping-date-input income-date-input" value="${item.expected_date || ''}" min="2020-01-01" max="2099-12-31" onchange="updateIncomeDate('${item.id}', this.value)">
+        </td>
+        <td style="text-align:right;">
+          <input type="text" inputmode="numeric" class="inline-amount-input income-amount-input" value="${fmt.format(item.amount)}"
+            onfocus="this.value = String(${item.amount}).replace(/\s/g,'')"
+            onblur="this.value = fmt.format(parseFloat(this.value.replace(/\s/g,'').replace(',', '.')) || ${item.amount})"
+            onchange="updateIncomeField('${item.id}','amount', this.value.replace(/\s/g,'').replace(',', '.'))">
+        </td>
+        <td style="white-space:nowrap;"><button class="btn-tiny icon-btn active" onclick="toggleIncomeEdit('${item.id}')" title="Готово" aria-label="Готово"><i data-lucide="check"></i></button></td>
+      `;
+    } else {
+      tr.innerHTML = `
+        <td>
+          <div style="font-weight:700; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+            ${escapeHtml(item.name)}
+            ${item.is_received ? '<span class="cat-badge" style="background:var(--income-bg);color:var(--income-accent);">Получено</span>' : ''}
+          </div>
+          <div class="days-remaining">${item.category ? escapeHtml(item.category) : ''}${item.is_recurring ? ' · Ежемесячно' : ''}</div>
+        </td>
+        <td>
+          <div>${item.expected_date || ''}</div>
+          ${remaining ? `<div class="days-remaining ${remaining.overdue ? 'overdue' : ''}">${remaining.text}</div>` : ''}
+        </td>
+        <td style="text-align:right;" class="amount-income">${fmt.format(item.amount)}</td>
+        <td style="white-space:nowrap; display:flex; gap:4px; align-items:center;">
+          <button class="btn-tiny icon-btn" onclick="markIncomeReceived('${item.id}')" title="Добавить в операции" aria-label="Добавить в операции"><i data-lucide="download"></i></button>
+          <button class="btn-tiny icon-btn" onclick="toggleIncomeEdit('${item.id}')" title="Редактировать" aria-label="Редактировать"><i data-lucide="pencil"></i></button>
+          <button class="btn-tiny icon-btn" onclick="openIncomeActionMenu('${item.id}')" title="Ещё" aria-label="Ещё"><i data-lucide="more-horizontal"></i></button>
+        </td>
+      `;
+    }
     tbody.appendChild(tr);
   });
+}
+
+const incomeEditingIds = new Set();
+function toggleIncomeEdit(id) {
+  if (incomeEditingIds.has(id)) incomeEditingIds.delete(id); else incomeEditingIds.add(id);
+  renderExpectedIncome();
+  lucide.createIcons();
+}
+
+function openIncomeActionMenu(id) {
+  const item = state.expectedIncome.find(i => i.id === id);
+  if (!item) return;
+  openActionMenu([
+    {
+      label: item.is_received ? 'Снять отметку «получено»' : 'Отметить как полученное',
+      icon: 'check',
+      onClick: () => toggleIncomeReceivedFlag(id),
+    },
+    { label: 'Удалить', icon: 'trash-2', danger: true, onClick: () => deleteExpectedIncome(id) },
+  ]);
 }
 
 let incomeDynamicsChartInstance;
@@ -3865,6 +4066,8 @@ function renderSummary() {
   document.getElementById('sumExpenseMonth').textContent = fmt.format(expensePeriod);
   document.getElementById('balanceMonth').textContent = fmt.format(incomePeriod - expensePeriod);
   document.getElementById('debtsMonthTotal').textContent = fmt.format(computeUnpaidDebtsTotal());
+  const unpaidDebtsCount = state.debts.filter(d => !d.is_paid).length;
+  document.getElementById('debtsMonthCount').textContent = unpaidDebtsCount ? `${unpaidDebtsCount} ${pluralDolg(unpaidDebtsCount)}` : '';
 
   const gIncome = formatGrowth(incomePeriod, incomePrev);
   const gExpense = formatGrowth(expensePeriod, expensePrev);
@@ -4125,6 +4328,7 @@ function renderEverything() {
   renderDebts();
   renderRecurring();
   renderShoppingList();
+  renderIncomeSummary();
   renderExpectedIncome();
   renderIncomeDynamics();
   renderShoppingNotes();
