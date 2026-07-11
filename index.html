@@ -499,15 +499,17 @@
   .datetime-row { display: flex; gap: 8px; }
   .datetime-row input[type=date] { flex: 1.3; }
   .datetime-row input[type=time] { flex: 1; }
-  .quick-cat-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+  .quick-cat-row { display: flex; gap: 5px; flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; margin-bottom: 8px; padding-bottom: 2px; }
   .quick-cat-btn {
     border: 1px solid var(--border);
     background: var(--card-bg);
     color: var(--text-primary);
     border-radius: 999px;
-    padding: 6px 12px;
-    font-size: 12.5px;
+    padding: 5px 9px;
+    font-size: 11.5px;
     font-weight: 600;
+    white-space: nowrap;
+    flex-shrink: 0;
     cursor: pointer;
   }
   .quick-cat-btn:hover { border-color: var(--expense-accent); color: var(--expense-accent); }
@@ -1302,6 +1304,7 @@
           <button type="button" class="quick-cat-btn" data-cat="Кредит">Кредит</button>
           <button type="button" class="quick-cat-btn" data-cat="Обязательный">Обязательный</button>
           <button type="button" class="quick-cat-btn" data-cat="Покупки">Покупки</button>
+          <button type="button" class="quick-cat-btn" data-cat="Продукты">Продукты</button>
         </div>
         <select id="categorySelect"></select>
         <div class="new-cat-inline" id="newCatInline">
