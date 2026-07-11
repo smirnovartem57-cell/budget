@@ -68,26 +68,26 @@
 <style>
   /* ===================== ПАЛИТРА (light premium fintech, ТЗ от 11.07.2026, обновлено) ===================== */
   :root {
-    --bg-page: #F5F7FB;
+    --bg-page: #F7F9FC;
     --bg-secondary: #EFF3F9;
-    --border: #E4EAF2;
+    --border: #E7EBF2;
     --border-secondary: #ECF1F8;
     --text-primary: #101828;
-    --text-secondary: #667085;
+    --text-secondary: #66718A;
     --text-muted: #98A2B5;
-    --info-bg: #EAF0FF;
-    --info-accent: #4F7DF3;
-    --btn-primary: #4F7DF3;
-    --btn-primary-hover: #3F6FE5;
+    --info-bg: #EAF2FF;
+    --info-accent: #3B82F6;
+    --btn-primary: #3B82F6;
+    --btn-primary-hover: #2F6FE0;
     --btn-primary-text: #FFFFFF;
     --graphite: #17213A;
     --graphite-hover: #0F1729;
     --graphite-text: #FFFFFF;
-    --income-accent: #18A875;
-    --income-bg: #E7F7F0;
-    --expense-accent: #EF5A67;
+    --income-accent: #22C55E;
+    --income-bg: #E8F7EF;
+    --expense-accent: #E45E68;
     --expense-bg: #FDECEE;
-    --warning: #F59A3D;
+    --warning: #F59E0B;
     --warning-bg: #FFF4E4;
     --mint: #4FC9A4; --mint-bg: #E8F8F2;
     --purple: #9370E8; --purple-bg: #F1ECFC;
@@ -759,6 +759,11 @@
 
   .notepad-input-row { display: flex; gap: 8px; margin-bottom: 14px; }
   .notepad-input-row input[type=text] { flex: 1; }
+
+  .inline-add-row { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+  .inline-add-row input[type=text] { flex: 1; min-width: 140px; }
+  .inline-add-row input[type=number] { width: 100px; }
+  .inline-add-row input[type=date] { width: 150px; }
   .mic-btn {
     border: 1px solid var(--border); background: var(--card-bg); color: var(--text-primary);
     border-radius: var(--radius-sm); width: 44px; height: 44px; font-size: 18px; cursor: pointer; flex-shrink: 0;
@@ -1314,6 +1319,34 @@
         <div class="chart-box"><canvas id="dynamicsChart"></canvas></div>
       </div>
 
+      <!-- SUBSCRIPTIONS -->
+      <div class="panel">
+        <h2 style="justify-content:space-between;">
+          <span>Подписки</span>
+          <span class="badge-info" id="subscriptionsTotalBadge">0 ₽/мес.</span>
+        </h2>
+        <div class="inline-add-row">
+          <input type="text" id="subscriptionNameInput" placeholder="Например: Яндекс Плюс">
+          <input type="number" id="subscriptionAmountInput" placeholder="Сумма" min="0" step="1">
+          <input type="date" id="subscriptionDateInput" min="2020-01-01" max="2099-12-31">
+          <button type="button" class="btn-primary" style="width:auto; padding:0 18px;" id="subscriptionSubmitBtn">Добавить</button>
+        </div>
+        <div style="overflow-x:auto;">
+          <table class="responsive-card-table">
+            <thead>
+              <tr>
+                <th class="sortable" id="subscriptionsSortName" data-key="name">Название</th>
+                <th class="sortable" id="subscriptionsSortDate" data-key="date">Следующее списание</th>
+                <th class="sortable" id="subscriptionsSortAmount" data-key="amount" style="text-align:right;">Сумма</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="subscriptionsTableBody"></tbody>
+          </table>
+          <div class="empty-note" id="subscriptionsEmptyNote" style="display:none;">Активных подписок пока нет</div>
+        </div>
+      </div>
+
       <!-- RECURRING EXPENSES -->
       <div class="panel">
         <h2 style="justify-content:space-between;">
@@ -1852,6 +1885,8 @@ let state = {
   incomeDynamicsView: 'day', // 'day' | 'month'
   dynamicsView: 'month', // 'day' | 'month'
   categoryRules: [],
+  subscriptions: [],
+  subscriptionsSort: { key: null, dir: 'asc' }, // key: 'name' | 'amount' | 'date'
 };
 
 let currentUser = null;
@@ -2265,6 +2300,7 @@ async function loadAll() {
     const incomeQuery = supabaseClient.from('expected_income').select('*').order('expected_date', { ascending: true });
     const notesQuery = supabaseClient.from('shopping_notes').select('*').order('created_at', { ascending: true });
     const rulesQuery = supabaseClient.from('category_rules').select('*').eq('is_active', true);
+    const subsQuery = supabaseClient.from('subscriptions').select('*').order('next_billing_date', { ascending: true });
     if (currentUser) {
       txQuery.eq('user_id', currentUser.id);
       debtQuery.eq('user_id', currentUser.id);
@@ -2272,6 +2308,7 @@ async function loadAll() {
       incomeQuery.eq('user_id', currentUser.id);
       notesQuery.eq('user_id', currentUser.id);
       rulesQuery.eq('user_id', currentUser.id);
+      subsQuery.eq('user_id', currentUser.id);
     } else {
       txQuery.is('user_id', null);
       debtQuery.is('user_id', null);
@@ -2279,9 +2316,10 @@ async function loadAll() {
       incomeQuery.is('user_id', null);
       notesQuery.is('user_id', null);
       rulesQuery.is('user_id', null);
+      subsQuery.is('user_id', null);
     }
 
-    const [{ data: cats, error: catErr }, { data: txs, error: txErr }, { data: debts, error: debtErr }, { data: shopping, error: shoppingErr }, { data: income, error: incomeErr }, { data: notes, error: notesErr }, { data: rules, error: rulesErr }] = await withTimeout(Promise.all([
+    const [{ data: cats, error: catErr }, { data: txs, error: txErr }, { data: debts, error: debtErr }, { data: shopping, error: shoppingErr }, { data: income, error: incomeErr }, { data: notes, error: notesErr }, { data: rules, error: rulesErr }, { data: subs, error: subsErr }] = await withTimeout(Promise.all([
       supabaseClient.from('categories').select('*').order('created_at'),
       txQuery,
       debtQuery,
@@ -2289,11 +2327,12 @@ async function loadAll() {
       incomeQuery,
       notesQuery,
       rulesQuery,
+      subsQuery,
     ]), 15000, 'Сервер не отвечает — проверьте интернет-соединение');
     const loadErrors = [
       [catErr, 'категорий'], [txErr, 'операций'], [debtErr, 'долгов'],
       [shoppingErr, 'списка покупок'], [incomeErr, 'ожидаемых доходов'],
-      [notesErr, 'заметок'], [rulesErr, 'правил категоризации'],
+      [notesErr, 'заметок'], [rulesErr, 'правил категоризации'], [subsErr, 'подписок'],
     ].filter(([e]) => e);
     if (loadErrors.length) {
       toast('Ошибка загрузки ' + loadErrors.map(([, label]) => label).join(', ') + ': ' + loadErrors[0][0].message, 5000);
@@ -2307,6 +2346,7 @@ async function loadAll() {
     state.expectedIncome = income || [];
     state.shoppingNotes = notes || [];
     state.categoryRules = rules || [];
+    state.subscriptions = subs || [];
 
     if (!state.selectedMonth) {
       const now = new Date();
@@ -3330,6 +3370,165 @@ async function markShoppingBought(id) {
   await loadAll();
 }
 
+/* ---------------- SUBSCRIPTIONS ---------------- */
+document.getElementById('subscriptionSubmitBtn').addEventListener('click', async () => {
+  if (!isConfigured) { toast('Сначала подключите базу данных (см. README.md)'); return; }
+  const name = document.getElementById('subscriptionNameInput').value.trim();
+  if (!name) { toast('Введите название подписки'); return; }
+  const amount = parseFloat(document.getElementById('subscriptionAmountInput').value);
+  if (!amount || amount <= 0) { toast('Введите сумму больше нуля'); return; }
+  const nextBillingDate = document.getElementById('subscriptionDateInput').value || null;
+
+  const { error } = await supabaseClient.from('subscriptions').insert({
+    name, amount, next_billing_date: nextBillingDate,
+    user_id: currentUser ? currentUser.id : null,
+  });
+  if (error) { toast('Ошибка: ' + error.message); return; }
+  toast('Подписка добавлена');
+  document.getElementById('subscriptionNameInput').value = '';
+  document.getElementById('subscriptionAmountInput').value = '';
+  document.getElementById('subscriptionDateInput').value = '';
+  await loadAll();
+});
+
+function renderSubscriptionsSummary() {
+  const activeSubs = state.subscriptions.filter(s => s.is_active);
+  const total = activeSubs.reduce((s, sub) => s + Number(sub.amount), 0);
+  document.getElementById('subscriptionsTotalBadge').textContent =
+    `${fmt.format(total)}/мес.` + (activeSubs.length ? ` · ${activeSubs.length} ${pluralSubscription(activeSubs.length)}` : '');
+}
+
+function renderSubscriptions() {
+  const { key, dir } = state.subscriptionsSort;
+  const list = state.subscriptions.slice();
+  if (key === 'amount') {
+    list.sort((a, b) => (Number(a.amount) - Number(b.amount)) * (dir === 'asc' ? 1 : -1));
+  } else if (key === 'name') {
+    list.sort((a, b) => a.name.localeCompare(b.name) * (dir === 'asc' ? 1 : -1));
+  } else if (key === 'date') {
+    list.sort((a, b) => (a.next_billing_date || '').localeCompare(b.next_billing_date || '') * (dir === 'asc' ? 1 : -1));
+  } else {
+    list.sort((a, b) => (a.next_billing_date || '').localeCompare(b.next_billing_date || ''));
+  }
+  updateSortArrows(state.subscriptionsSort, ['subscriptionsSortName', 'subscriptionsSortDate', 'subscriptionsSortAmount']);
+
+  const tbody = document.getElementById('subscriptionsTableBody');
+  tbody.innerHTML = '';
+  document.getElementById('subscriptionsEmptyNote').style.display = list.length ? 'none' : 'block';
+  list.forEach(sub => {
+    const tr = document.createElement('tr');
+    if (!sub.is_active) tr.className = 'debt-row-paid';
+    const remaining = sub.next_billing_date ? daysRemainingLabel(sub.next_billing_date) : '';
+    if (subscriptionsEditingIds.has(sub.id)) {
+      tr.innerHTML = `
+        <td><input type="text" class="inline-name-input" value="${escapeAttr(sub.name)}" onchange="updateSubscriptionField('${sub.id}','name', this.value)"></td>
+        <td><input type="date" class="shopping-date-input" value="${sub.next_billing_date || ''}" min="2020-01-01" max="2099-12-31" onchange="updateSubscriptionDate('${sub.id}', this.value)"></td>
+        <td style="text-align:right;">
+          <input type="text" inputmode="numeric" class="inline-amount-input" value="${fmt.format(sub.amount)}"
+            onfocus="this.value = String(${sub.amount}).replace(/\s/g,'')"
+            onblur="this.value = fmt.format(parseFloat(this.value.replace(/\s/g,'').replace(',', '.')) || ${sub.amount})"
+            onchange="updateSubscriptionField('${sub.id}','amount', this.value.replace(/\s/g,'').replace(',', '.'))">
+        </td>
+        <td style="white-space:nowrap;"><button class="btn-tiny icon-btn active" onclick="toggleSubscriptionEdit('${sub.id}')" title="Готово" aria-label="Готово"><i data-lucide="check"></i></button></td>
+      `;
+    } else {
+      const status = sub.is_active ? purchaseStatus(sub.next_billing_date) : null;
+      tr.innerHTML = `
+        <td style="word-break: break-word;">
+          <div style="font-weight:700;">${escapeHtml(sub.name)}</div>
+          ${!sub.is_active ? '<span class="cat-badge" style="background:var(--bg-secondary);color:var(--text-secondary);">Неактивна</span>' : (status ? `<span class="status-badge ${status.cls}">${status.text}</span>` : '')}
+        </td>
+        <td>
+          <div>${sub.next_billing_date || ''}</div>
+          ${sub.is_active && remaining ? `<div class="days-remaining ${remaining.overdue ? 'overdue' : ''}">${remaining.text}</div>` : ''}
+        </td>
+        <td style="text-align:right;" class="amount-expense">${fmt.format(sub.amount)}</td>
+        <td style="white-space:nowrap; display:flex; gap:4px; align-items:center;">
+          <button class="btn-tiny icon-btn" onclick="markSubscriptionPaid('${sub.id}')" title="Отметить оплаченным" aria-label="Отметить оплаченным"><i data-lucide="check"></i></button>
+          <button class="btn-tiny icon-btn" onclick="toggleSubscriptionEdit('${sub.id}')" title="Редактировать" aria-label="Редактировать"><i data-lucide="pencil"></i></button>
+          <button class="btn-tiny icon-btn" onclick="openSubscriptionActionMenu('${sub.id}')" title="Ещё" aria-label="Ещё"><i data-lucide="more-horizontal"></i></button>
+        </td>
+      `;
+    }
+    tbody.appendChild(tr);
+  });
+}
+
+const subscriptionsEditingIds = new Set();
+function toggleSubscriptionEdit(id) {
+  if (subscriptionsEditingIds.has(id)) subscriptionsEditingIds.delete(id); else subscriptionsEditingIds.add(id);
+  renderSubscriptions();
+  lucide.createIcons();
+}
+
+function openSubscriptionActionMenu(id) {
+  const sub = state.subscriptions.find(s => s.id === id);
+  if (!sub) return;
+  openActionMenu([
+    {
+      label: sub.is_active ? 'Деактивировать' : 'Активировать',
+      icon: sub.is_active ? 'pause' : 'play',
+      onClick: () => toggleSubscriptionActive(id),
+    },
+    { label: 'Удалить', icon: 'trash-2', danger: true, onClick: () => deleteSubscription(id) },
+  ]);
+}
+
+async function updateSubscriptionDate(id, newDate) {
+  if (!isConfigured) { toast('Сначала подключите базу данных'); return; }
+  const { error } = await supabaseClient.from('subscriptions').update({ next_billing_date: newDate || null }).eq('id', id);
+  if (error) { toast('Ошибка: ' + error.message); return; }
+  toast('Дата обновлена');
+  await loadAll();
+}
+
+async function updateSubscriptionField(id, field, rawValue) {
+  if (!isConfigured) { toast('Сначала подключите базу данных'); return; }
+  let value = rawValue;
+  if (field === 'amount') {
+    value = parseFloat(rawValue);
+    if (!value || value <= 0) { toast('Сумма должна быть больше нуля'); await loadAll(); return; }
+  } else if (field === 'name') {
+    value = rawValue.trim();
+    if (!value) { toast('Название не может быть пустым'); await loadAll(); return; }
+  }
+  const { error } = await supabaseClient.from('subscriptions').update({ [field]: value }).eq('id', id);
+  if (error) { toast('Ошибка: ' + error.message); return; }
+  toast('Обновлено');
+  await loadAll();
+}
+
+async function markSubscriptionPaid(id) {
+  if (!isConfigured) { toast('Сначала подключите базу данных'); return; }
+  const sub = state.subscriptions.find(s => s.id === id);
+  if (!sub || !sub.next_billing_date) { toast('Укажите дату следующего списания'); return; }
+  const d = new Date(sub.next_billing_date + 'T00:00:00');
+  d.setMonth(d.getMonth() + 1);
+  const newDate = d.toISOString().slice(0, 10);
+  const { error } = await supabaseClient.from('subscriptions').update({ next_billing_date: newDate }).eq('id', id);
+  if (error) { toast('Ошибка: ' + error.message); return; }
+  toast('Отмечено оплаченным — следующее списание ' + newDate);
+  await loadAll();
+}
+
+async function toggleSubscriptionActive(id) {
+  if (!isConfigured) { toast('Сначала подключите базу данных'); return; }
+  const sub = state.subscriptions.find(s => s.id === id);
+  if (!sub) return;
+  const { error } = await supabaseClient.from('subscriptions').update({ is_active: !sub.is_active }).eq('id', id);
+  if (error) { toast('Ошибка: ' + error.message); return; }
+  toast(!sub.is_active ? 'Подписка активирована' : 'Подписка деактивирована');
+  await loadAll();
+}
+
+async function deleteSubscription(id) {
+  if (!(await confirmDialog('Удалить эту подписку?'))) return;
+  const { error } = await supabaseClient.from('subscriptions').delete().eq('id', id);
+  if (error) { toast('Ошибка: ' + error.message); return; }
+  toast('Удалено');
+  await loadAll();
+}
+
 /* ---------------- TODAY'S SHOPPING NOTEPAD ---------------- */
 async function addShoppingNote(text) {
   const items = text.split(',').map(s => s.trim()).filter(Boolean);
@@ -3540,6 +3739,13 @@ function pluralDolg(n) {
   if (mod10 === 1 && mod100 !== 11) return 'долг';
   if ([2, 3, 4].includes(mod10) && ![12, 13, 14].includes(mod100)) return 'долга';
   return 'долгов';
+}
+
+function pluralSubscription(n) {
+  const mod10 = n % 10, mod100 = n % 100;
+  if (mod10 === 1 && mod100 !== 11) return 'активная';
+  if ([2, 3, 4].includes(mod10) && ![12, 13, 14].includes(mod100)) return 'активные';
+  return 'активных';
 }
 
 function daysRemainingLabel(dateStr) {
@@ -4258,6 +4464,9 @@ setupSortableHeader('txSortAmount', state.txSort, renderTable);
 setupSortableHeader('recurringSortName', state.recurringSort, renderRecurring);
 setupSortableHeader('recurringSortDate', state.recurringSort, renderRecurring);
 setupSortableHeader('recurringSortAmount', state.recurringSort, renderRecurring);
+setupSortableHeader('subscriptionsSortName', state.subscriptionsSort, renderSubscriptions);
+setupSortableHeader('subscriptionsSortDate', state.subscriptionsSort, renderSubscriptions);
+setupSortableHeader('subscriptionsSortAmount', state.subscriptionsSort, renderSubscriptions);
 setupSortableHeader('shoppingSortName', state.shoppingSort, renderShoppingList);
 setupSortableHeader('shoppingSortDate', state.shoppingSort, renderShoppingList);
 setupSortableHeader('shoppingSortAmount', state.shoppingSort, renderShoppingList);
@@ -4602,6 +4811,8 @@ function renderEverything() {
   renderCategoryPie('expenseChart', 'expenseChartBox', 'expense');
   renderDebtsSummary();
   renderDebts();
+  renderSubscriptionsSummary();
+  renderSubscriptions();
   renderRecurring();
   renderShoppingSummary();
   renderShoppingList();
