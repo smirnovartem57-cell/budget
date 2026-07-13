@@ -2084,6 +2084,29 @@ function withTimeout(promise, ms, timeoutMessage) {
   return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
 
+// A bare `await supabaseClient.from(table).insert(...)` throws instead of resolving to
+// {error} when the network itself fails (typical on flaky cellular) — with no try/catch
+// around most submit handlers, that throw was surfacing as a silent failure (no toast,
+// form just stuck). This wraps inserts with the same timeout used for reads, retries a
+// transient network failure with backoff, and always resolves to {data, error} so every
+// existing call site's `if (error) { toast(...); return; }` keeps working unchanged.
+async function insertWithRetry(table, payloads, { retries = 2 } = {}) {
+  let lastErr;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      return await withTimeout(
+        supabaseClient.from(table).insert(payloads),
+        15000,
+        'Сервер не отвечает — проверьте интернет-соединение'
+      );
+    } catch (err) {
+      lastErr = err;
+      if (attempt < retries) await new Promise(r => setTimeout(r, (attempt + 1) * 1500));
+    }
+  }
+  return { data: null, error: lastErr };
+}
+
 function monthKey(dateStr) {
   return dateStr.slice(0, 7);
 }
@@ -3175,7 +3198,7 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
     payloads = [{ kind: state.kind, category, subcategory, amount, date, time, comment: comment || null, user_id: userId }];
   }
 
-  const { error } = await supabaseClient.from('transactions').insert(payloads);
+  const { error } = await insertWithRetry('transactions', payloads);
   if (error) { toast('Ошибка: ' + error.message); return; }
   saveLastUsedTx(state.kind, category, subcategory);
 
@@ -3222,7 +3245,7 @@ document.getElementById('debtSubmitBtn').addEventListener('click', async () => {
   const date = document.getElementById('debtDateInput').value || new Date().toISOString().slice(0,10);
   const comment = document.getElementById('debtCommentInput').value.trim();
 
-  const { error } = await supabaseClient.from('debts').insert({
+  const { error } = await insertWithRetry('debts', {
     debtor_name: debtorName, amount, date, comment: comment || null,
     user_id: currentUser ? currentUser.id : null,
   });
@@ -3422,7 +3445,7 @@ document.getElementById('shoppingSubmitBtn').addEventListener('click', async () 
   const plannedDate = document.getElementById('shoppingDateInput').value || null;
   const comment = document.getElementById('shoppingCommentInput').value.trim();
 
-  const { error } = await supabaseClient.from('shopping_list').insert({
+  const { error } = await insertWithRetry('shopping_list', {
     name, amount, planned_date: plannedDate, comment: comment || null,
     user_id: currentUser ? currentUser.id : null,
   });
@@ -3471,7 +3494,7 @@ async function markShoppingBought(id) {
   const item = state.shoppingList.find(i => i.id === id);
   if (!item) return;
   if (!(await confirmDialog(`Отметить «${item.name}» как купленное?`, { submessage: 'Позиция будет перенесена в операции как расход.', confirmLabel: 'Купить' }))) return;
-  const { error: insErr } = await supabaseClient.from('transactions').insert({
+  const { error: insErr } = await insertWithRetry('transactions', {
     kind: 'expense', category: 'Обязательный', subcategory: null,
     amount: item.amount, date: new Date().toISOString().slice(0, 10),
     comment: item.name, user_id: currentUser ? currentUser.id : null,
@@ -3492,7 +3515,7 @@ document.getElementById('subscriptionSubmitBtn').addEventListener('click', async
   if (!amount || amount <= 0) { toast('Введите сумму больше нуля'); return; }
   const nextBillingDate = document.getElementById('subscriptionDateInput').value || null;
 
-  const { error } = await supabaseClient.from('subscriptions').insert({
+  const { error } = await insertWithRetry('subscriptions', {
     name, amount, next_billing_date: nextBillingDate,
     user_id: currentUser ? currentUser.id : null,
   });
@@ -4021,7 +4044,7 @@ document.getElementById('incomeSubmitBtn').addEventListener('click', async () =>
     payloads = [{ category, name, amount, expected_date: expectedDate, user_id: userId }];
   }
 
-  const { error } = await supabaseClient.from('expected_income').insert(payloads);
+  const { error } = await insertWithRetry('expected_income', payloads);
   if (error) { toast('Ошибка: ' + error.message); return; }
   toast(isRecurring ? `Добавлено доходов: ${payloads.length}` : 'Добавлено в ожидаемые доходы');
   document.getElementById('incomeNameInput').value = '';
@@ -4094,7 +4117,7 @@ async function markIncomeReceived(id) {
   if (alreadyAdded) { toast('Уже добавлено в операции на эту дату'); return; }
   const dateLabel = new Date(targetDate).toLocaleDateString('ru-RU');
   if (!confirm(`Добавить «${item.name}» (${fmt.format(item.amount)}) в операции на ${dateLabel}?`)) return;
-  const { error } = await supabaseClient.from('transactions').insert({
+  const { error } = await insertWithRetry('transactions', {
     kind: 'income', category: item.category || 'Другое', subcategory: null,
     amount: item.amount, date: targetDate,
     comment: item.name, user_id: currentUser ? currentUser.id : null,
