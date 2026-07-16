@@ -664,6 +664,9 @@
     .charts-grid { grid-template-columns: minmax(0, 1fr); }
   }
   .chart-box { position: relative; height: 260px; }
+  /* Daily view can be wider than the screen and scrolls horizontally inside its own
+     container (not the page), so each day gets a readable width. 2026-07-16 */
+  .chart-scroll { overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; }
   .chart-center-label { position: absolute; top: 42%; left: 50%; transform: translate(-50%, -50%); text-align: center; pointer-events: none; }
   .chart-center-value { font-family: 'Manrope', sans-serif; font-weight: 800; font-size: 20px; color: var(--text-primary); white-space: nowrap; font-variant-numeric: tabular-nums; }
   .chart-center-caption { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
@@ -1504,7 +1507,7 @@
             <button type="button" class="btn-tiny active" id="dynamicsByMonthBtn">По месяцам</button>
           </span>
         </h2>
-        <div class="chart-box"><canvas id="dynamicsChart"></canvas></div>
+        <div class="chart-scroll" id="dynamicsChartScroll"><div class="chart-box" id="dynamicsChartBox"><canvas id="dynamicsChart"></canvas></div></div>
       </div>
 
       <!-- MONTHLY FACT (expense-only, MoM change, no budget target involved) -->
@@ -1948,7 +1951,7 @@
           <button type="button" class="btn-tiny" id="incomeDynByMonthBtn">По месяцам</button>
         </span>
       </h2>
-      <div class="chart-box"><canvas id="incomeDynamicsChart"></canvas></div>
+      <div class="chart-scroll" id="incomeDynamicsChartScroll"><div class="chart-box" id="incomeDynamicsChartBox"><canvas id="incomeDynamicsChart"></canvas></div></div>
     </div>
   </div>
 </div>
@@ -4857,6 +4860,9 @@ function renderIncomeDynamics() {
   document.getElementById('incomeDynamicsBadge').textContent = badgeText;
 
   const isNarrow = window.innerWidth <= 480;
+  const isDayView = state.incomeDynamicsView === 'day';
+  const curDayIdx = (isDayView && state.viewMode !== 'year' && state.selectedMonth === todayStr().slice(0, 7)) ? (new Date().getDate() - 1) : -1;
+  sizeDayChart('incomeDynamicsChartScroll', 'incomeDynamicsChartBox', labels.length, isDayView, curDayIdx);
   const ctx = document.getElementById('incomeDynamicsChart');
   if (incomeDynamicsChartInstance) incomeDynamicsChartInstance.destroy();
   incomeDynamicsChartInstance = new Chart(ctx, {
@@ -4878,7 +4884,7 @@ function renderIncomeDynamics() {
         },
         x: {
           grid: { display: false },
-          ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: isNarrow ? 5 : undefined }
+          ticks: { maxRotation: 0, autoSkip: !isDayView, maxTicksLimit: isDayView ? undefined : (isNarrow ? 5 : undefined) }
         }
       }
     }
@@ -5618,6 +5624,23 @@ function renderPeriodComparison() {
   box.innerHTML = html;
 }
 
+// In day view the chart is widened to give each day a readable slot; its own container
+// scrolls horizontally (the page never does) and is anchored near today. 2026-07-16
+function sizeDayChart(scrollId, boxId, dayCount, isDayView, currentDayIndex) {
+  const scroll = document.getElementById(scrollId);
+  const box = document.getElementById(boxId);
+  if (!scroll || !box) return;
+  if (!isDayView) { box.style.width = ''; scroll.scrollLeft = 0; return; }
+  const perDay = 30;
+  const w = Math.max(scroll.clientWidth || 0, dayCount * perDay);
+  box.style.width = w + 'px';
+  requestAnimationFrame(() => {
+    scroll.scrollLeft = currentDayIndex >= 0
+      ? Math.max(0, (currentDayIndex + 0.5) / dayCount * w - scroll.clientWidth / 2)
+      : 0;
+  });
+}
+
 function renderDynamicsChart() {
   document.getElementById('dynamicsByDayBtn').classList.toggle('active', state.dynamicsView === 'day');
   document.getElementById('dynamicsByMonthBtn').classList.toggle('active', state.dynamicsView === 'month');
@@ -5648,6 +5671,9 @@ function renderDynamicsChart() {
   const balance = labels.map((_, i) => income[i] - expense[i]);
 
   const isNarrow = window.innerWidth <= 480;
+  const isDayView = state.dynamicsView === 'day';
+  const curDayIdx = (isDayView && !byYear && state.selectedMonth === todayStr().slice(0, 7)) ? (new Date().getDate() - 1) : -1;
+  sizeDayChart('dynamicsChartScroll', 'dynamicsChartBox', labels.length, isDayView, curDayIdx);
   const ctx = document.getElementById('dynamicsChart');
   if (dynamicsChartInstance) dynamicsChartInstance.destroy();
   dynamicsChartInstance = new Chart(ctx, {
@@ -5656,7 +5682,7 @@ function renderDynamicsChart() {
       datasets: [
         { type: 'bar', label: 'Доход', data: income, backgroundColor: '#2E7D5B99', borderRadius: 4 },
         { type: 'bar', label: 'Расход', data: expense, backgroundColor: '#B4483A99', borderRadius: 4 },
-        { type: 'line', label: 'Остаток', data: balance, borderColor: '#185FA5', backgroundColor: '#185FA5', tension: 0.3, pointRadius: 3 },
+        { type: 'line', label: 'Остаток', data: balance, borderColor: '#185FA5', backgroundColor: '#185FA5', tension: 0.3, pointRadius: isDayView ? 1.5 : 3 },
       ]
     },
     options: {
@@ -5670,7 +5696,9 @@ function renderDynamicsChart() {
         },
         x: {
           grid: { display: false },
-          ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: isNarrow ? 5 : undefined }
+          // In day view the canvas is widened, so show every day label (autoSkip off);
+          // in month/year view keep the narrow-screen limit.
+          ticks: { maxRotation: 0, autoSkip: !isDayView, maxTicksLimit: isDayView ? undefined : (isNarrow ? 5 : undefined) }
         }
       }
     }
