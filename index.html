@@ -234,6 +234,7 @@
     transition: transform .2s ease;
   }
   .action-menu-overlay.visible .action-menu { transform: translateY(0) scale(1); }
+  .action-menu-title { padding: 8px 10px 6px; font-size: 12.5px; font-weight: 700; color: var(--text-secondary); }
   .action-menu-item {
     display: flex; align-items: center; gap: 10px;
     width: 100%;
@@ -914,6 +915,34 @@
     z-index: 100;
   }
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  /* Undo toast — like .toast but with an inline "Отменить" action button. 2026-07-15 */
+  .undo-toast {
+    position: fixed;
+    bottom: 24px; left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--graphite);
+    color: var(--graphite-text);
+    padding: 10px 12px 10px 18px;
+    border-radius: 10px;
+    font-size: 13.5px;
+    font-weight: 600;
+    display: none;
+    align-items: center;
+    gap: 14px;
+    opacity: 0;
+    transition: all .25s;
+    z-index: 101;
+    max-width: 92vw;
+  }
+  .undo-toast.show { display: flex; opacity: 1; transform: translateX(-50%) translateY(0); }
+  .undo-toast button {
+    background: transparent; border: none; color: #7db3ff;
+    font-weight: 800; font-size: 13.5px; cursor: pointer;
+    padding: 6px 8px; min-height: 32px; white-space: nowrap;
+  }
+  @media (max-width: 767px) {
+    .undo-toast { bottom: calc(24px + var(--bottom-nav-h) + env(safe-area-inset-bottom, 0px)); }
+  }
 
   .loading-bar {
     position: fixed; top: 0; left: 0; height: 3px; width: 0;
@@ -1993,7 +2022,29 @@
   <div class="action-menu" id="actionMenuList"></div>
 </div>
 
+<!-- RECEIVE INCOME confirmation (2026-07-15): edit the actually-received amount + date
+     before recording; reuses the centered confirm-dialog styling so it works on desktop too. -->
+<div class="confirm-dialog-overlay" id="receiveIncomeOverlay">
+  <div class="confirm-dialog">
+    <p class="confirm-dialog-message">Доход получен</p>
+    <p class="confirm-dialog-submessage" id="receiveIncomeName"></p>
+    <div class="form-row">
+      <label>Сумма, ₽</label>
+      <input type="text" inputmode="decimal" id="receiveIncomeAmount">
+    </div>
+    <div class="form-row">
+      <label>Дата получения</label>
+      <input type="date" id="receiveIncomeDate" min="2020-01-01" max="2099-12-31">
+    </div>
+    <div class="confirm-dialog-actions" style="margin-top:16px;">
+      <button type="button" class="btn-ghost" id="receiveIncomeCancelBtn">Отмена</button>
+      <button type="button" class="btn-primary" id="receiveIncomeConfirmBtn">Подтвердить</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
+<div class="undo-toast" id="undoToast"><span id="undoToastMsg"></span><button type="button" id="undoToastBtn">Отменить</button></div>
 <div class="loading-bar" id="loadingBar"></div>
 <div class="reload-banner" id="reloadBanner">
   <span>Не удалось загрузить данные. Проверьте интернет-соединение.</span>
@@ -2086,6 +2137,21 @@ function toast(msg, duration = 2200) {
   t.__hideTimer = setTimeout(() => t.classList.remove('show'), duration);
 }
 
+// Toast with an "Отменить" button that stays up for `ms` (default 5s). Falls back to a
+// plain toast when no undo handler is given. 2026-07-15
+let undoToastTimer;
+function toastWithUndo(message, onUndo, ms = 5000) {
+  if (!onUndo) { toast(message, ms); return; }
+  const el = document.getElementById('undoToast');
+  document.getElementById('undoToastMsg').textContent = message;
+  const btn = document.getElementById('undoToastBtn');
+  const hide = () => { el.classList.remove('show'); btn.onclick = null; };
+  clearTimeout(undoToastTimer);
+  el.classList.add('show');
+  undoToastTimer = setTimeout(hide, ms);
+  btn.onclick = async () => { clearTimeout(undoToastTimer); hide(); await onUndo(); };
+}
+
 function confirmDialog(message, { submessage = 'Это действие нельзя будет отменить.', confirmLabel = 'Удалить', cancelLabel = 'Отмена' } = {}) {
   return new Promise((resolve) => {
     const overlay = document.getElementById('confirmDialogOverlay');
@@ -2112,11 +2178,12 @@ function confirmDialog(message, { submessage = 'Это действие нель
   });
 }
 
-// items: [{ label, icon, danger?, onClick }]
-function openActionMenu(items) {
+// items: [{ label, icon, danger?, onClick }]; optional title renders a non-clickable header.
+function openActionMenu(items, title) {
   const overlay = document.getElementById('actionMenuOverlay');
   const list = document.getElementById('actionMenuList');
-  list.innerHTML = items.map((it, i) => `
+  const titleHtml = title ? `<div class="action-menu-title">${escapeHtml(title)}</div>` : '';
+  list.innerHTML = titleHtml + items.map((it, i) => `
     <button type="button" class="action-menu-item ${it.danger ? 'danger' : ''}" data-idx="${i}">
       <i data-lucide="${it.icon}"></i><span>${escapeHtml(it.label)}</span>
     </button>`).join('');
@@ -2253,6 +2320,48 @@ function monthLabelShortApos(key) {
   const [y, m] = key.split('-');
   const names = ['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
   return `${names[parseInt(m)-1]} '${y.slice(2)}`;
+}
+
+/* ---- Money + income-duplicate helpers (pure, testable) 2026-07-15 ----
+   All money comparisons run in integer kopecks — never float equality. */
+function toKopecks(n) { return Math.round(Number(n) * 100); }
+function moneyEqual(a, b) { return toKopecks(a) === toKopecks(b); }
+function moneyWithinPct(a, b, pct) {
+  const ka = toKopecks(a), kb = toKopecks(b);
+  if (kb === 0) return ka === 0;
+  return Math.abs(ka - kb) * 100 <= Math.abs(kb) * pct;
+}
+function daysApart(a, b) {
+  return Math.abs(Math.round((new Date(a + 'T00:00:00') - new Date(b + 'T00:00:00')) / 86400000));
+}
+
+// Candidate income transactions that may already represent `expectedItem`, given the
+// amount actually received. Pure (no DOM). Excludes transactions already linked to any
+// expected income (linkedIds). exact = same category & amount-to-kopeck & date ±5 days;
+// similar = same category & amount within ±3% & date ±5 days.
+function findIncomeCandidates(expectedItem, enteredAmount, transactions, linkedIds) {
+  const expDate = expectedItem.expected_date || todayStr();
+  const monthK = expDate.slice(0, 7);
+  const cat = expectedItem.category || null;
+  const exact = [], similar = [];
+  (transactions || []).forEach(t => {
+    if (t.kind !== 'income') return;
+    if (linkedIds && linkedIds.has(t.id)) return;
+    if (!t.date || t.date.slice(0, 7) !== monthK) return;
+    if (cat && t.category && t.category !== cat) return;
+    if (daysApart(t.date, expDate) > 5) return;
+    if (moneyEqual(t.amount, enteredAmount)) exact.push(t);
+    else if (moneyWithinPct(t.amount, enteredAmount, 3)) similar.push(t);
+  });
+  return { exact, similar };
+}
+
+// Set of transaction ids already linked to some expected income (so they aren't
+// offered again as duplicate candidates).
+function linkedTransactionIds() {
+  const s = new Set();
+  state.expectedIncome.forEach(i => { if (i.linked_transaction_id) s.add(i.linked_transaction_id); });
+  return s;
 }
 
 // months included in the currently active dashboard period
@@ -4245,28 +4354,121 @@ async function updateIncomeField(id, field, rawValue) {
   await loadAll();
 }
 
-async function markIncomeReceived(id) {
+// Opens the confirmation dialog: the user can correct the actually-received amount and
+// the receipt date before it's recorded. 2026-07-15
+let receiveIncomeCtxId = null;
+function markIncomeReceived(id) {
   if (!isConfigured) { toast('Сначала подключите базу данных'); return; }
   const item = state.expectedIncome.find(i => i.id === id);
   if (!item) return;
-  const targetDate = item.expected_date || todayStr();
-  // Avoid inserting a duplicate operation if this expected income was already
-  // recorded in Операции for the same date/amount/name.
-  const alreadyAdded = state.transactions.some(t =>
-    t.kind === 'income' && t.date === targetDate &&
-    Number(t.amount) === Number(item.amount) && t.comment === item.name
-  );
-  if (alreadyAdded) { toast('Уже добавлено в операции на эту дату'); return; }
-  const dateLabel = new Date(targetDate).toLocaleDateString('ru-RU');
-  if (!confirm(`Добавить «${item.name}» (${fmt.format(item.amount)}) в операции на ${dateLabel}?`)) return;
-  const { error } = await insertWithRetry('transactions', {
-    kind: 'income', category: item.category || 'Другое', subcategory: null,
-    amount: item.amount, date: targetDate,
-    comment: item.name, user_id: currentUser ? currentUser.id : null,
-  });
+  if (item.linked_transaction_id) { toast('Этот доход уже отмечен полученным'); return; }
+  receiveIncomeCtxId = id;
+  document.getElementById('receiveIncomeName').textContent = item.name + (item.category ? ` · ${item.category}` : '');
+  const amtInput = document.getElementById('receiveIncomeAmount');
+  amtInput.value = String(item.amount);
+  document.getElementById('receiveIncomeDate').value = todayStr();
+  document.getElementById('receiveIncomeOverlay').classList.add('visible');
+  setTimeout(() => { amtInput.focus(); amtInput.select(); }, 50);
+}
+
+function closeReceiveIncome() {
+  document.getElementById('receiveIncomeOverlay').classList.remove('visible');
+  receiveIncomeCtxId = null;
+}
+
+document.getElementById('receiveIncomeCancelBtn').addEventListener('click', closeReceiveIncome);
+document.getElementById('receiveIncomeOverlay').addEventListener('click', (e) => {
+  if (e.target.id === 'receiveIncomeOverlay') closeReceiveIncome();
+});
+document.getElementById('receiveIncomeConfirmBtn').addEventListener('click', async () => {
+  const id = receiveIncomeCtxId;
+  if (!id) return;
+  const item = state.expectedIncome.find(i => i.id === id);
+  if (!item) { closeReceiveIncome(); return; }
+  const enteredAmount = parseFloat(document.getElementById('receiveIncomeAmount').value.replace(/\s/g, '').replace(',', '.'));
+  if (!enteredAmount || enteredAmount <= 0) { toast('Введите сумму больше нуля'); return; }
+  const receivedDate = document.getElementById('receiveIncomeDate').value || todayStr();
+  closeReceiveIncome();
+  await processIncomeReceipt(item, enteredAmount, receivedDate);
+});
+
+// Decide what to do with a received income: auto-link to an exact existing operation,
+// ask when a match is ambiguous, or create a fresh operation. Duplicate matching runs on
+// the ENTERED amount. 2026-07-15
+async function processIncomeReceipt(item, enteredAmount, receivedDate) {
+  const { exact, similar } = findIncomeCandidates(item, enteredAmount, state.transactions, linkedTransactionIds());
+  if (exact.length === 1 && similar.length === 0) {
+    await linkIncomeToTransaction(item, exact[0], enteredAmount, true);
+    return;
+  }
+  const candidates = [...exact, ...similar];
+  if (candidates.length) {
+    const items = candidates.map(c => ({
+      label: `${formatDateHuman(c.date)} · ${fmt.format(c.amount)}${c.comment ? ' · ' + c.comment : ''}`,
+      icon: 'link',
+      onClick: () => linkIncomeToTransaction(item, c, enteredAmount, false),
+    }));
+    items.push({ label: 'Это новый доход', icon: 'plus', onClick: () => createIncomeTransaction(item, enteredAmount, receivedDate) });
+    openActionMenu(items, 'Похоже, этот доход уже внесён');
+    return;
+  }
+  await createIncomeTransaction(item, enteredAmount, receivedDate);
+}
+
+// Link the expected income to an existing operation without creating a new one.
+async function linkIncomeToTransaction(item, tx, enteredAmount, autolinked) {
+  const { error } = await supabaseClient.from('expected_income')
+    .update({ linked_transaction_id: tx.id, received_amount: enteredAmount, is_received: true })
+    .eq('id', item.id);
   if (error) { toast('Ошибка: ' + error.message); return; }
-  toast('Добавлено в операции');
   await loadAll();
+  if (autolinked) {
+    toastWithUndo(`Связано с доходом от ${formatDateHuman(tx.date)}`, async () => {
+      await supabaseClient.from('expected_income')
+        .update({ linked_transaction_id: null, received_amount: null, is_received: false })
+        .eq('id', item.id);
+      await loadAll();
+      toast('Связь отменена');
+    });
+  } else {
+    toast('Связано с существующим доходом');
+  }
+}
+
+// Create the actual income operation with the ENTERED amount and link it back to the
+// expected income (which keeps its original expected amount in `amount`).
+async function createIncomeTransaction(item, enteredAmount, receivedDate) {
+  let newTx = null, insErr = null;
+  try {
+    const res = await withTimeout(
+      supabaseClient.from('transactions').insert({
+        kind: 'income', category: item.category || 'Другое', subcategory: item.subcategory || null,
+        amount: enteredAmount, date: receivedDate, comment: item.name,
+        user_id: currentUser ? currentUser.id : null,
+      }).select(),
+      15000, 'Сервер не отвечает — проверьте интернет-соединение'
+    );
+    insErr = res.error;
+    newTx = res.data && res.data[0];
+  } catch (e) { insErr = e; }
+  if (insErr) { toast('Ошибка: ' + (insErr.message || insErr)); return; }
+
+  const patch = { received_amount: enteredAmount, is_received: true };
+  if (newTx && newTx.id) patch.linked_transaction_id = newTx.id;
+  const { error: upErr } = await supabaseClient.from('expected_income').update(patch).eq('id', item.id);
+  if (upErr) { toast('Операция создана, но не удалось связать: ' + upErr.message); await loadAll(); return; }
+  await loadAll();
+
+  const changed = !moneyEqual(enteredAmount, item.amount);
+  const msg = changed ? `Получено ${fmt.format(enteredAmount)} из ${fmt.format(item.amount)}` : 'Добавлено в операции';
+  toastWithUndo(msg, (newTx && newTx.id) ? async () => {
+    await supabaseClient.from('transactions').delete().eq('id', newTx.id);
+    await supabaseClient.from('expected_income')
+      .update({ received_amount: null, is_received: false, linked_transaction_id: null })
+      .eq('id', item.id);
+    await loadAll();
+    toast('Отменено');
+  } : null);
 }
 
 // Purely a visual "money arrived" marker — never touches Операции or removes
@@ -4378,6 +4580,9 @@ function renderExpectedIncome() {
             ${item.is_received ? '<span class="cat-badge" style="background:var(--income-bg);color:var(--income-accent);">Получено</span>' : ''}
           </div>
           <div class="days-remaining">${item.category ? escapeHtml(item.category) : ''}${item.is_recurring ? ' · Ежемесячно' : ''}</div>
+          ${item.received_amount != null && !moneyEqual(item.received_amount, item.amount)
+            ? `<div class="days-remaining" style="color:var(--warning);">Получено ${fmt.format(item.received_amount)} из ${fmt.format(item.amount)}</div>`
+            : ''}
         </td>
         <td class="rc-secondary">
           <div>${item.expected_date ? formatDateHuman(item.expected_date) : '—'}</div>
@@ -4385,7 +4590,7 @@ function renderExpectedIncome() {
         </td>
         <td class="rc-amount amount-income" style="text-align:right;">${fmt.format(item.amount)}</td>
         <td class="rc-actions" style="white-space:nowrap; display:flex; gap:4px; align-items:center;">
-          <button class="btn-tiny icon-btn" onclick="markIncomeReceived('${item.id}')" title="Добавить в операции" aria-label="Добавить в операции"><i data-lucide="download"></i></button>
+          <button class="btn-tiny icon-btn" onclick="markIncomeReceived('${item.id}')" title="Получен" aria-label="Получен"><i data-lucide="download"></i></button>
           <button class="btn-tiny icon-btn" onclick="toggleIncomeEdit('${item.id}')" title="Редактировать" aria-label="Редактировать"><i data-lucide="pencil"></i></button>
           <button class="btn-tiny icon-btn rc-menu-btn" onclick="openIncomeActionMenu('${item.id}')" title="Ещё" aria-label="Ещё"><i data-lucide="more-horizontal"></i></button>
         </td>
@@ -4406,7 +4611,7 @@ function openIncomeActionMenu(id) {
   const item = state.expectedIncome.find(i => i.id === id);
   if (!item) return;
   openActionMenu([
-    { label: 'Добавить в операции', icon: 'download', onClick: () => markIncomeReceived(id) },
+    { label: 'Получен', icon: 'download', onClick: () => markIncomeReceived(id) },
     { label: 'Изменить', icon: 'pencil', onClick: () => toggleIncomeEdit(id) },
     {
       label: item.is_received ? 'Снять отметку «получено»' : 'Отметить как полученное',
