@@ -1790,7 +1790,10 @@
         <!-- SHOPPING LIST -->
         <div class="panel">
           <h2 style="justify-content:space-between;">
-            <span>Список покупок</span>
+            <span style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+              <span>Список покупок</span>
+              <span class="cat-badge" id="shoppingShowBoughtToggle" style="display:none; cursor:pointer; background:var(--bg-secondary); color:var(--text-secondary);" onclick="toggleShoppingShowBought()"></span>
+            </span>
             <span class="badge-info" id="shoppingTotalBadge">0 ₽</span>
           </h2>
           <div style="overflow-x:auto;">
@@ -2030,23 +2033,24 @@
   <div class="action-menu" id="actionMenuList"></div>
 </div>
 
-<!-- RECEIVE INCOME confirmation (2026-07-15): edit the actually-received amount + date
-     before recording; reuses the centered confirm-dialog styling so it works on desktop too. -->
-<div class="confirm-dialog-overlay" id="receiveIncomeOverlay">
+<!-- Generic amount+date confirmation sheet (2026-07-15): reused by "Получен" (доход),
+     частичное погашение долга, и "Куплено" (покупка). Centered confirm-dialog styling
+     so it works on desktop too; amount is prefilled + selected for quick editing. -->
+<div class="confirm-dialog-overlay" id="amountSheetOverlay">
   <div class="confirm-dialog">
-    <p class="confirm-dialog-message">Доход получен</p>
-    <p class="confirm-dialog-submessage" id="receiveIncomeName"></p>
+    <p class="confirm-dialog-message" id="amountSheetTitle">Подтверждение</p>
+    <p class="confirm-dialog-submessage" id="amountSheetSubtitle"></p>
     <div class="form-row">
       <label>Сумма, ₽</label>
-      <input type="text" inputmode="decimal" id="receiveIncomeAmount">
+      <input type="text" inputmode="decimal" id="amountSheetAmount">
     </div>
     <div class="form-row">
-      <label>Дата получения</label>
-      <input type="date" id="receiveIncomeDate" min="2020-01-01" max="2099-12-31">
+      <label id="amountSheetDateLabel">Дата</label>
+      <input type="date" id="amountSheetDate" min="2020-01-01" max="2099-12-31">
     </div>
     <div class="confirm-dialog-actions" style="margin-top:16px;">
-      <button type="button" class="btn-ghost" id="receiveIncomeCancelBtn">Отмена</button>
-      <button type="button" class="btn-primary" id="receiveIncomeConfirmBtn">Подтвердить</button>
+      <button type="button" class="btn-ghost" id="amountSheetCancelBtn">Отмена</button>
+      <button type="button" class="btn-primary" id="amountSheetConfirmBtn">Подтвердить</button>
     </div>
   </div>
 </div>
@@ -2122,6 +2126,8 @@ let state = {
   debtsSort: { key: null, dir: 'asc' },     // key: 'date'
   debtsPersonFilter: null,
   debtsShowPaid: false, // B3: погашенные долги скрыты по умолчанию (2026-07-15)
+  debtPayments: [],     // 2a: частичные погашения долгов (2026-07-15)
+  shoppingShowBought: false, // C3: купленные покупки скрыты по умолчанию (2026-07-15)
   expectedIncome: [],
   incomeSort: { key: null, dir: 'asc' },    // key: 'name' | 'amount' | 'date'
   shoppingNotes: [],
@@ -2684,6 +2690,7 @@ async function loadAll() {
     const notesQuery = supabaseClient.from('shopping_notes').select('*').order('created_at', { ascending: true });
     const rulesQuery = supabaseClient.from('category_rules').select('*').eq('is_active', true);
     const subsQuery = supabaseClient.from('subscriptions').select('*').order('next_billing_date', { ascending: true });
+    const debtPayQuery = supabaseClient.from('debt_payments').select('*').order('date', { ascending: true });
     if (currentUser) {
       txQuery.eq('user_id', currentUser.id);
       debtQuery.eq('user_id', currentUser.id);
@@ -2692,6 +2699,7 @@ async function loadAll() {
       notesQuery.eq('user_id', currentUser.id);
       rulesQuery.eq('user_id', currentUser.id);
       subsQuery.eq('user_id', currentUser.id);
+      debtPayQuery.eq('user_id', currentUser.id);
     } else {
       txQuery.is('user_id', null);
       debtQuery.is('user_id', null);
@@ -2700,9 +2708,10 @@ async function loadAll() {
       notesQuery.is('user_id', null);
       rulesQuery.is('user_id', null);
       subsQuery.is('user_id', null);
+      debtPayQuery.is('user_id', null);
     }
 
-    const [{ data: cats, error: catErr }, { data: txs, error: txErr }, { data: debts, error: debtErr }, { data: shopping, error: shoppingErr }, { data: income, error: incomeErr }, { data: notes, error: notesErr }, { data: rules, error: rulesErr }, { data: subs, error: subsErr }] = await withTimeout(Promise.all([
+    const [{ data: cats, error: catErr }, { data: txs, error: txErr }, { data: debts, error: debtErr }, { data: shopping, error: shoppingErr }, { data: income, error: incomeErr }, { data: notes, error: notesErr }, { data: rules, error: rulesErr }, { data: subs, error: subsErr }, { data: dpays, error: dpErr }] = await withTimeout(Promise.all([
       supabaseClient.from('categories').select('*').order('created_at'),
       txQuery,
       debtQuery,
@@ -2711,11 +2720,13 @@ async function loadAll() {
       notesQuery,
       rulesQuery,
       subsQuery,
+      debtPayQuery,
     ]), 15000, 'Сервер не отвечает — проверьте интернет-соединение');
     const loadErrors = [
       [catErr, 'категорий'], [txErr, 'операций'], [debtErr, 'долгов'],
       [shoppingErr, 'списка покупок'], [incomeErr, 'ожидаемых доходов'],
       [notesErr, 'заметок'], [rulesErr, 'правил категоризации'], [subsErr, 'подписок'],
+      [dpErr, 'платежей по долгам'],
     ].filter(([e]) => e);
     if (loadErrors.length) {
       toast('Ошибка загрузки ' + loadErrors.map(([, label]) => label).join(', ') + ': ' + loadErrors[0][0].message, 5000);
@@ -2730,6 +2741,7 @@ async function loadAll() {
     state.shoppingNotes = notes || [];
     state.categoryRules = rules || [];
     state.subscriptions = subs || [];
+    state.debtPayments = dpays || [];
 
     if (!state.selectedMonth) {
       const now = new Date();
@@ -3553,8 +3565,22 @@ async function updateDebtField(id, field, rawValue) {
   await loadAll();
 }
 
+// Sum of partial payments recorded against a debt (2a). Integer-kopeck math, no float.
+function debtPaidTotal(debtId) {
+  const kop = (state.debtPayments || [])
+    .filter(p => p.debt_id === debtId)
+    .reduce((s, p) => s + toKopecks(p.amount), 0);
+  return kop / 100;
+}
+// What's still owed on a debt: original amount minus partial payments, floored at 0.
+function debtRemaining(debt) {
+  const rem = toKopecks(debt.amount) - toKopecks(debtPaidTotal(debt.id));
+  return Math.max(0, rem) / 100;
+}
+
 function computeUnpaidDebtsTotal() {
-  return state.debts.filter(d => !d.is_paid).reduce((s, d) => s + Number(d.amount), 0);
+  // Unpaid balance = remaining (after partial payments) of every not-fully-paid debt.
+  return state.debts.filter(d => !d.is_paid).reduce((s, d) => s + debtRemaining(d), 0);
 }
 
 function renderDebtsSummary() {
@@ -3597,7 +3623,7 @@ function renderDebts() {
   const byPerson = {};
   unpaid.forEach(d => {
     if (!byPerson[d.debtor_name]) byPerson[d.debtor_name] = { total: 0, count: 0 };
-    byPerson[d.debtor_name].total += Number(d.amount);
+    byPerson[d.debtor_name].total += debtRemaining(d); // remaining after partial payments
     byPerson[d.debtor_name].count += 1;
   });
   const people = Object.keys(byPerson).sort();
@@ -3664,6 +3690,9 @@ function renderDebts() {
         <td style="white-space:nowrap;"><button class="btn-tiny icon-btn active" onclick="toggleDebtEdit('${d.id}')" title="Готово" aria-label="Готово"><i data-lucide="check"></i></button></td>
       `;
     } else {
+      const paid = debtPaidTotal(d.id);
+      const remaining = debtRemaining(d);
+      const hasPartial = paid > 0 && !d.is_paid;
       tr.innerHTML = `
         <td class="rc-secondary">${formatDateHuman(d.date)}</td>
         <td class="rc-primary" style="word-break: break-word;">
@@ -3671,9 +3700,10 @@ function renderDebts() {
             ${escapeHtml(d.debtor_name)}
             ${d.is_paid ? '<span class="cat-badge" style="background:var(--income-bg);color:var(--income-accent);">Оплачено</span>' : ''}
           </div>
+          ${hasPartial ? `<div class="days-remaining">Погашено ${fmt.format(paid)} из ${fmt.format(d.amount)}</div>` : ''}
         </td>
         <td class="comment-cell debts-comment-cell rc-secondary" onclick="this.classList.toggle('rc-expanded')">${d.comment ? escapeHtml(d.comment) : ''}</td>
-        <td class="rc-amount amount-income" style="text-align:right;">${fmt.format(d.amount)}</td>
+        <td class="rc-amount amount-income" style="text-align:right;">${fmt.format(d.is_paid ? d.amount : remaining)}</td>
         <td class="rc-actions" style="white-space:nowrap; display:flex; gap:4px; align-items:center;">
           <button class="btn-tiny icon-btn" onclick="toggleDebtPaid('${d.id}', ${d.is_paid ? 'false' : 'true'})" title="${d.is_paid ? 'Вернуть в долги' : 'Отметить оплаченным'}" aria-label="${d.is_paid ? 'Вернуть в долги' : 'Отметить оплаченным'}">${d.is_paid ? '<i data-lucide="undo-2"></i>' : '<i data-lucide="check"></i>'}</button>
           <button class="btn-tiny icon-btn" onclick="toggleDebtEdit('${d.id}')" title="Редактировать" aria-label="Редактировать"><i data-lucide="pencil"></i></button>
@@ -3695,11 +3725,69 @@ function toggleDebtEdit(id) {
 
 function openDebtActionMenu(id) {
   const d = state.debts.find(x => x.id === id);
-  openActionMenu([
-    { label: d && d.is_paid ? 'Вернуть в долги' : 'Отметить оплаченным', icon: d && d.is_paid ? 'undo-2' : 'check', onClick: () => toggleDebtPaid(id, d ? !d.is_paid : true) },
-    { label: 'Изменить', icon: 'pencil', onClick: () => toggleDebtEdit(id) },
-    { label: 'Удалить', icon: 'trash-2', danger: true, onClick: () => deleteDebt(id) },
-  ]);
+  const items = [];
+  if (d && !d.is_paid) {
+    items.push({ label: 'Погашен полностью', icon: 'check', onClick: () => toggleDebtPaid(id, true) });
+    items.push({ label: 'Погашен частично', icon: 'coins', onClick: () => partialPayDebt(id) });
+  } else {
+    items.push({ label: 'Вернуть в долги', icon: 'undo-2', onClick: () => toggleDebtPaid(id, false) });
+  }
+  items.push({ label: 'Изменить', icon: 'pencil', onClick: () => toggleDebtEdit(id) });
+  items.push({ label: 'Удалить', icon: 'trash-2', danger: true, onClick: () => deleteDebt(id) });
+  openActionMenu(items);
+}
+
+// Partial debt repayment (2a): records a payment in debt_payments, recomputes the
+// remaining balance, and marks the debt fully paid once the remainder hits zero.
+// The original debt amount is never overwritten.
+function partialPayDebt(id) {
+  if (!isConfigured) { toast('Сначала подключите базу данных'); return; }
+  const d = state.debts.find(x => x.id === id);
+  if (!d) return;
+  const remaining = debtRemaining(d);
+  if (remaining <= 0) { toast('Долг уже погашен'); return; }
+  openAmountSheet({
+    title: 'Частичное погашение',
+    subtitle: `${d.debtor_name} · остаток ${fmt.format(remaining)}`,
+    amount: remaining,
+    dateLabel: 'Дата платежа',
+    confirmLabel: 'Погасить',
+    onConfirm: (amt, date) => recordDebtPayment(d, amt, date),
+  });
+}
+
+async function recordDebtPayment(debt, amount, date) {
+  const remaining = debtRemaining(debt);
+  // Cap the payment at the remaining balance so a debt can never go negative.
+  const payKop = Math.min(toKopecks(amount), toKopecks(remaining));
+  const payAmount = payKop / 100;
+  let newPay = null, insErr = null;
+  try {
+    const res = await withTimeout(
+      supabaseClient.from('debt_payments').insert({
+        debt_id: debt.id, amount: payAmount, date, user_id: currentUser ? currentUser.id : null,
+      }).select(),
+      15000, 'Сервер не отвечает — проверьте интернет-соединение'
+    );
+    insErr = res.error; newPay = res.data && res.data[0];
+  } catch (e) { insErr = e; }
+  if (insErr) { toast('Ошибка: ' + (insErr.message || insErr)); return; }
+
+  const fullyPaid = toKopecks(remaining) - payKop <= 0;
+  if (fullyPaid) {
+    await supabaseClient.from('debts').update({ is_paid: true }).eq('id', debt.id);
+  }
+  await loadAll();
+  const fresh = state.debts.find(x => x.id === debt.id) || debt;
+  const msg = fullyPaid
+    ? `Долг «${debt.debtor_name}» погашен полностью`
+    : `Погашено ${fmt.format(payAmount)}, остаток ${fmt.format(debtRemaining(fresh))}`;
+  toastWithUndo(msg, (newPay && newPay.id) ? async () => {
+    await supabaseClient.from('debt_payments').delete().eq('id', newPay.id);
+    if (fullyPaid) await supabaseClient.from('debts').update({ is_paid: false }).eq('id', debt.id);
+    await loadAll();
+    toast('Погашение отменено');
+  } : null);
 }
 
 function toggleDebtsPersonFilter(name) {
@@ -3768,21 +3856,52 @@ async function updateShoppingField(id, field, rawValue) {
   await loadAll();
 }
 
-async function markShoppingBought(id) {
+// Куплено (C1/3a): confirm the amount (prefilled, editable) + date before recording the
+// expense, mark the item bought (kept, not deleted) and link the created operation so it
+// can be undone. Reuses the same amount-sheet pattern as "Получен".
+function markShoppingBought(id) {
   if (!isConfigured) { toast('Сначала подключите базу данных'); return; }
   const item = state.shoppingList.find(i => i.id === id);
   if (!item) return;
-  if (!(await confirmDialog(`Отметить «${item.name}» как купленное?`, { submessage: 'Позиция будет перенесена в операции как расход.', confirmLabel: 'Купить' }))) return;
-  const { error: insErr } = await insertWithRetry('transactions', {
-    kind: 'expense', category: 'Обязательный', subcategory: null,
-    amount: item.amount, date: new Date().toISOString().slice(0, 10),
-    comment: item.name, user_id: currentUser ? currentUser.id : null,
+  if (item.is_bought) { toast('Покупка уже отмечена купленной'); return; }
+  openAmountSheet({
+    title: 'Покупка совершена',
+    subtitle: item.name,
+    amount: item.amount,
+    dateLabel: 'Дата покупки',
+    confirmLabel: 'Купить',
+    onConfirm: (amt, date) => recordShoppingBought(item, amt, date),
   });
-  if (insErr) { toast('Ошибка: ' + insErr.message); return; }
-  const { error: delErr } = await supabaseClient.from('shopping_list').delete().eq('id', id);
-  if (delErr) { toast('Ошибка при удалении из списка: ' + delErr.message); return; }
-  toast('Отмечено как купленное — добавлено в расходы');
+}
+
+async function recordShoppingBought(item, amount, date) {
+  let newTx = null, insErr = null;
+  try {
+    const res = await withTimeout(
+      supabaseClient.from('transactions').insert({
+        kind: 'expense', category: 'Покупки', subcategory: null,
+        amount, date, comment: item.name, user_id: currentUser ? currentUser.id : null,
+      }).select(),
+      15000, 'Сервер не отвечает — проверьте интернет-соединение'
+    );
+    insErr = res.error; newTx = res.data && res.data[0];
+  } catch (e) { insErr = e; }
+  if (insErr) { toast('Ошибка: ' + (insErr.message || insErr)); return; }
+
+  const patch = { is_bought: true, bought_date: date, bought_amount: amount };
+  if (newTx && newTx.id) patch.linked_transaction_id = newTx.id;
+  const { error: upErr } = await supabaseClient.from('shopping_list').update(patch).eq('id', item.id);
+  if (upErr) { toast('Операция создана, но не удалось отметить покупку: ' + upErr.message); await loadAll(); return; }
   await loadAll();
+
+  toastWithUndo(`Куплено — ${fmt.format(amount)} добавлено в расходы`, (newTx && newTx.id) ? async () => {
+    await supabaseClient.from('transactions').delete().eq('id', newTx.id);
+    await supabaseClient.from('shopping_list')
+      .update({ is_bought: false, bought_date: null, bought_amount: null, linked_transaction_id: null })
+      .eq('id', item.id);
+    await loadAll();
+    toast('Отменено');
+  } : null);
 }
 
 /* ---------------- SUBSCRIPTIONS ---------------- */
@@ -4220,7 +4339,19 @@ function renderShoppingSummary() {
 
 function renderShoppingList() {
   const { key, dir } = state.shoppingSort;
-  const list = state.shoppingList.slice();
+  let list = state.shoppingList.slice();
+  // Bought items are hidden from the main list by default (C3); a toggle reveals them.
+  const boughtCount = list.filter(i => i.is_bought).length;
+  if (!state.shoppingShowBought) list = list.filter(i => !i.is_bought);
+  const boughtToggle = document.getElementById('shoppingShowBoughtToggle');
+  if (boughtToggle) {
+    if (boughtCount > 0) {
+      boughtToggle.style.display = '';
+      boughtToggle.textContent = state.shoppingShowBought ? 'Скрыть купленные' : `Показать купленные (${boughtCount})`;
+    } else {
+      boughtToggle.style.display = 'none';
+    }
+  }
   if (key === 'amount') {
     list.sort((a, b) => (Number(a.amount) - Number(b.amount)) * (dir === 'asc' ? 1 : -1));
   } else if (key === 'name') {
@@ -4232,7 +4363,8 @@ function renderShoppingList() {
   }
   updateSortArrows(state.shoppingSort, ['shoppingSortName', 'shoppingSortDate', 'shoppingSortAmount']);
 
-  const total = state.shoppingList.reduce((s, item) => s + Number(item.amount), 0);
+  // "Итого запланировано" excludes already-bought items (C1).
+  const total = state.shoppingList.filter(i => !i.is_bought).reduce((s, item) => s + Number(item.amount), 0);
   document.getElementById('shoppingTotalBadge').textContent = fmt.format(total);
   document.getElementById('shoppingTotalFooter').textContent = fmt.format(total);
 
@@ -4262,20 +4394,26 @@ function renderShoppingList() {
       // ("была запланирована на …"), not red like an overdue payment. 2026-07-15 (C2)
       const overdue = status && status.cls === 'overdue';
       const dateStr = item.planned_date ? formatDateHuman(item.planned_date) : '—';
+      const bought = item.is_bought;
+      if (bought) tr.className = 'debt-row-paid';
       tr.innerHTML = `
         <td class="rc-primary" style="word-break: break-word;">
           <div style="font-weight:700;">${escapeHtml(item.name)}</div>
-          ${status && !overdue ? `<span class="status-badge ${status.cls}">${status.text}</span>` : ''}
+          ${bought
+            ? `<span class="cat-badge" style="background:var(--income-bg);color:var(--income-accent);">Куплено</span>`
+            : (status && !overdue ? `<span class="status-badge ${status.cls}">${status.text}</span>` : '')}
         </td>
         <td class="rc-secondary">
-          ${overdue
-            ? `<div class="days-remaining">была запланирована на ${dateStr}</div>`
-            : `<div>${dateStr}</div>${remaining ? `<div class="days-remaining ${remaining.overdue ? 'overdue' : ''}">${remaining.text}</div>` : ''}`}
+          ${bought
+            ? `<div>${item.bought_date ? formatDateHuman(item.bought_date) : dateStr}</div>`
+            : (overdue
+              ? `<div class="days-remaining">была запланирована на ${dateStr}</div>`
+              : `<div>${dateStr}</div>${remaining ? `<div class="days-remaining ${remaining.overdue ? 'overdue' : ''}">${remaining.text}</div>` : ''}`)}
         </td>
         <td class="comment-cell shopping-comment-cell rc-secondary" onclick="this.classList.toggle('rc-expanded')">${item.comment ? escapeHtml(item.comment) : ''}</td>
-        <td class="rc-amount amount-expense" style="text-align:right;">${fmt.format(item.amount)}</td>
+        <td class="rc-amount amount-expense" style="text-align:right;">${fmt.format(bought && item.bought_amount != null ? item.bought_amount : item.amount)}</td>
         <td class="rc-actions" style="white-space:nowrap; display:flex; gap:4px; align-items:center;">
-          <button class="btn-tiny icon-btn" onclick="markShoppingBought('${item.id}')" title="Отметить купленным" aria-label="Отметить купленным"><i data-lucide="check"></i></button>
+          ${bought ? '' : `<button class="btn-tiny icon-btn" onclick="markShoppingBought('${item.id}')" title="Отметить купленным" aria-label="Отметить купленным"><i data-lucide="check"></i></button>`}
           <button class="btn-tiny icon-btn" onclick="toggleShoppingEdit('${item.id}')" title="Редактировать" aria-label="Редактировать"><i data-lucide="pencil"></i></button>
           <button class="btn-tiny icon-btn rc-menu-btn" onclick="openShoppingActionMenu('${item.id}')" title="Ещё" aria-label="Ещё"><i data-lucide="more-horizontal"></i></button>
         </td>
@@ -4292,12 +4430,36 @@ function toggleShoppingEdit(id) {
   lucide.createIcons();
 }
 
+function toggleShoppingShowBought() {
+  state.shoppingShowBought = !state.shoppingShowBought;
+  renderShoppingList();
+  lucide.createIcons();
+}
+
 function openShoppingActionMenu(id) {
-  openActionMenu([
-    { label: 'Отметить купленным', icon: 'check', onClick: () => markShoppingBought(id) },
-    { label: 'Изменить', icon: 'pencil', onClick: () => toggleShoppingEdit(id) },
-    { label: 'Удалить', icon: 'trash-2', danger: true, onClick: () => deleteShoppingItem(id) },
-  ]);
+  const item = state.shoppingList.find(i => i.id === id);
+  const items = [];
+  if (item && item.is_bought) {
+    items.push({ label: 'Вернуть в список', icon: 'undo-2', onClick: () => unmarkShoppingBought(id) });
+  } else {
+    items.push({ label: 'Отметить купленным', icon: 'check', onClick: () => markShoppingBought(id) });
+  }
+  items.push({ label: 'Изменить', icon: 'pencil', onClick: () => toggleShoppingEdit(id) });
+  items.push({ label: 'Удалить', icon: 'trash-2', danger: true, onClick: () => deleteShoppingItem(id) });
+  openActionMenu(items);
+}
+
+async function unmarkShoppingBought(id) {
+  const item = state.shoppingList.find(i => i.id === id);
+  if (!item || !item.is_bought) return;
+  if (item.linked_transaction_id) {
+    await supabaseClient.from('transactions').delete().eq('id', item.linked_transaction_id);
+  }
+  const { error } = await supabaseClient.from('shopping_list')
+    .update({ is_bought: false, bought_date: null, bought_amount: null, linked_transaction_id: null }).eq('id', id);
+  if (error) { toast('Ошибка: ' + error.message); return; }
+  toast('Возвращено в список — расход удалён');
+  await loadAll();
 }
 
 function purchaseStatus(dateStr) {
@@ -4396,43 +4558,53 @@ async function updateIncomeField(id, field, rawValue) {
   await loadAll();
 }
 
-// Opens the confirmation dialog: the user can correct the actually-received amount and
-// the receipt date before it's recorded. 2026-07-15
-let receiveIncomeCtxId = null;
+// Generic amount+date confirmation sheet — reused by "Получен", частичное погашение
+// долга и "Куплено". onConfirm receives (enteredAmount, date). 2026-07-15
+let amountSheetCallback = null;
+function openAmountSheet({ title, subtitle = '', amount, dateLabel = 'Дата', date, confirmLabel = 'Подтвердить', onConfirm }) {
+  document.getElementById('amountSheetTitle').textContent = title;
+  document.getElementById('amountSheetSubtitle').textContent = subtitle;
+  document.getElementById('amountSheetDateLabel').textContent = dateLabel;
+  const amtInput = document.getElementById('amountSheetAmount');
+  amtInput.value = amount != null ? String(amount) : '';
+  document.getElementById('amountSheetDate').value = date || todayStr();
+  document.getElementById('amountSheetConfirmBtn').textContent = confirmLabel;
+  amountSheetCallback = onConfirm;
+  document.getElementById('amountSheetOverlay').classList.add('visible');
+  setTimeout(() => { amtInput.focus(); amtInput.select(); }, 50);
+}
+function closeAmountSheet() {
+  document.getElementById('amountSheetOverlay').classList.remove('visible');
+  amountSheetCallback = null;
+}
+document.getElementById('amountSheetCancelBtn').addEventListener('click', closeAmountSheet);
+document.getElementById('amountSheetOverlay').addEventListener('click', (e) => {
+  if (e.target.id === 'amountSheetOverlay') closeAmountSheet();
+});
+document.getElementById('amountSheetConfirmBtn').addEventListener('click', async () => {
+  const cb = amountSheetCallback;
+  if (!cb) return;
+  const enteredAmount = parseFloat(document.getElementById('amountSheetAmount').value.replace(/\s/g, '').replace(',', '.'));
+  if (!enteredAmount || enteredAmount <= 0) { toast('Введите сумму больше нуля'); return; }
+  const date = document.getElementById('amountSheetDate').value || todayStr();
+  closeAmountSheet();
+  await cb(enteredAmount, date);
+});
+
+// Income "Получен": correct the received amount + date before recording. 2026-07-15
 function markIncomeReceived(id) {
   if (!isConfigured) { toast('Сначала подключите базу данных'); return; }
   const item = state.expectedIncome.find(i => i.id === id);
   if (!item) return;
   if (item.linked_transaction_id) { toast('Этот доход уже отмечен полученным'); return; }
-  receiveIncomeCtxId = id;
-  document.getElementById('receiveIncomeName').textContent = item.name + (item.category ? ` · ${item.category}` : '');
-  const amtInput = document.getElementById('receiveIncomeAmount');
-  amtInput.value = String(item.amount);
-  document.getElementById('receiveIncomeDate').value = todayStr();
-  document.getElementById('receiveIncomeOverlay').classList.add('visible');
-  setTimeout(() => { amtInput.focus(); amtInput.select(); }, 50);
+  openAmountSheet({
+    title: 'Доход получен',
+    subtitle: item.name + (item.category ? ` · ${item.category}` : ''),
+    amount: item.amount,
+    dateLabel: 'Дата получения',
+    onConfirm: (amt, date) => processIncomeReceipt(item, amt, date),
+  });
 }
-
-function closeReceiveIncome() {
-  document.getElementById('receiveIncomeOverlay').classList.remove('visible');
-  receiveIncomeCtxId = null;
-}
-
-document.getElementById('receiveIncomeCancelBtn').addEventListener('click', closeReceiveIncome);
-document.getElementById('receiveIncomeOverlay').addEventListener('click', (e) => {
-  if (e.target.id === 'receiveIncomeOverlay') closeReceiveIncome();
-});
-document.getElementById('receiveIncomeConfirmBtn').addEventListener('click', async () => {
-  const id = receiveIncomeCtxId;
-  if (!id) return;
-  const item = state.expectedIncome.find(i => i.id === id);
-  if (!item) { closeReceiveIncome(); return; }
-  const enteredAmount = parseFloat(document.getElementById('receiveIncomeAmount').value.replace(/\s/g, '').replace(',', '.'));
-  if (!enteredAmount || enteredAmount <= 0) { toast('Введите сумму больше нуля'); return; }
-  const receivedDate = document.getElementById('receiveIncomeDate').value || todayStr();
-  closeReceiveIncome();
-  await processIncomeReceipt(item, enteredAmount, receivedDate);
-});
 
 // Decide what to do with a received income: auto-link to an exact existing operation,
 // ask when a match is ambiguous, or create a fresh operation. Duplicate matching runs on
