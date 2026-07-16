@@ -1652,18 +1652,6 @@
         <div class="value" id="debtsTabUnpaidTotal">—</div>
         <div class="growth-indicator" id="debtsTabUnpaidCount"></div>
       </div>
-      <div class="summary-card income">
-        <div class="metric-icon icon-income"><img src="icons/income.png" alt=""></div>
-        <div class="label">Доход за месяц</div>
-        <div class="value" id="debtsTabIncomeMonth">—</div>
-        <div class="growth-indicator" id="growthDebtsTabIncome"></div>
-      </div>
-      <div class="summary-card expense">
-        <div class="metric-icon icon-expense"><img src="icons/expense.png" alt=""></div>
-        <div class="label">Расход за месяц</div>
-        <div class="value" id="debtsTabExpenseMonth">—</div>
-        <div class="growth-indicator" id="growthDebtsTabExpense"></div>
-      </div>
       <div class="summary-card balance">
         <div class="metric-icon icon-primary"><img src="icons/balance.png" alt=""></div>
         <div class="label">Остаток за месяц</div>
@@ -1744,18 +1732,6 @@
         <div class="value" id="shoppingTabPlannedTotal">—</div>
         <div class="growth-indicator" id="shoppingTabPlannedCount"></div>
       </div>
-      <div class="summary-card expense">
-        <div class="metric-icon icon-expense"><img src="icons/expense.png" alt=""></div>
-        <div class="label">Расход за месяц</div>
-        <div class="value" id="shoppingTabExpenseMonth">—</div>
-        <div class="growth-indicator" id="growthShoppingTabExpense"></div>
-      </div>
-      <div class="summary-card debts">
-        <div class="metric-icon icon-debts"><img src="icons/debts.png" alt=""></div>
-        <div class="label">Непогашенные долги</div>
-        <div class="value" id="shoppingTabDebtsTotal">—</div>
-        <div class="growth-indicator" id="shoppingTabDebtsCount"></div>
-      </div>
       <div class="summary-card balance">
         <div class="metric-icon icon-primary"><img src="icons/balance.png" alt=""></div>
         <div class="label">Остаток за месяц</div>
@@ -1833,18 +1809,6 @@
         <div class="label">Ожидаемый доход</div>
         <div class="value" id="incomeExpectedTotal">—</div>
         <div class="growth-indicator" id="growthIncomeExpected"></div>
-      </div>
-      <div class="summary-card expense">
-        <div class="metric-icon icon-expense"><img src="icons/expense.png" alt=""></div>
-        <div class="label">Расход за месяц</div>
-        <div class="value" id="incomeTabExpenseMonth">—</div>
-        <div class="growth-indicator" id="growthIncomeTabExpense"></div>
-      </div>
-      <div class="summary-card debts">
-        <div class="metric-icon icon-debts"><img src="icons/debts.png" alt=""></div>
-        <div class="label">Непогашенные долги</div>
-        <div class="value" id="incomeTabDebtsTotal">—</div>
-        <div class="growth-indicator" id="incomeTabDebtsCount"></div>
       </div>
       <div class="summary-card balance">
         <div class="metric-icon icon-primary"><img src="icons/balance.png" alt=""></div>
@@ -2096,8 +2060,13 @@ if (isConfigured && window.supabase) {
 } else {
   isConfigured = false;
   const banner = document.getElementById('configBanner');
+  // A1 (2026-07-17): the technical "edit index.html / SUPABASE_URL" instructions are only
+  // useful to a developer running locally — never surface them to a user on prod.
+  const isLocal = location.protocol === 'file:' || ['localhost', '127.0.0.1', '::1', ''].includes(location.hostname);
   if (!window.supabase) {
     banner.innerHTML = '⚠️ Не удалось загрузить библиотеку Supabase (проблема с интернет-соединением). Обновите страницу.';
+  } else if (!isLocal) {
+    banner.innerHTML = '⚠️ Приложение временно не подключено к базе данных. Попробуйте обновить страницу позже.';
   }
   banner.style.display = 'block';
 }
@@ -3598,11 +3567,11 @@ function renderDebtsSummary() {
   const unpaidTotal = computeUnpaidDebtsTotal();
   const unpaidCount = state.debts.filter(d => !d.is_paid).length;
 
-  document.getElementById('debtsTabUnpaidTotal').textContent = fmt.format(unpaidTotal);
-  document.getElementById('debtsTabUnpaidCount').textContent = unpaidCount ? `${unpaidCount} ${pluralDolg(unpaidCount)}` : '';
-  document.getElementById('debtsTabIncomeMonth').textContent = fmt.format(incomePeriod);
-  document.getElementById('debtsTabExpenseMonth').textContent = fmt.format(expensePeriod);
-  document.getElementById('debtsTabBalance').textContent = fmt.format(incomePeriod - expensePeriod);
+  setKpi('debtsTabUnpaidTotal', fmt.format(unpaidTotal));
+  setKpi('debtsTabUnpaidCount', unpaidCount ? `${unpaidCount} ${pluralDolg(unpaidCount)}` : '');
+  setKpi('debtsTabIncomeMonth', fmt.format(incomePeriod));
+  setKpi('debtsTabExpenseMonth', fmt.format(expensePeriod));
+  setKpi('debtsTabBalance', fmt.format(incomePeriod - expensePeriod));
 
   const gIncome = formatGrowth(incomePeriod, incomePrev);
   const gExpense = formatGrowth(expensePeriod, expensePrev, { invert: true });
@@ -4316,11 +4285,11 @@ function renderShoppingSummary() {
   const incomePrev = sumForMonths(prevMonths, 'income');
   const debtsTotal = computeUnpaidDebtsTotal();
 
-  document.getElementById('shoppingTabPlannedTotal').textContent = fmt.format(plannedTotal);
-  document.getElementById('shoppingTabPlannedCount').textContent = state.shoppingList.length ? `${state.shoppingList.length} поз.` : '';
-  document.getElementById('shoppingTabExpenseMonth').textContent = fmt.format(expensePeriod);
-  document.getElementById('shoppingTabDebtsTotal').textContent = fmt.format(debtsTotal);
-  document.getElementById('shoppingTabBalance').textContent = fmt.format(incomePeriod - expensePeriod);
+  setKpi('shoppingTabPlannedTotal', fmt.format(plannedTotal));
+  setKpi('shoppingTabPlannedCount', state.shoppingList.length ? `${state.shoppingList.length} поз.` : '');
+  setKpi('shoppingTabExpenseMonth', fmt.format(expensePeriod));
+  setKpi('shoppingTabDebtsTotal', fmt.format(debtsTotal));
+  setKpi('shoppingTabBalance', fmt.format(incomePeriod - expensePeriod));
 
   const gExpense = formatGrowth(expensePeriod, expensePrev, { invert: true });
   const gBalance = formatGrowth(incomePeriod - expensePeriod, incomePrev - expensePrev);
@@ -4328,7 +4297,7 @@ function renderShoppingSummary() {
   setMonthGrowth('growthShoppingTabBalance', gBalance);
 
   const unpaidCount = state.debts.filter(d => !d.is_paid).length;
-  document.getElementById('shoppingTabDebtsCount').textContent = unpaidCount ? `${unpaidCount} ${pluralDolg(unpaidCount)}` : '';
+  setKpi('shoppingTabDebtsCount', unpaidCount ? `${unpaidCount} ${pluralDolg(unpaidCount)}` : '');
 
   const sparkMonths = lastNMonthKeys(currentMonthKey, 6);
   const plannedSeries = sparkMonths.map(plannedForMonth);
@@ -4718,20 +4687,20 @@ function renderIncomeSummary() {
   const incomePrev = sumForMonths(prevMonths, 'income');
   const debtsTotal = computeUnpaidDebtsTotal();
 
-  document.getElementById('incomeExpectedTotal').textContent = fmt.format(expectedTotal);
-  document.getElementById('incomeTabExpenseMonth').textContent = fmt.format(expensePeriod);
-  document.getElementById('incomeTabDebtsTotal').textContent = fmt.format(debtsTotal);
-  document.getElementById('incomeTabBalance').textContent = fmt.format(incomePeriod - expensePeriod);
+  setKpi('incomeExpectedTotal', fmt.format(expectedTotal));
+  setKpi('incomeTabExpenseMonth', fmt.format(expensePeriod));
+  setKpi('incomeTabDebtsTotal', fmt.format(debtsTotal));
+  setKpi('incomeTabBalance', fmt.format(incomePeriod - expensePeriod));
 
   const gExpected = formatGrowth(expectedTotal, expectedPrevTotal);
   const gExpense = formatGrowth(expensePeriod, expensePrev, { invert: true });
   const gBalance = formatGrowth(incomePeriod - expensePeriod, incomePrev - expensePrev);
-  const g1 = document.getElementById('growthIncomeExpected'); g1.textContent = gExpected.text; g1.className = 'growth-indicator ' + gExpected.dir;
+  const g1 = document.getElementById('growthIncomeExpected'); if (g1) { g1.textContent = gExpected.text; g1.className = 'growth-indicator ' + gExpected.dir; }
   setMonthGrowth('growthIncomeTabExpense', gExpense);
   setMonthGrowth('growthIncomeTabBalance', gBalance);
 
   const unpaidCount = state.debts.filter(d => !d.is_paid).length;
-  document.getElementById('incomeTabDebtsCount').textContent = unpaidCount ? `${unpaidCount} ${pluralDolg(unpaidCount)}` : '';
+  setKpi('incomeTabDebtsCount', unpaidCount ? `${unpaidCount} ${pluralDolg(unpaidCount)}` : '');
 
   const sparkMonths = lastNMonthKeys(currentMonthKey, 6);
   const expectedSeries = sparkMonths.map(expectedForMonth);
@@ -5364,6 +5333,9 @@ function setMonthGrowth(id, g) {
   if (isCurrentMonthActive()) { el.textContent = 'месяц не завершён'; el.className = 'growth-indicator partial'; }
   else { el.textContent = g.text; el.className = 'growth-indicator ' + g.dir; }
 }
+
+// Null-safe KPI text setter so trimming KPI cards (A2) never throws on a removed id.
+function setKpi(id, text) { const el = document.getElementById(id); if (el) el.textContent = text; }
 
 function renderSummary() {
   const curMonths = activeMonths();
