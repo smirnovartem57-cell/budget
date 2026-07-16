@@ -1654,21 +1654,18 @@
         <div class="label">Доход за месяц</div>
         <div class="value" id="debtsTabIncomeMonth">—</div>
         <div class="growth-indicator" id="growthDebtsTabIncome"></div>
-        <div class="sparkline-box"><canvas id="sparkDebtsTabIncome"></canvas></div>
       </div>
       <div class="summary-card expense">
         <div class="metric-icon icon-expense"><img src="icons/expense.png" alt=""></div>
         <div class="label">Расход за месяц</div>
         <div class="value" id="debtsTabExpenseMonth">—</div>
         <div class="growth-indicator" id="growthDebtsTabExpense"></div>
-        <div class="sparkline-box"><canvas id="sparkDebtsTabExpense"></canvas></div>
       </div>
       <div class="summary-card balance">
         <div class="metric-icon icon-primary"><img src="icons/balance.png" alt=""></div>
         <div class="label">Остаток за месяц</div>
         <div class="value" id="debtsTabBalance">—</div>
         <div class="growth-indicator" id="growthDebtsTabBalance"></div>
-        <div class="sparkline-box"><canvas id="sparkDebtsTabBalance"></canvas></div>
       </div>
     </div>
 
@@ -1743,14 +1740,12 @@
         <div class="label">Запланировано покупок</div>
         <div class="value" id="shoppingTabPlannedTotal">—</div>
         <div class="growth-indicator" id="shoppingTabPlannedCount"></div>
-        <div class="sparkline-box"><canvas id="sparkShoppingPlanned"></canvas></div>
       </div>
       <div class="summary-card expense">
         <div class="metric-icon icon-expense"><img src="icons/expense.png" alt=""></div>
         <div class="label">Расход за месяц</div>
         <div class="value" id="shoppingTabExpenseMonth">—</div>
         <div class="growth-indicator" id="growthShoppingTabExpense"></div>
-        <div class="sparkline-box"><canvas id="sparkShoppingTabExpense"></canvas></div>
       </div>
       <div class="summary-card debts">
         <div class="metric-icon icon-debts"><img src="icons/debts.png" alt=""></div>
@@ -1763,7 +1758,6 @@
         <div class="label">Остаток за месяц</div>
         <div class="value" id="shoppingTabBalance">—</div>
         <div class="growth-indicator" id="growthShoppingTabBalance"></div>
-        <div class="sparkline-box"><canvas id="sparkShoppingTabBalance"></canvas></div>
       </div>
     </div>
 
@@ -1833,14 +1827,12 @@
         <div class="label">Ожидаемый доход</div>
         <div class="value" id="incomeExpectedTotal">—</div>
         <div class="growth-indicator" id="growthIncomeExpected"></div>
-        <div class="sparkline-box"><canvas id="sparkIncomeExpected"></canvas></div>
       </div>
       <div class="summary-card expense">
         <div class="metric-icon icon-expense"><img src="icons/expense.png" alt=""></div>
         <div class="label">Расход за месяц</div>
         <div class="value" id="incomeTabExpenseMonth">—</div>
         <div class="growth-indicator" id="growthIncomeTabExpense"></div>
-        <div class="sparkline-box"><canvas id="sparkIncomeTabExpense"></canvas></div>
       </div>
       <div class="summary-card debts">
         <div class="metric-icon icon-debts"><img src="icons/debts.png" alt=""></div>
@@ -1853,7 +1845,6 @@
         <div class="label">Остаток за месяц</div>
         <div class="value" id="incomeTabBalance">—</div>
         <div class="growth-indicator" id="growthIncomeTabBalance"></div>
-        <div class="sparkline-box"><canvas id="sparkIncomeTabBalance"></canvas></div>
       </div>
     </div>
 
@@ -1927,15 +1918,18 @@
       </div>
     </div>
 
+    <!-- D3 (2026-07-15): две карточки различались только текстом и имели одинаковую
+         иконку. Теперь у «сейчас» — иконка дохода, у «выбранного периода» — баланса,
+         и подписи явно называют месяц, чтобы разница читалась без тапа. -->
     <div style="display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap:14px; margin-top:20px;">
       <div class="summary-card income">
         <div class="metric-icon icon-income"><img src="icons/income.png" alt=""></div>
-        <div class="label">Текущий месяц</div>
+        <div class="label" id="incomeCurrentMonthLabel">Доход сейчас</div>
         <div class="value" id="incomeCurrentMonthValue">—</div>
       </div>
-      <div class="summary-card income">
-        <div class="metric-icon icon-income"><img src="icons/income.png" alt=""></div>
-        <div class="label" id="incomeReportMonthLabel">Отчётный месяц</div>
+      <div class="summary-card balance">
+        <div class="metric-icon icon-primary"><img src="icons/balance.png" alt=""></div>
+        <div class="label" id="incomeReportMonthLabel">За выбранный период</div>
         <div class="value" id="incomeReportMonthValue">—</div>
         <div class="growth-indicator" id="incomeCompareGrowth"></div>
       </div>
@@ -4723,10 +4717,12 @@ function renderIncomeDynamics() {
   const reportMonths = activeMonths();
   const reportIncome = sumForMonths(reportMonths, 'income');
 
+  const curMonthName = monthLabel(currentMonth).split(' ')[0]; // "июль"
+  document.getElementById('incomeCurrentMonthLabel').textContent = `Доход сейчас (${curMonthName})`;
   document.getElementById('incomeCurrentMonthValue').textContent = fmt.format(currentIncome);
   document.getElementById('incomeReportMonthLabel').textContent = state.viewMode === 'year'
-    ? `Отчётный год (${state.selectedYear})`
-    : `Отчётный месяц (${monthLabel(state.selectedMonth)})`;
+    ? `За ${state.selectedYear} год`
+    : `За ${monthLabel(state.selectedMonth)}`;
   document.getElementById('incomeReportMonthValue').textContent = fmt.format(reportIncome);
 
   const gEl = document.getElementById('incomeCompareGrowth');
