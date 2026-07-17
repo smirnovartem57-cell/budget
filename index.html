@@ -2014,6 +2014,9 @@
     </div>
     <button class="btn-primary" id="pinSaveBtn">Сохранить</button>
     <button class="btn-ghost" id="pinDisableBtn" style="width:100%;margin-top:8px;display:none;">Отключить PIN-код</button>
+    <button type="button" class="btn-ghost" id="pinBioBtn" style="width:100%;margin-top:8px;display:none;">
+      <i data-lucide="fingerprint" style="width:16px;height:16px;vertical-align:-3px;"></i> <span id="pinBioBtnLabel">Включить вход по Face ID / отпечатку</span>
+    </button>
     <button class="btn-ghost" id="pinCancelBtn" style="width:100%;margin-top:8px;">Отмена</button>
   </div>
 </div>
@@ -2028,6 +2031,9 @@
     <input type="password" inputmode="numeric" pattern="[0-9]*" maxlength="1" autocomplete="off">
   </div>
   <button type="button" class="btn-primary" id="pinLockSubmitBtn">Войти</button>
+  <button type="button" class="btn-ghost" id="pinLockBioBtn" style="display:none;margin-top:10px;">
+    <i data-lucide="fingerprint" style="width:16px;height:16px;vertical-align:-3px;"></i> Войти по Face ID / отпечатку
+  </button>
   <button type="button" class="pin-logout-link" id="pinLockLogoutBtn">Выйти из аккаунта</button>
 </div>
 
@@ -2574,8 +2580,76 @@ function checkPinLock() {
   // better than permanently stranding someone behind a PIN screen it can't verify.
   const locked = !!(currentUser && hasCryptoSubtle && getPinHash() && !isPinUnlockedThisSession());
   document.getElementById('pinLockOverlay').classList.toggle('visible', locked);
-  if (locked) { pinLockDigits.clear(); pinLockDigits.focus(); }
+  if (locked) { pinLockDigits.clear(); pinLockDigits.focus(); refreshBioUI(); }
 }
+
+/* ---------------- F7 (2026-07-17): вход по Face ID / отпечатку (WebAuthn) ----------------
+   Платформенный аутентификатор поверх PIN. Тумблер показывается только если встроенный
+   аутентификатор доступен (isUVPAA) и PIN уже задан; при любой ошибке — откат на PIN.
+   Ключи не покидают устройство; на сервере ничего не хранится (это локальный замок). */
+const BIO_KEY = 'bioCredId';
+function getBioCredId() { try { return localStorage.getItem(BIO_KEY); } catch (e) { return null; } }
+function setBioCredId(v) { try { v ? localStorage.setItem(BIO_KEY, v) : localStorage.removeItem(BIO_KEY); } catch (e) {} }
+function bufToB64(buf) { return btoa(String.fromCharCode(...new Uint8Array(buf))); }
+function b64ToBuf(b64) { return Uint8Array.from(atob(b64), c => c.charCodeAt(0)); }
+async function bioAvailable() {
+  try {
+    return typeof PublicKeyCredential !== 'undefined'
+      && typeof PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable === 'function'
+      && await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+  } catch (e) { return false; }
+}
+async function registerBio() {
+  const uid = currentUser ? String(currentUser.id) : 'local';
+  const cred = await navigator.credentials.create({ publicKey: {
+    challenge: crypto.getRandomValues(new Uint8Array(32)),
+    rp: { name: 'Семейный бюджет' },
+    user: { id: new TextEncoder().encode(uid), name: uid, displayName: 'Бюджет' },
+    pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
+    authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required' },
+    timeout: 60000,
+  } });
+  setBioCredId(bufToB64(cred.rawId));
+}
+async function unlockWithBio() {
+  const id = getBioCredId();
+  if (!id) return false;
+  await navigator.credentials.get({ publicKey: {
+    challenge: crypto.getRandomValues(new Uint8Array(32)),
+    allowCredentials: [{ id: b64ToBuf(id), type: 'public-key' }],
+    userVerification: 'required',
+    timeout: 60000,
+  } });
+  return true;
+}
+async function refreshBioUI() {
+  const avail = await bioAvailable();
+  const hasPin = !!getPinHash();
+  const enabled = !!getBioCredId();
+  const btn = document.getElementById('pinBioBtn');
+  if (btn) {
+    btn.style.display = (avail && hasPin) ? 'block' : 'none';
+    document.getElementById('pinBioBtnLabel').textContent = enabled
+      ? 'Отключить вход по Face ID / отпечатку'
+      : 'Включить вход по Face ID / отпечатку';
+  }
+  const lockBtn = document.getElementById('pinLockBioBtn');
+  if (lockBtn) lockBtn.style.display = (avail && enabled) ? 'block' : 'none';
+}
+document.getElementById('pinBioBtn').addEventListener('click', async () => {
+  if (getBioCredId()) { setBioCredId(null); toast('Вход по Face ID отключён'); refreshBioUI(); return; }
+  try { await registerBio(); toast('Готово — теперь можно входить по Face ID'); }
+  catch (e) { toast('Не удалось включить: ' + (e.message || 'отклонено')); }
+  refreshBioUI();
+});
+document.getElementById('pinLockBioBtn').addEventListener('click', async () => {
+  try {
+    if (await unlockWithBio()) {
+      markPinUnlocked();
+      document.getElementById('pinLockOverlay').classList.remove('visible');
+    }
+  } catch (e) { toast('Не распознано — введите PIN-код'); }
+});
 
 document.getElementById('pinBtn').addEventListener('click', () => {
   if (!hasCryptoSubtle) { toast('PIN-код не поддерживается в этом браузере'); return; }
@@ -2586,6 +2660,7 @@ document.getElementById('pinBtn').addEventListener('click', () => {
   pinNewDigits.clear();
   pinConfirmDigits.clear();
   document.getElementById('pinModalOverlay').classList.add('visible');
+  refreshBioUI();
   (hasPin ? pinCurrentDigits : pinNewDigits).focus();
 });
 
