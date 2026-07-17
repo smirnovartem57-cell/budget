@@ -6087,7 +6087,18 @@ function toggleAmountsHidden() {
 }
 document.getElementById('amountsEyeBtn').addEventListener('click', toggleAmountsHidden);
 
-loadAll();
+// F6 (2026-07-17): App Shortcuts из манифеста открывают лист «Новая операция»
+// с нужным типом. ?action=expense | income → быстрый режим, предвыбранный тип.
+function handleUrlAction() {
+  const action = new URLSearchParams(location.search).get('action');
+  if (action === 'expense' || action === 'income') {
+    openTxSheet();
+    setKind(action);
+    history.replaceState(null, '', location.pathname); // чтобы обновление не открывало снова
+  }
+}
+
+loadAll().then(handleUrlAction);
 </script>
 </body>
 </html>
