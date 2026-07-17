@@ -732,6 +732,10 @@
   /* Neutral marker for the in-progress current month (no misleading %). 2026-07-15 */
   .monthly-fact-partial { font-size: 11px; color: var(--text-muted); font-style: italic; flex-shrink: 0; }
 
+  /* §18: единый текстовый вывод под графиком */
+  .chart-takeaway { font-size: 12.5px; color: var(--text-secondary); line-height: 1.4; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
+  .chart-takeaway strong { color: var(--text-primary); font-variant-numeric: tabular-nums; }
+  .period-compare-sub { font-size: 12px; color: var(--text-secondary); margin-bottom: 10px; line-height: 1.35; }
   .period-compare-row { display: flex; gap: 16px; margin-bottom: 12px; }
   .period-compare-col { flex: 1; min-width: 0; }
   .period-compare-label { font-size: 11.5px; color: var(--text-secondary); margin-bottom: 4px; }
@@ -2500,6 +2504,33 @@ function sumForMonths(monthKeys, kind) {
   return state.transactions
     .filter(t => t.kind === kind && set.has(monthKey(t.date)) && hasHappened(t))
     .reduce((s,t) => s + Number(t.amount), 0);
+}
+
+/* ---- Сопоставимый период (2026-07-17): текущий неполный месяц сравнивается с
+   такой же частью предыдущего месяца (1–N против 1–N), а не с полным месяцем. ---- */
+function daysInMonthKey(mKey) {
+  const [y, m] = mKey.split('-').map(Number);
+  return new Date(y, m, 0).getDate();
+}
+function prevMonthKey(mKey) {
+  const [y, m] = mKey.split('-').map(Number);
+  const d = new Date(y, m - 2, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+// Сумма операций kind за 1..dayN указанного месяца (исходная точность, только наступившие).
+function sumInMonthUpToDay(mKey, dayN, kind) {
+  const end = `${mKey}-${String(dayN).padStart(2, '0')}`;
+  return state.transactions
+    .filter(t => t.kind === kind && monthKey(t.date) === mKey && t.date <= end && hasHappened(t))
+    .reduce((s, t) => s + Number(t.amount), 0);
+}
+function txInMonthUpToDay(mKey, dayN, kind) {
+  const end = `${mKey}-${String(dayN).padStart(2, '0')}`;
+  return state.transactions.filter(t => t.kind === kind && monthKey(t.date) === mKey && t.date <= end && hasHappened(t));
+}
+const GENITIVE_MONTHS = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+function dayRangeLabel(mKey, fromDay, toDay) {
+  return `${fromDay}–${toDay} ${GENITIVE_MONTHS[parseInt(mKey.slice(5, 7)) - 1]}`;
 }
 
 function sumForDay(dateStr, kind) {
@@ -5884,40 +5915,57 @@ function renderMonthlyFactList() {
         ${badge}
       </div>`;
   }).join('');
+
+  // §11: текстовый вывод по завершённым месяцам (текущий неполный не искажает среднее).
+  const completed = months.filter(m => m !== currentKey).map(m => ({ m, v: sumForMonths([m], 'expense') })).filter(x => x.v > 0);
+  if (completed.length >= 2) {
+    const avg = completed.reduce((s, x) => s + x.v, 0) / completed.length;
+    const top = completed.reduce((a, b) => (b.v > a.v ? b : a));
+    const topMonth = monthLabel(top.m).replace(/ \d{4}$/, '');
+    box.innerHTML += `<div class="chart-takeaway">Средние расходы за ${completed.length} завершённых мес.: <strong>${fmt.format(Math.round(avg))}</strong>. Максимум — ${topMonth}: ${fmt.format(top.v)}.</div>`;
+  }
 }
 
 function renderPeriodComparison() {
   const box = document.getElementById('periodComparisonBox');
-  const curMonths = activeMonths();
-  const prevMonths = previousPeriodMonths();
-  const curExpense = sumForMonths(curMonths, 'expense');
-  const prevExpense = sumForMonths(prevMonths, 'expense');
-
-  const curLabelRaw = state.viewMode === 'year' ? state.selectedYear : monthLabel(state.selectedMonth);
-  const prevLabelRaw = state.viewMode === 'year'
-    ? String(Number(state.selectedYear) - 1)
-    : (prevMonths.length ? monthLabel(prevMonths[prevMonths.length - 1]) : '');
   const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
-  const prevLabelInstrumental = state.viewMode === 'year'
-    ? prevLabelRaw
-    : (prevMonths.length ? monthLabelInstrumental(prevMonths[prevMonths.length - 1]) : '');
-  document.getElementById('periodComparisonTitle').textContent = prevLabelRaw
-    ? `${cap(curLabelRaw)} по сравнению с ${prevLabelInstrumental}`
-    : 'Сравнение периодов';
+  document.getElementById('periodComparisonTitle').textContent = 'Сравнение с предыдущим периодом';
+
+  // Собираем сопоставимые данные: для текущего неполного месяца — 1..N против 1..N
+  // прошлого месяца (с зажимом дня по длине месяца); иначе — полные периоды.
+  let curExpense, prevExpense, curLabel, prevLabel, subLabel, curByCat, prevByCat;
+  if (isCurrentMonthActive()) {
+    const curKey = state.selectedMonth;
+    const prevKey = prevMonthKey(curKey);
+    const dayN = new Date().getDate();
+    const prevDayN = Math.min(dayN, daysInMonthKey(prevKey));
+    curExpense = sumInMonthUpToDay(curKey, dayN, 'expense');
+    prevExpense = sumInMonthUpToDay(prevKey, prevDayN, 'expense');
+    curLabel = dayRangeLabel(curKey, 1, dayN);
+    prevLabel = dayRangeLabel(prevKey, 1, prevDayN);
+    subLabel = `Сравнение за ${curLabel} и ${prevLabel} — одинаковое число дней`;
+    curByCat = {}; txInMonthUpToDay(curKey, dayN, 'expense').forEach(t => { curByCat[t.category] = (curByCat[t.category] || 0) + Number(t.amount); });
+    prevByCat = {}; txInMonthUpToDay(prevKey, prevDayN, 'expense').forEach(t => { prevByCat[t.category] = (prevByCat[t.category] || 0) + Number(t.amount); });
+  } else {
+    const curMonths = activeMonths();
+    const prevMonths = previousPeriodMonths();
+    curExpense = sumForMonths(curMonths, 'expense');
+    prevExpense = sumForMonths(prevMonths, 'expense');
+    curLabel = state.viewMode === 'year' ? state.selectedYear : cap(monthLabel(state.selectedMonth));
+    prevLabel = state.viewMode === 'year' ? String(Number(state.selectedYear) - 1) : (prevMonths.length ? cap(monthLabel(prevMonths[prevMonths.length - 1])) : '');
+    subLabel = '';
+    curByCat = {}; state.transactions.filter(t => curMonths.includes(monthKey(t.date)) && t.kind === 'expense' && hasHappened(t)).forEach(t => { curByCat[t.category] = (curByCat[t.category] || 0) + Number(t.amount); });
+    prevByCat = {}; state.transactions.filter(t => prevMonths.includes(monthKey(t.date)) && t.kind === 'expense' && hasHappened(t)).forEach(t => { prevByCat[t.category] = (prevByCat[t.category] || 0) + Number(t.amount); });
+  }
 
   if (!prevExpense) {
-    box.innerHTML = '<div class="empty-note">Нет данных за предыдущий период для сравнения</div>';
+    box.innerHTML = '<div class="empty-note">Сравнение появится после накопления данных за два сопоставимых периода</div>';
     return;
   }
 
   const delta = curExpense - prevExpense;
   const g = formatGrowth(curExpense, prevExpense, { invert: true });
-  const partial = isCurrentMonthActive();
-
-  const curTx = state.transactions.filter(t => curMonths.includes(monthKey(t.date)) && t.kind === 'expense' && hasHappened(t));
-  const prevTx = state.transactions.filter(t => prevMonths.includes(monthKey(t.date)) && t.kind === 'expense' && hasHappened(t));
-  const curByCat = {}; curTx.forEach(t => { curByCat[t.category] = (curByCat[t.category] || 0) + Number(t.amount); });
-  const prevByCat = {}; prevTx.forEach(t => { prevByCat[t.category] = (prevByCat[t.category] || 0) + Number(t.amount); });
+  const pctAbs = Math.abs((curExpense - prevExpense) / prevExpense * 100).toFixed(1).replace(/\.0$/, '');
   const allCats = new Set([...Object.keys(curByCat), ...Object.keys(prevByCat)]);
   const catDeltas = [...allCats]
     .map(cat => ({ cat, delta: (curByCat[cat] || 0) - (prevByCat[cat] || 0) }))
@@ -5926,20 +5974,19 @@ function renderPeriodComparison() {
     .slice(0, 5);
 
   let html = `
+    ${subLabel ? `<div class="period-compare-sub">${escapeHtml(subLabel)}</div>` : ''}
     <div class="period-compare-row">
       <div class="period-compare-col">
-        <div class="period-compare-label">${cap(curLabelRaw)}</div>
+        <div class="period-compare-label">${escapeHtml(curLabel)}</div>
         <div class="period-compare-amount">${fmt.format(curExpense)}</div>
       </div>
       <div class="period-compare-col">
-        <div class="period-compare-label">${cap(prevLabelRaw)}</div>
+        <div class="period-compare-label">${escapeHtml(prevLabel)}</div>
         <div class="period-compare-amount">${fmt.format(prevExpense)}</div>
       </div>
     </div>
-    <div class="period-compare-delta ${partial ? 'partial' : g.dir}">
-      ${partial
-        ? `${cap(curLabelRaw)} ещё не завершён — сравниваем неполный период с полным ${prevLabelInstrumental}`
-        : `Расходы ${delta >= 0 ? 'выросли' : 'снизились'} на ${fmt.format(Math.abs(delta))} — ${g.text}`}
+    <div class="period-compare-delta ${g.dir}">
+      Расходы ${delta >= 0 ? 'выросли' : 'снизились'} на ${fmt.format(Math.abs(delta))} — это на ${pctAbs}% ${delta >= 0 ? 'больше' : 'меньше'}
     </div>`;
 
   if (catDeltas.length) {
