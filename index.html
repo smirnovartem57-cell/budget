@@ -1301,6 +1301,13 @@
     .responsive-card-table tr.rc-edit-row { display: block; }
     .responsive-card-table tr.rc-edit-row td { grid-column: auto; margin-bottom: 6px; }
     .responsive-card-table tr.rc-edit-row td:last-child { margin-bottom: 0; }
+    /* F1 (2026-07-17): свайп по карточке. Плавный возврат; во время жеста — без анимации.
+       Левый свайп подсвечивает удаление (красный край), правый — контекстные действия. */
+    .responsive-card-table tr { transition: transform .18s ease; touch-action: pan-y; }
+    .responsive-card-table tr.rc-swiping { transition: none; user-select: none; }
+    .responsive-card-table tr.rc-swipe-left { box-shadow: inset -4px 0 0 0 var(--expense-accent), var(--shadow-card); }
+    .responsive-card-table tr.rc-swipe-right { box-shadow: inset 4px 0 0 0 var(--btn-primary), var(--shadow-card); }
+    .responsive-card-table tr.rc-swipe-armed { opacity: .92; }
     /* iOS zooms on focus of any input under 16px. These inline-table inputs were only
        bumped to 16px at ≤480px, leaving the 481–767px range at 13.5px — fix it across
        the whole touch breakpoint. 2026-07-15 */
@@ -2213,6 +2220,55 @@ function openActionMenu(items, title) {
 document.getElementById('actionMenuOverlay').addEventListener('click', (e) => {
   if (e.target.id === 'actionMenuOverlay') e.currentTarget.classList.remove('visible');
 });
+
+// F1 (2026-07-17): свайп по карточке-строке списка открывает меню действий этой строки
+// (в нём — удаление слева-по-смыслу и контекстные действия). Реализация на pointer-events:
+// жест «захватывается» только когда горизонтальное смещение доминирует над вертикальным,
+// поэтому обычный вертикальный скролл не ломается. Кнопки («…», карандаш) остаются на месте.
+(function initCardSwipe() {
+  const THRESHOLD = 0.28; // доля ширины карточки, после которой жест срабатывает
+  let s = null;
+  function reset(tr) {
+    if (!tr) return;
+    tr.classList.remove('rc-swiping', 'rc-swipe-left', 'rc-swipe-right', 'rc-swipe-armed');
+    tr.style.transform = '';
+  }
+  document.addEventListener('pointerdown', (e) => {
+    if (window.innerWidth > 767) return;              // свайп только в карточном режиме
+    if (e.target.closest('button, a, input, select, textarea, label')) return; // не мешаем контролам
+    const tr = e.target.closest('.responsive-card-table tbody tr');
+    if (!tr || tr.classList.contains('rc-edit-row')) return;
+    const menuBtn = tr.querySelector('.rc-menu-btn');
+    if (!menuBtn) return;
+    s = { tr, menuBtn, startX: e.clientX, startY: e.clientY, width: tr.getBoundingClientRect().width, lock: null, armed: false };
+  }, { passive: true });
+  document.addEventListener('pointermove', (e) => {
+    if (!s) return;
+    const dx = e.clientX - s.startX, dy = e.clientY - s.startY;
+    if (s.lock === null) {
+      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+      s.lock = Math.abs(dx) > Math.abs(dy) ? 'h' : 'v';
+      if (s.lock === 'h') s.tr.classList.add('rc-swiping');
+    }
+    if (s.lock !== 'h') return;
+    if (e.cancelable) e.preventDefault();
+    const clamped = Math.max(-s.width, Math.min(s.width, dx));
+    s.tr.style.transform = `translateX(${clamped * 0.5}px)`;
+    s.tr.classList.toggle('rc-swipe-left', clamped < 0);
+    s.tr.classList.toggle('rc-swipe-right', clamped > 0);
+    s.armed = Math.abs(clamped) >= s.width * THRESHOLD;
+    s.tr.classList.toggle('rc-swipe-armed', s.armed);
+  }, { passive: false });
+  function finish() {
+    if (!s) return;
+    const { tr, menuBtn, armed, lock } = s;
+    reset(tr);
+    s = null;
+    if (lock === 'h' && armed) menuBtn.click(); // открыть меню действий строки
+  }
+  document.addEventListener('pointerup', finish, { passive: true });
+  document.addEventListener('pointercancel', () => { if (s) { reset(s.tr); s = null; } }, { passive: true });
+})();
 
 // Collapsible add-forms (A6 2026-07-15): forms start collapsed so the list is the first
 // screen; toggling only changes display, so entered data is never lost.
