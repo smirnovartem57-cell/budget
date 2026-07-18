@@ -374,6 +374,8 @@
   .kpi-break-name { color: var(--text-primary); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .kpi-break-val { font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
   .kpi-break-updated { font-size: 11.5px; color: var(--text-muted, var(--text-secondary)); margin-top: 14px; }
+  .kpi-break-ul { margin: 0 0 4px; padding-left: 18px; }
+  .kpi-break-ul li { font-size: 13px; color: var(--text-primary); line-height: 1.5; }
 
   .container {
     max-width: 1180px;
@@ -706,6 +708,9 @@
     .charts-grid { grid-template-columns: minmax(0, 1fr); }
   }
   .chart-box { position: relative; height: 260px; }
+  /* §22: контейнер графика не выходит за ширину экрана; canvas тянется по контейнеру. */
+  .chart-container { width: 100%; min-width: 0; overflow: hidden; }
+  .chart-container canvas { display: block; max-width: 100%; }
   /* Daily view can be wider than the screen and scrolls horizontally inside its own
      container (not the page), so each day gets a readable width. 2026-07-16 */
   .chart-scroll { overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; }
@@ -1575,10 +1580,12 @@
         <div class="chart-scroll" id="dynamicsChartScroll"><div class="chart-box" id="dynamicsChartBox"><canvas id="dynamicsChart"></canvas></div></div>
       </div>
 
-      <!-- MONTHLY FACT (expense-only, MoM change, no budget target involved) -->
+      <!-- §11 (2026-07-17): «Динамика расходов» — только расходы, одноцветные синие столбцы -->
       <div class="panel">
-        <h2><span>Факт по месяцам</span> <span class="badge-info">6 мес</span></h2>
-        <div id="monthlyFactList"></div>
+        <h2><span>Динамика расходов</span> <span class="badge-info" id="expenseTrendBadge" role="button" tabindex="0" style="cursor:pointer;" title="Переключить 6 / 12 месяцев" onclick="toggleExpenseTrendMonths()">6 мес</span></h2>
+        <div class="chart-container" id="expenseTrendScroll"><div class="chart-box" id="expenseTrendBox"><canvas id="expenseTrendChart"></canvas></div></div>
+        <div id="expenseTrendEmpty" class="empty-note" style="display:none;">Недостаточно данных для построения графика</div>
+        <div class="chart-takeaway" id="expenseTrendTakeaway"></div>
       </div>
 
       <!-- PERIOD COMPARISON -->
@@ -2188,6 +2195,7 @@ let state = {
   subscriptionsSort: { key: null, dir: 'asc' }, // key: 'name' | 'amount' | 'date'
   categoryRankingExpanded: { income: false, expense: false },
   dynamicsMonthsN: 6,  // 6 | 12 — default 6 so 12 bars don't crowd on phones (2026-07-15)
+  expenseTrendMonthsN: 6,  // §11: «Динамика расходов» 6 | 12
 };
 
 let currentUser = null;
@@ -5699,8 +5707,11 @@ function topCategoriesForKind(kind, n = 3) {
 }
 
 // Единый компонент листа-расшифровки. Данные считаются кодом (детерминированно).
-function openKpiBreakdown({ title, period, total, formula, note, itemsLabel, items }) {
+function openKpiBreakdown({ title, period, total, formula, note, included, notIncluded, itemsLabel, items }) {
   document.getElementById('kpiSheetTitle').textContent = title;
+  const bullets = (label, arr) => (arr && arr.length)
+    ? `<div class="kpi-break-sub">${escapeHtml(label)}</div><ul class="kpi-break-ul">${arr.map(x => `<li>${escapeHtml(x)}</li>`).join('')}</ul>`
+    : '';
   const listHtml = items
     ? (items.length
         ? `<div class="kpi-break-sub">${escapeHtml(itemsLabel || 'Крупнейшие статьи')}</div>` +
@@ -5712,6 +5723,8 @@ function openKpiBreakdown({ title, period, total, formula, note, itemsLabel, ite
     ${total != null ? `<div class="kpi-break-total">${total}</div>` : ''}
     ${formula ? `<div class="kpi-break-formula">${escapeHtml(formula)}</div>` : ''}
     ${note ? `<div class="kpi-break-note">${escapeHtml(note)}</div>` : ''}
+    ${bullets('Включено', included)}
+    ${bullets('Не включено', notIncluded)}
     ${listHtml}
     ${updatedAtLabel() ? `<div class="kpi-break-updated">${escapeHtml(updatedAtLabel())}</div>` : ''}`;
   document.getElementById('kpiSheetOverlay').classList.add('visible');
@@ -5729,21 +5742,24 @@ function openKpiBreakdownFor(kind) {
     openKpiBreakdown({
       title: 'Доход за период', period, total: fmt.format(income),
       formula: 'Сумма всех операций типа «Доход» за период.',
-      note: 'Учитываются только уже наступившие даты — будущие операции не входят.',
+      included: ['Подтверждённые доходные операции с датой в пределах периода'],
+      notIncluded: ['Будущие (ещё не наступившие) даты', 'Ожидаемые доходы без операции', 'Удалённые операции'],
       itemsLabel: 'Крупнейшие источники', items: topCategoriesForKind('income'),
     });
   } else if (kind === 'expense') {
     openKpiBreakdown({
       title: 'Расход за период', period, total: fmt.format(expense),
       formula: 'Сумма всех операций типа «Расход» за период.',
-      note: 'Учитываются только уже наступившие даты — будущие операции не входят.',
+      included: ['Подтверждённые расходные операции', 'Оплаченные регулярные платежи', 'Подтверждённые покупки (как расход)'],
+      notIncluded: ['Будущие платежи', 'Ожидаемые покупки', 'Удалённые операции'],
       itemsLabel: 'Крупнейшие статьи', items: topCategoriesForKind('expense'),
     });
   } else if (kind === 'balance') {
     openKpiBreakdown({
       title: 'Остаток за период', period, total: fmt.format(income - expense),
       formula: `Доход − Расход = ${fmt.format(income)} − ${fmt.format(expense)}.`,
-      note: 'Разница между доходами и расходами за выбранный период (без учёта долгов).',
+      included: ['Наступившие доходы и расходы за период'],
+      notIncluded: ['Долги', 'Будущие операции', 'Ожидаемые доходы без операции'],
     });
   } else if (kind === 'debts') {
     const byName = {};
@@ -5753,7 +5769,8 @@ function openKpiBreakdownFor(kind) {
       title: 'Непогашенные долги', period: `На сегодня · ${count} ${pluralDolg(count)}`,
       total: fmt.format(computeUnpaidDebtsTotal()),
       formula: 'Сумма остатков по всем не погашенным полностью долгам.',
-      note: 'Частичные погашения уже вычтены; полностью погашенные долги не входят.',
+      included: ['Активные долги по остатку (после частичных погашений)'],
+      notIncluded: ['Полностью погашенные долги', 'Обычные расходные операции'],
       itemsLabel: 'По людям', items: topByAmount(byName),
     });
   }
@@ -5902,39 +5919,78 @@ function allYears() {
   return Array.from(new Set(fullMonthRange().map(k => k.split('-')[0]))).sort();
 }
 
-function renderMonthlyFactList() {
-  const box = document.getElementById('monthlyFactList');
-  const months = lastNMonthKeys(todayStr().slice(0, 7), 6);
-  const hasAnyExpense = months.some(m => sumForMonths([m], 'expense') > 0);
-  if (!hasAnyExpense) {
-    box.innerHTML = '<div class="empty-note">Нет расходов за последние 6 месяцев</div>';
+// §11 (2026-07-17): «Динамика расходов» — только фактические расходы, одноцветные синие
+// столбцы; текущий месяц — насыщённее; 6/12 мес; под графиком — текстовый вывод.
+let expenseTrendInstance = null;
+function toggleExpenseTrendMonths() {
+  state.expenseTrendMonthsN = state.expenseTrendMonthsN === 6 ? 12 : 6;
+  renderMonthlyExpenseTrend();
+}
+function renderMonthlyExpenseTrend() {
+  const ctx = document.getElementById('expenseTrendChart');
+  if (!ctx) return;
+  const emptyEl = document.getElementById('expenseTrendEmpty');
+  const takeaway = document.getElementById('expenseTrendTakeaway');
+  const badge = document.getElementById('expenseTrendBadge');
+  const n = state.expenseTrendMonthsN || 6;
+  badge.textContent = `${n} мес`;
+
+  const currentKey = todayStr().slice(0, 7);
+  const months = lastNMonthKeys(currentKey, n);
+  const values = months.map(m => sumForMonths([m], 'expense'));
+  const isNarrow = window.innerWidth <= 480;
+
+  if (!values.some(v => v > 0)) {
+    if (expenseTrendInstance) { expenseTrendInstance.destroy(); expenseTrendInstance = null; }
+    ctx.style.display = 'none'; emptyEl.style.display = ''; takeaway.textContent = '';
     return;
   }
-  const currentKey = todayStr().slice(0, 7);
-  box.innerHTML = months.map((m, i) => {
-    const amount = sumForMonths([m], 'expense');
-    const prevKey = i > 0 ? months[i - 1] : lastNMonthKeys(m, 2)[0];
-    const prevAmount = sumForMonths([prevKey], 'expense');
-    const monthShort = monthLabel(m).slice(0, 3).replace(/^(\S)/, s => s.toUpperCase());
-    // The in-progress current month can't be fairly compared to a full previous month.
-    const badge = m === currentKey
-      ? '<span class="monthly-fact-partial">месяц не завершён</span>'
-      : (() => { const g = formatGrowth(amount, prevAmount, { invert: true }); return `<span class="growth-indicator ${g.dir}">${g.text}</span>`; })();
-    return `
-      <div class="monthly-fact-row">
-        <span class="monthly-fact-month">${monthShort}</span>
-        <span class="monthly-fact-amount">${fmt.format(amount)}</span>
-        ${badge}
-      </div>`;
-  }).join('');
+  ctx.style.display = ''; emptyEl.style.display = 'none';
 
-  // §11: текстовый вывод по завершённым месяцам (текущий неполный не искажает среднее).
+  const labels = months.map(m => monthLabel(m).slice(0, 3));
+  // Все столбцы — синий; текущий (неполный) месяц — насыщённее.
+  const colors = months.map(m => m === currentKey ? '#3E6DE0' : '#4F7DF3B0');
+
+  if (expenseTrendInstance) expenseTrendInstance.destroy();
+  expenseTrendInstance = new Chart(ctx, {
+    type: 'bar',
+    data: { labels, datasets: [{ label: 'Расходы', data: values, backgroundColor: colors, borderRadius: 4 }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            title: (items) => { const idx = items[0].dataIndex; const l = monthLabel(months[idx]); return l.charAt(0).toUpperCase() + l.slice(1) + (months[idx] === currentKey ? ' (не завершён)' : ''); },
+            label: (item) => {
+              const idx = item.dataIndex;
+              let s = `Расходы: ${fmt.format(item.parsed.y)}`;
+              if (idx > 0 && months[idx] !== currentKey) {
+                const prev = values[idx - 1];
+                if (prev > 0) { const d = values[idx] - prev; s += `  ·  к пред. мес. ${d >= 0 ? '+' : '−'}${fmt.format(Math.abs(d))}`; }
+              }
+              return s;
+            }
+          }
+        }
+      },
+      scales: {
+        y: { ticks: { callback: v => fmt.format(v), maxTicksLimit: isNarrow ? 4 : undefined }, grid: { color: '#E7EBF2' } },
+        x: { grid: { display: false }, ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: isNarrow ? 5 : undefined } }
+      }
+    }
+  });
+
+  // Текстовый вывод по завершённым месяцам (текущий неполный не искажает среднее).
   const completed = months.filter(m => m !== currentKey).map(m => ({ m, v: sumForMonths([m], 'expense') })).filter(x => x.v > 0);
   if (completed.length >= 2) {
     const avg = completed.reduce((s, x) => s + x.v, 0) / completed.length;
     const top = completed.reduce((a, b) => (b.v > a.v ? b : a));
-    const topMonth = monthLabel(top.m).replace(/ \d{4}$/, '');
-    box.innerHTML += `<div class="chart-takeaway">Средние расходы за ${completed.length} завершённых мес.: <strong>${fmt.format(Math.round(avg))}</strong>. Максимум — ${topMonth}: ${fmt.format(top.v)}.</div>`;
+    const topMonth = capFirst(monthLabel(top.m).replace(/ \d{4}$/, ''));
+    takeaway.innerHTML = `Средние расходы за ${completed.length} завершённых мес.: <strong>${fmt.format(Math.round(avg))}</strong>. Максимум — ${topMonth}: ${fmt.format(top.v)}.`;
+  } else {
+    takeaway.textContent = 'Вывод появится после накопления данных за несколько месяцев.';
   }
 }
 
@@ -6283,7 +6339,7 @@ function renderEverything() {
   renderRecentTransactions();
   renderExpenseComparison();
   renderDynamicsChart();
-  renderMonthlyFactList();
+  renderMonthlyExpenseTrend();
   renderPeriodComparison();
   renderCategoryRanking('incomeCategoryRanking', 'income');
   renderCategoryRanking('expenseCategoryRanking', 'expense');
