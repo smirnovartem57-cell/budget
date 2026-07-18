@@ -72,25 +72,26 @@
     --bg-secondary: #EFF3F9;
     --border: #E7EBF2;
     --border-secondary: #ECF1F8;
-    --text-primary: #101828;
-    --text-secondary: #66718A;
-    --text-muted: #98A2B5;
-    --info-bg: #EAF2FF;
-    --info-accent: #3B82F6;
-    --btn-primary: #3B82F6;
-    --btn-primary-hover: #2F6FE0;
+    /* Единая палитра ТЗ §4 (2026-07-17): значение цвета одинаково на всех экранах. */
+    --text-primary: #17213A;
+    --text-secondary: #667085;
+    --text-muted: #98A2B3;
+    --info-bg: #EAF0FF;
+    --info-accent: #4F7DF3;
+    --btn-primary: #4F7DF3;
+    --btn-primary-hover: #3E6DE0;
     --btn-primary-text: #FFFFFF;
     --graphite: #17213A;
     --graphite-hover: #0F1729;
     --graphite-text: #FFFFFF;
     --income-accent: #22C55E;
     --income-bg: #E8F7EF;
-    --expense-accent: #E45E68;
+    --expense-accent: #EF646F;
     --expense-bg: #FDECEE;
     --warning: #F59E0B;
-    --warning-bg: #FFF4E4;
-    --mint: #4FC9A4; --mint-bg: #E8F8F2;
-    --purple: #9370E8; --purple-bg: #F1ECFC;
+    --warning-bg: #FFF4E5;
+    --mint: #63D3AE; --mint-bg: #ECFBF5;
+    --purple: #8B5CF6; --purple-bg: #F2ECFF;
     --orange: #F2A35E; --orange-bg: #FFF2E7;
     --pink: #EF769F; --pink-bg: #FDECF2;
     --card-bg: #FFFFFF;
@@ -5110,7 +5111,7 @@ function renderIncomeDynamics() {
     data: {
       labels,
       datasets: [
-        { label: 'Доход', data: income, backgroundColor: '#2E7D5B99', borderRadius: 4 },
+        { label: 'Доход', data: income, backgroundColor: '#22C55E99', borderRadius: 4 },
       ]
     },
     options: {
@@ -5120,7 +5121,7 @@ function renderIncomeDynamics() {
       scales: {
         y: {
           ticks: { callback: v => fmt.format(v), maxTicksLimit: isNarrow ? 4 : undefined },
-          grid: { color: '#E7E5E1' }
+          grid: { color: '#E7EBF2' }
         },
         x: {
           grid: { display: false },
@@ -6067,9 +6068,9 @@ function renderDynamicsChart() {
     data: {
       labels: chartLabels,
       datasets: [
-        { type: 'bar', label: 'Доход', data: income, backgroundColor: '#2E7D5B99', borderRadius: 4 },
-        { type: 'bar', label: 'Расход', data: expense, backgroundColor: '#B4483A99', borderRadius: 4 },
-        { type: 'line', label: 'Остаток', data: balance, borderColor: '#185FA5', backgroundColor: '#185FA5', tension: 0.3, pointRadius: isDayView ? 1.5 : 3 },
+        { type: 'bar', label: 'Доход', data: income, backgroundColor: '#22C55E99', borderRadius: 4 },
+        { type: 'bar', label: 'Расход', data: expense, backgroundColor: '#EF646F99', borderRadius: 4 },
+        { type: 'line', label: 'Остаток', data: balance, borderColor: '#4F7DF3', backgroundColor: '#4F7DF3', tension: 0.3, pointRadius: isDayView ? 1.5 : 3 },
       ]
     },
     options: {
@@ -6079,7 +6080,7 @@ function renderDynamicsChart() {
       scales: {
         y: {
           ticks: { callback: v => fmt.format(v), maxTicksLimit: isNarrow ? 4 : undefined },
-          grid: { color: '#E7E5E1' }
+          grid: { color: '#E7EBF2' }
         },
         x: {
           grid: { display: false },
