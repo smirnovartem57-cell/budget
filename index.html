@@ -379,6 +379,18 @@
   .upcoming-amount { font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; font-size: 13.5px; }
   .upcoming-amount.out { color: var(--expense-accent); }
   .upcoming-amount.in { color: var(--income-accent); }
+  /* 2026-07-19: единый значок категории + пастельные фоны (ТЗ §3.3/§3.4) */
+  .mobile-finance-icon { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 10px; flex-shrink: 0; }
+  .mobile-finance-icon svg { width: 18px; height: 18px; }
+  .icon-blue { background: #EAF0FF; color: #4F7DF3; }
+  .icon-green { background: #EAF7F1; color: #3FA477; }
+  .icon-red { background: #FBEDEF; color: #D96672; }
+  .icon-orange { background: #FFF4E5; color: #D79A3A; }
+  .icon-purple { background: #F2ECFF; color: #8064D7; }
+  /* §6.4: заголовок группы операций по дате с итогом дня */
+  .tx-day-group td { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 12px 8px 6px !important; background: transparent; border: none; }
+  .tx-day-label { font-size: 13px; font-weight: 700; color: var(--text-secondary); }
+  .tx-day-total { font-size: 12.5px; color: var(--text-secondary); font-variant-numeric: tabular-nums; white-space: nowrap; }
   /* F8: расшифровка KPI */
   .kpi-clickable { cursor: pointer; }
   .kpi-break-period { font-size: 12.5px; color: var(--text-secondary); font-weight: 600; }
@@ -1330,8 +1342,11 @@
       white-space: normal !important;
       text-align: left !important;
     }
-    .responsive-card-table td.rc-primary { grid-column: 1; grid-row: 1; font-weight: 700; align-self: center; word-break: break-word; }
+    .responsive-card-table td.rc-primary { grid-column: 1; grid-row: 1; font-weight: 700; align-self: center; word-break: break-word; display: flex; align-items: center; gap: 8px; }
     .responsive-card-table td.rc-amount { grid-column: 2; grid-row: 1; text-align: right !important; white-space: nowrap !important; align-self: center; font-variant-numeric: tabular-nums; }
+    /* §6.4: строка-заголовок дня не превращается в карточку */
+    .responsive-card-table tr.tx-day-group { display: block; background: transparent; border: none; box-shadow: none; padding: 0; margin: 6px 0 2px; }
+    .responsive-card-table tr.tx-day-group td { padding: 8px 2px 4px !important; }
     /* rc-secondary cells auto-flow down column 1 (rows 2, 3, …) so a row with both
        a date and a comment stacks them without overlapping. */
     .responsive-card-table td.rc-secondary { grid-column: 1; font-size: 12.5px; color: var(--text-secondary); margin-top: 1px; }
@@ -5626,7 +5641,7 @@ document.getElementById('txPeriodSelect').addEventListener('change', (e) => {
   renderTable();
 });
 document.getElementById('loadMoreBtn').addEventListener('click', () => {
-  state.txVisibleCount += 5;
+  state.txVisibleCount += 15;
   renderTable();
 });
 document.getElementById('txSearchInput').addEventListener('input', (e) => {
@@ -5978,6 +5993,40 @@ function txCategoryLabel(t) {
   return t.subcategory ? `${t.category} · ${t.subcategory}` : t.category;
 }
 
+// 2026-07-19: смысловая Lucide-иконка + цвет по категории операции (ТЗ §3.3/§6.6).
+function categoryVisual(t) {
+  const s = `${t.category || ''} ${t.subcategory || ''}`.toLowerCase();
+  const map = [
+    [/ипотек|жиль|аренд|квартир|\bдом\b/, 'house', 'icon-blue'],
+    [/жкх|комму|электр|\bсвет\b|\bгаз\b|\bвода\b/, 'plug-zap', 'icon-orange'],
+    [/интернет|провайд|wi-?fi/, 'wifi', 'icon-blue'],
+    [/связь|мобиль|телефон|сотов/, 'smartphone', 'icon-blue'],
+    [/транспорт|бензин|топлив|\bавто|такси|метро|проезд|каршер/, 'car', 'icon-blue'],
+    [/продукт|\bеда\b|магазин|супермаркет|пятёр|перекрёст|магнит|лент|ашан|вкусвил/, 'shopping-basket', 'icon-green'],
+    [/образован|школ|\bкурс|учеб|универ|репетит/, 'graduation-cap', 'icon-purple'],
+    [/здоров|аптек|медиц|\bврач|лекарств|стомат/, 'heart-pulse', 'icon-red'],
+    [/кредит|займ|\bбанк|ссуд|рассроч/, 'landmark', 'icon-orange'],
+    [/страхов|осаго|каско/, 'shield-check', 'icon-green'],
+    [/\bдет|ребён|ребен|садик|детсад|няня/, 'baby', 'icon-purple'],
+    [/развлеч|\bигр|кино|\bбар\b|кафе|ресторан|отдых/, 'gamepad-2', 'icon-purple'],
+    [/подписк|сервис|облак|хранилищ/, 'app-window', 'icon-purple'],
+    [/зарплат|\bдоход|клиент|гонорар|аванс|\bоплата\b|выплат/, 'wallet', 'icon-green'],
+    [/обязатель/, 'receipt-text', 'icon-orange'],
+    [/покупк/, 'shopping-bag', 'icon-blue'],
+  ];
+  for (const [re, icon, cls] of map) if (re.test(s)) return { icon, cls };
+  return t.kind === 'income' ? { icon: 'circle-plus', cls: 'icon-green' } : { icon: 'circle-minus', cls: 'icon-red' };
+}
+
+// «Сегодня» / «Вчера» / «18 июля» — заголовок группы операций по дате.
+function dayGroupLabel(dateStr) {
+  const today = todayStr();
+  const yest = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  if (dateStr === today) return 'Сегодня';
+  if (dateStr === yest) return 'Вчера';
+  return capFirst(formatDateHuman(dateStr));
+}
+
 function renderRecentTransactions() {
   const list = state.transactions.filter(hasHappened)
     .sort((a, b) => (b.date + 'T' + (b.time || '00:00')).localeCompare(a.date + 'T' + (a.time || '00:00')))
@@ -6031,16 +6080,35 @@ function renderTable() {
   const emptyNote = document.getElementById('emptyNote');
   emptyNote.style.display = list.length ? 'none' : 'block';
   emptyNote.textContent = q ? 'Ничего не найдено' : 'Нет операций за этот период';
+
+  // §6.4: группировка по датам с итогом дня — только в режиме сортировки по дате.
+  const grouped = !key || key === 'date';
+  let lastDate = null;
   visible.forEach(t => {
+    if (grouped && t.date !== lastDate) {
+      lastDate = t.date;
+      const dayTx = list.filter(x => x.date === t.date);
+      const inc = dayTx.filter(x => x.kind === 'income').reduce((s, x) => s + Number(x.amount), 0);
+      const exp = dayTx.filter(x => x.kind === 'expense').reduce((s, x) => s + Number(x.amount), 0);
+      let totalHtml;
+      if (inc && exp) totalHtml = `<span class="tx-day-total">Доходы <span class="amount-income">+${fmt.format(inc)}</span> · Расходы <span class="amount-expense">−${fmt.format(exp)}</span></span>`;
+      else if (inc) totalHtml = `<span class="tx-day-total amount-income">+${fmt.format(inc)}</span>`;
+      else totalHtml = `<span class="tx-day-total amount-expense">−${fmt.format(exp)}</span>`;
+      const hr = document.createElement('tr');
+      hr.className = 'tx-day-group';
+      hr.innerHTML = `<td colspan="5"><span class="tx-day-label">${dayGroupLabel(t.date)}</span>${totalHtml}</td>`;
+      tbody.appendChild(hr);
+    }
+    const vis = categoryVisual(t);
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td class="rc-secondary">
+      <td class="rc-secondary tx-date-td">
         <div class="tx-datetime-cell">
           <input type="date" class="shopping-date-input tx-date-input" value="${t.date}" min="2020-01-01" max="2099-12-31" onchange="updateTxDate('${t.id}', this.value)">
           <input type="time" class="tx-time-input" value="${t.time ? t.time.slice(0,5) : ''}" onchange="updateTxTime('${t.id}', this.value)">
         </div>
       </td>
-      <td class="rc-primary"><span class="cat-badge">${txCategoryLabel(t)}</span></td>
+      <td class="rc-primary"><span class="mobile-finance-icon ${vis.cls}"><i data-lucide="${vis.icon}"></i></span><span class="cat-badge">${txCategoryLabel(t)}</span></td>
       <td class="comment-cell tx-comment-cell rc-secondary" onclick="this.classList.toggle('rc-expanded')">${t.comment || ''}</td>
       <td class="rc-amount ${t.kind === 'income' ? 'amount-income' : 'amount-expense'}" style="text-align:right;">
         ${t.kind === 'income' ? '+' : '−'}
@@ -6058,7 +6126,7 @@ function renderTable() {
   const remaining = list.length - visible.length;
   if (remaining > 0) {
     loadMoreBtn.style.display = 'block';
-    loadMoreBtn.textContent = `Показать ещё ${Math.min(5, remaining)}`;
+    loadMoreBtn.textContent = `Показать ещё ${remaining}`;
   } else {
     loadMoreBtn.style.display = 'none';
   }
