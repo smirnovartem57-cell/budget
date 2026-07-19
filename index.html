@@ -5205,7 +5205,7 @@ function renderExpectedIncome() {
         </td>
         <td class="rc-secondary">
           <div>${item.expected_date ? formatDateHuman(item.expected_date) : '—'}</div>
-          ${remaining ? `<div class="days-remaining ${remaining.overdue ? 'overdue' : ''}">${remaining.text}</div>` : ''}
+          ${remaining && !item.is_received ? `<div class="days-remaining ${remaining.overdue ? 'overdue' : ''}">${remaining.text}</div>` : ''}
         </td>
         <td class="rc-amount amount-income" style="text-align:right;">${fmt.format(item.amount)}</td>
         <td class="rc-actions" style="white-space:nowrap; display:flex; gap:4px; align-items:center;">
@@ -5821,6 +5821,15 @@ function renderUpcomingFeed() {
     if (i.expected_date && i.expected_date.slice(0, 7) === monthK && i.expected_date >= today && !i.linked_transaction_id) {
       items.push({ date: i.expected_date, name: i.name, amount: Number(i.amount), dir: 'in' });
     }
+  });
+  // Если в «Операциях» этого месяца уже есть запись с таким же именем и направлением —
+  // показываем фактическую сумму из операции (план мог отличаться от факта). 2026-07-19
+  items.forEach(it => {
+    const kind = it.dir === 'in' ? 'income' : 'expense';
+    const match = state.transactions.find(t =>
+      t.kind === kind && monthKey(t.date) === monthK && hasHappened(t) &&
+      (txCategoryLabel(t) === it.name || t.subcategory === it.name || t.category === it.name));
+    if (match) it.amount = Number(match.amount);
   });
   items.sort((a, b) => a.date.localeCompare(b.date));
   if (!items.length) { box.innerHTML = '<div class="empty-note">До конца месяца ничего не запланировано</div>'; return; }
