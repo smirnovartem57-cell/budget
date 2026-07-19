@@ -391,6 +391,20 @@
   .tx-day-group td { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 12px 8px 6px !important; background: transparent; border: none; }
   .tx-day-label { font-size: 13px; font-weight: 700; color: var(--text-secondary); }
   .tx-day-total { font-size: 12.5px; color: var(--text-secondary); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  /* §6.7: лист деталей/редактирования операции */
+  .tx-detail-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+  .tx-detail-head .mobile-finance-icon { width: 40px; height: 40px; border-radius: 12px; }
+  .tx-detail-cat { font-weight: 700; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tx-detail-sub { font-size: 12.5px; color: var(--text-secondary); }
+  .tx-detail-amount { font-family: 'Manrope', sans-serif; font-weight: 800; font-size: 26px; font-variant-numeric: tabular-nums; margin: 6px 0 14px; }
+  .tx-detail-amount.amount-income { color: var(--income-accent); }
+  .tx-detail-amount.amount-expense { color: var(--expense-accent); }
+  .tx-detail-actions { display: flex; gap: 10px; margin-top: 12px; }
+  .tx-detail-actions .btn-secondary { flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; }
+  .tx-detail-delete { color: var(--expense-accent); display: flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 14px; }
+  .tx-detail-actions svg { width: 16px; height: 16px; }
+  /* по умолчанию (desktop) — редактирование в строке; plain-текст скрыт */
+  .tx-date-plain, .tx-amount-plain { display: none; }
   /* F8: расшифровка KPI */
   .kpi-clickable { cursor: pointer; }
   .kpi-break-period { font-size: 12.5px; color: var(--text-secondary); font-weight: 600; }
@@ -1362,6 +1376,14 @@
        field now that the card has horizontal space. 2026-07-15 */
     .responsive-card-table .tx-datetime-cell { flex-direction: row; gap: 6px; flex-wrap: wrap; }
     .responsive-card-table input.tx-amount-input { width: 92px; min-width: 92px; }
+    /* §6.7: на мобильном строка-операция открывает bottom sheet для редактирования —
+       инлайн-инпуты даты/суммы и кнопка удаления скрыты, показываем компактный текст. */
+    #txTableBody tr.tx-row { cursor: pointer; }
+    #txTableBody td.tx-date-td .tx-datetime-cell,
+    #txTableBody .tx-amount-edit,
+    #txTableBody td.rc-actions { display: none; }
+    #txTableBody .tx-date-plain { display: block; }
+    #txTableBody .tx-amount-plain { display: inline; font-weight: 700; }
     /* Edit-mode rows keep a simple stacked layout so date/amount inputs get full width. */
     .responsive-card-table tr.rc-edit-row { display: block; }
     .responsive-card-table tr.rc-edit-row td { grid-column: auto; margin-bottom: 6px; }
@@ -2182,6 +2204,32 @@
     <div class="panel">
       <h2 id="kpiSheetTitle">Расшифровка</h2>
       <div id="kpiSheetBody"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 2026-07-19: детали и редактирование операции в bottom sheet (ТЗ §6.7/§6.8) -->
+<div class="bottom-sheet-overlay" id="txDetailOverlay">
+  <div class="bottom-sheet">
+    <div class="bottom-sheet-handle"></div>
+    <button type="button" class="bottom-sheet-close" id="txDetailCloseBtn" aria-label="Закрыть"><i data-lucide="x"></i></button>
+    <div class="panel">
+      <div class="tx-detail-head">
+        <span class="mobile-finance-icon" id="txDetailIcon"></span>
+        <div style="min-width:0;">
+          <div class="tx-detail-cat" id="txDetailCat"></div>
+          <div class="tx-detail-sub" id="txDetailSub"></div>
+        </div>
+      </div>
+      <div class="tx-detail-amount" id="txDetailAmount"></div>
+      <div class="form-row"><label>Сумма, ₽</label><input type="number" id="txDetailAmountInput" min="0" step="1" inputmode="decimal"></div>
+      <div class="form-row"><label>Дата и время</label><div class="datetime-row"><input type="date" id="txDetailDate" min="2020-01-01" max="2099-12-31"><input type="time" id="txDetailTime"></div></div>
+      <div class="form-row"><label>Комментарий</label><input type="text" id="txDetailComment" placeholder="Например: покупки домой"></div>
+      <button type="button" class="btn-primary" id="txDetailSaveBtn">Сохранить</button>
+      <div class="tx-detail-actions">
+        <button type="button" class="btn-secondary" id="txDetailDuplicateBtn"><i data-lucide="copy"></i> Дублировать</button>
+        <button type="button" class="btn-ghost tx-detail-delete" id="txDetailDeleteBtn"><i data-lucide="trash-2"></i> Удалить</button>
+      </div>
     </div>
   </div>
 </div>
@@ -5532,6 +5580,85 @@ async function updateTxAmount(id, rawValue) {
   await loadAll();
 }
 
+/* §6.7/§6.8: детальный просмотр и редактирование операции в bottom sheet.
+   На мобильном тап по карточке-операции открывает лист; поля правятся здесь,
+   а не крохотными инлайн-инпутами в строке. */
+let txDetailCurrentId = null;
+function openTxDetailSheet(id) {
+  const t = state.transactions.find(x => x.id === id);
+  if (!t) return;
+  txDetailCurrentId = id;
+  const vis = categoryVisual(t);
+  const iconEl = document.getElementById('txDetailIcon');
+  iconEl.className = 'mobile-finance-icon ' + vis.cls;
+  iconEl.innerHTML = `<i data-lucide="${vis.icon}"></i>`;
+  document.getElementById('txDetailCat').textContent = txCategoryLabel(t);
+  document.getElementById('txDetailSub').textContent = t.kind === 'income' ? 'Доход' : 'Расход';
+  const amtEl = document.getElementById('txDetailAmount');
+  amtEl.className = 'tx-detail-amount ' + (t.kind === 'income' ? 'amount-income' : 'amount-expense');
+  amtEl.textContent = (t.kind === 'income' ? '+' : '−') + fmt.format(t.amount);
+  document.getElementById('txDetailAmountInput').value = Number(t.amount);
+  document.getElementById('txDetailDate').value = t.date;
+  document.getElementById('txDetailTime').value = t.time ? t.time.slice(0, 5) : '';
+  document.getElementById('txDetailComment').value = t.comment || '';
+  document.getElementById('txDetailOverlay').classList.add('visible');
+  if (window.lucide) lucide.createIcons();
+}
+function closeTxDetailSheet() {
+  document.getElementById('txDetailOverlay').classList.remove('visible');
+  txDetailCurrentId = null;
+}
+document.getElementById('txDetailCloseBtn').addEventListener('click', closeTxDetailSheet);
+document.getElementById('txDetailOverlay').addEventListener('click', (e) => {
+  if (e.target.id === 'txDetailOverlay') closeTxDetailSheet();
+});
+document.getElementById('txDetailSaveBtn').addEventListener('click', async () => {
+  if (!txDetailCurrentId) return;
+  if (!isConfigured) { toast('Сначала подключите базу данных'); return; }
+  const amount = parseFloat(document.getElementById('txDetailAmountInput').value);
+  if (!amount || amount <= 0) { toast('Сумма должна быть больше нуля'); return; }
+  const date = document.getElementById('txDetailDate').value;
+  if (!date) { toast('Укажите дату'); return; }
+  const time = document.getElementById('txDetailTime').value || null;
+  const comment = document.getElementById('txDetailComment').value.trim();
+  const { error } = await supabaseClient.from('transactions')
+    .update({ amount, date, time, comment: comment || null })
+    .eq('id', txDetailCurrentId);
+  if (error) { toast('Ошибка: ' + error.message); return; }
+  closeTxDetailSheet();
+  toast('Сохранено');
+  await loadAll();
+});
+document.getElementById('txDetailDeleteBtn').addEventListener('click', async () => {
+  const id = txDetailCurrentId;
+  if (!id) return;
+  closeTxDetailSheet();
+  await deleteTx(id);
+});
+document.getElementById('txDetailDuplicateBtn').addEventListener('click', async () => {
+  const t = state.transactions.find(x => x.id === txDetailCurrentId);
+  if (!t) return;
+  if (!isConfigured) { toast('Сначала подключите базу данных'); return; }
+  const payload = {
+    kind: t.kind, category: t.category, subcategory: t.subcategory,
+    amount: Number(t.amount), date: todayStr(), time: t.time || null,
+    comment: t.comment || null, user_id: currentUser ? currentUser.id : null,
+  };
+  const { error } = await insertWithRetry('transactions', [payload]);
+  if (error) { toast('Ошибка: ' + error.message); return; }
+  closeTxDetailSheet();
+  toast('Операция продублирована на сегодня');
+  await loadAll();
+});
+// Делегированный тап по карточке-операции (мобильный режим) открывает детальный лист.
+document.getElementById('txTableBody').addEventListener('click', (e) => {
+  if (window.innerWidth > 767) return;
+  if (e.target.closest('button, a, input, select, textarea, label')) return;
+  const tr = e.target.closest('tr.tx-row');
+  if (!tr || !tr.dataset.txId) return;
+  openTxDetailSheet(tr.dataset.txId);
+});
+
 /* ---------------- MONTH / YEAR SELECT ---------------- */
 document.getElementById('monthSelect').addEventListener('change', (e) => {
   state.selectedMonth = e.target.value;
@@ -6100,22 +6227,28 @@ function renderTable() {
       tbody.appendChild(hr);
     }
     const vis = categoryVisual(t);
+    const sign = t.kind === 'income' ? '+' : '−';
+    const timeStr = t.time ? t.time.slice(0, 5) : '';
     const tr = document.createElement('tr');
+    tr.className = 'tx-row';
+    tr.dataset.txId = t.id;
     tr.innerHTML = `
       <td class="rc-secondary tx-date-td">
         <div class="tx-datetime-cell">
           <input type="date" class="shopping-date-input tx-date-input" value="${t.date}" min="2020-01-01" max="2099-12-31" onchange="updateTxDate('${t.id}', this.value)">
-          <input type="time" class="tx-time-input" value="${t.time ? t.time.slice(0,5) : ''}" onchange="updateTxTime('${t.id}', this.value)">
+          <input type="time" class="tx-time-input" value="${timeStr}" onchange="updateTxTime('${t.id}', this.value)">
         </div>
+        <span class="tx-date-plain">${capFirst(formatDateHuman(t.date))}${timeStr ? ', ' + timeStr : ''}</span>
       </td>
       <td class="rc-primary"><span class="mobile-finance-icon ${vis.cls}"><i data-lucide="${vis.icon}"></i></span><span class="cat-badge">${txCategoryLabel(t)}</span></td>
       <td class="comment-cell tx-comment-cell rc-secondary" onclick="this.classList.toggle('rc-expanded')">${t.comment || ''}</td>
       <td class="rc-amount ${t.kind === 'income' ? 'amount-income' : 'amount-expense'}" style="text-align:right;">
-        ${t.kind === 'income' ? '+' : '−'}
-        <input type="text" inputmode="numeric" class="inline-amount-input tx-amount-input" value="${fmt.format(t.amount)}"
-          onfocus="this.value = String(${t.amount}).replace(/\s/g,'')"
-          onblur="this.value = fmt.format(parseFloat(this.value.replace(/\s/g,'').replace(',', '.')) || ${t.amount})"
-          onchange="updateTxAmount('${t.id}', this.value.replace(/\s/g,'').replace(',', '.'))">
+        <span class="tx-amount-edit">${sign}
+          <input type="text" inputmode="numeric" class="inline-amount-input tx-amount-input" value="${fmt.format(t.amount)}"
+            onfocus="this.value = String(${t.amount}).replace(/\s/g,'')"
+            onblur="this.value = fmt.format(parseFloat(this.value.replace(/\s/g,'').replace(',', '.')) || ${t.amount})"
+            onchange="updateTxAmount('${t.id}', this.value.replace(/\s/g,'').replace(',', '.'))"></span>
+        <span class="tx-amount-plain">${sign}${fmt.format(t.amount)}</span>
       </td>
       <td class="rc-actions"><button class="del-btn" onclick="deleteTx('${t.id}')" title="Удалить" aria-label="Удалить"><i data-lucide="x"></i></button></td>
     `;
