@@ -175,6 +175,14 @@
   }
   .header-btn:hover { background: var(--border); }
   .header-btn svg { width: 14px; height: 14px; vertical-align: -2px; }
+  /* §8: меню профиля (аватар + выпадающее меню) */
+  .profile-wrap { position: relative; margin-left: auto; align-self: center; }
+  .profile-btn { width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--border); background: var(--card-bg); display: flex; align-items: center; justify-content: center; cursor: pointer; }
+  .profile-btn svg { width: 20px; height: 20px; color: var(--text-secondary); }
+  .profile-menu { position: absolute; right: 0; top: calc(100% + 8px); background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow-floating); padding: 8px; min-width: 210px; display: none; flex-direction: column; gap: 4px; z-index: 60; }
+  .profile-menu.open { display: flex; }
+  .profile-menu-status { font-size: 12.5px; font-weight: 600; color: var(--text-secondary); padding: 6px 10px 8px; border-bottom: 1px solid var(--border); }
+  .profile-item { width: 100%; justify-content: flex-start; margin-left: 0 !important; min-height: 44px; display: flex; align-items: center; gap: 8px; }
 
   .auth-modal-overlay {
     position: fixed; inset: 0;
@@ -1361,9 +1369,16 @@
       <h1>Семейный бюджет</h1>
       <div class="subtitle" id="authStatusLabel">Демо-режим</div>
     </div>
-    <button type="button" class="header-btn" id="pushBtn" style="display:none;"><i data-lucide="bell"></i> <span id="pushBtnLabel">Напоминания</span></button>
-    <button type="button" class="header-btn" id="pinBtn" style="display:none;"><i data-lucide="lock"></i> PIN</button>
-    <button type="button" class="header-btn" id="authBtn">Войти</button>
+    <!-- §8: меню профиля (PIN, напоминания, вход/выход перенесены сюда) -->
+    <div class="profile-wrap">
+      <button type="button" class="profile-btn" id="profileBtn" aria-label="Меню профиля" aria-haspopup="true" aria-expanded="false"><i data-lucide="user"></i></button>
+      <div class="profile-menu" id="profileMenu" role="menu">
+        <div class="profile-menu-status" id="profileMenuStatus">Демо-режим</div>
+        <button type="button" class="header-btn profile-item" id="pushBtn" style="display:none;"><i data-lucide="bell"></i> <span id="pushBtnLabel">Напоминания</span></button>
+        <button type="button" class="header-btn profile-item" id="pinBtn" style="display:none;"><i data-lucide="lock"></i> PIN и Face ID</button>
+        <button type="button" class="header-btn profile-item" id="authBtn">Войти</button>
+      </div>
+    </div>
   </div>
   <div class="page-tabs">
     <button type="button" class="page-tab-btn active" id="tabBudgetBtn">Главная</button>
@@ -2608,11 +2623,29 @@ function daysInMonthArray(monthKeyStr) {
 function updateAuthUI() {
   document.getElementById('authBtn').textContent = currentUser ? 'Выйти' : 'Войти';
   document.getElementById('authStatusLabel').textContent = currentUser ? 'Артём' : 'Демо-режим';
+  const pms = document.getElementById('profileMenuStatus');
+  if (pms) pms.textContent = currentUser ? 'Вы вошли · Артём' : 'Демо-режим (вы не вошли)';
   document.getElementById('demoBanner').classList.toggle('visible', !currentUser);
-  document.getElementById('pinBtn').style.display = (currentUser && hasCryptoSubtle) ? 'inline-block' : 'none';
+  document.getElementById('pinBtn').style.display = (currentUser && hasCryptoSubtle) ? 'flex' : 'none';
   if (typeof refreshPushUI === 'function') refreshPushUI();
   checkPinLock();
 }
+
+// §8: выпадающее меню профиля.
+(function initProfileMenu() {
+  const btn = document.getElementById('profileBtn');
+  const menu = document.getElementById('profileMenu');
+  if (!btn || !menu) return;
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const open = menu.classList.toggle('open');
+    btn.setAttribute('aria-expanded', String(open));
+  });
+  document.addEventListener('click', (e) => {
+    if (!menu.contains(e.target) && !btn.contains(e.target)) { menu.classList.remove('open'); btn.setAttribute('aria-expanded', 'false'); }
+  });
+  menu.querySelectorAll('.profile-item').forEach(b => b.addEventListener('click', () => { menu.classList.remove('open'); btn.setAttribute('aria-expanded', 'false'); }));
+})();
 
 /* ---------------- APP PIN LOCK ---------------- */
 const hasCryptoSubtle = !!(window.crypto && window.crypto.subtle);
@@ -6535,7 +6568,7 @@ async function refreshPushUI() {
   const btn = document.getElementById('pushBtn');
   if (!btn) return;
   if (!pushSupported() || !currentUser) { btn.style.display = 'none'; return; }
-  btn.style.display = 'inline-block';
+  btn.style.display = 'flex';
   const sub = await currentPushSubscription();
   const label = document.getElementById('pushBtnLabel');
   if (label) label.textContent = sub ? 'Напоминания вкл.' : 'Напоминания';
