@@ -405,6 +405,24 @@
   .tx-detail-actions svg { width: 16px; height: 16px; }
   /* по умолчанию (desktop) — редактирование в строке; plain-текст скрыт */
   .tx-date-plain, .tx-amount-plain { display: none; }
+  /* §6.3: строка поиска + кнопка фильтра, ниже — активные фильтры-чипы */
+  .tx-controls { display: flex; gap: 8px; align-items: stretch; margin-bottom: 12px; }
+  .tx-controls input { margin-bottom: 0; }
+  .tx-filter-btn { flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;
+    width: 46px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-page);
+    color: var(--text-secondary); cursor: pointer; transition: all .15s; }
+  .tx-filter-btn:hover { border-color: var(--btn-primary); color: var(--btn-primary); }
+  .tx-filter-btn.has-filters { background: var(--btn-primary); border-color: var(--btn-primary); color: #fff; }
+  .tx-filter-btn svg { width: 18px; height: 18px; }
+  .tx-active-filters { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+  .tx-active-filters:empty { display: none; }
+  .tx-filter-chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 8px 5px 11px;
+    background: var(--bg-page); border: 1px solid var(--border); border-radius: 999px;
+    font-size: 12.5px; font-weight: 600; color: var(--text-primary); }
+  .tx-filter-chip button { border: none; background: none; cursor: pointer; color: var(--text-secondary);
+    display: inline-flex; align-items: center; padding: 0; line-height: 0; }
+  .tx-filter-chip button svg { width: 13px; height: 13px; }
+  .tx-filter-kind button.active { background: var(--btn-primary); color: #fff; border-color: var(--btn-primary); }
   /* F8: расшифровка KPI */
   .kpi-clickable { cursor: pointer; }
   .kpi-break-period { font-size: 12.5px; color: var(--text-secondary); font-weight: 600; }
@@ -1381,8 +1399,9 @@
     #txTableBody tr.tx-row { cursor: pointer; }
     #txTableBody td.tx-date-td .tx-datetime-cell,
     #txTableBody .tx-amount-edit,
+    #txTableBody td.tx-comment-cell,
     #txTableBody td.rc-actions { display: none; }
-    #txTableBody .tx-date-plain { display: block; }
+    #txTableBody .tx-date-plain { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     #txTableBody .tx-amount-plain { display: inline; font-weight: 700; }
     /* Edit-mode rows keep a simple stacked layout so date/amount inputs get full width. */
     .responsive-card-table tr.rc-edit-row { display: block; }
@@ -1781,7 +1800,11 @@
           <span>Операции</span>
           <select id="txPeriodSelect" style="width:auto; padding:6px 10px; font-size:16px;"></select>
         </h2>
-        <input type="text" id="txSearchInput" placeholder="Поиск по комментарию, категории или сумме…" style="margin-bottom:12px;">
+        <div class="tx-controls">
+          <input type="text" id="txSearchInput" placeholder="Поиск по комментарию, категории или сумме…">
+          <button type="button" class="tx-filter-btn" id="txFilterBtn" aria-label="Фильтры"><i data-lucide="sliders-horizontal"></i></button>
+        </div>
+        <div class="tx-active-filters" id="txActiveFilters"></div>
         <div style="overflow-x:auto;">
           <table class="responsive-card-table">
             <thead>
@@ -2234,6 +2257,30 @@
   </div>
 </div>
 
+<div class="bottom-sheet-overlay" id="txFilterOverlay">
+  <div class="bottom-sheet">
+    <div class="bottom-sheet-handle"></div>
+    <button type="button" class="bottom-sheet-close" id="txFilterCloseBtn" aria-label="Закрыть"><i data-lucide="x"></i></button>
+    <div class="panel">
+      <h3 style="margin:0 0 14px;">Фильтры</h3>
+      <div class="form-row">
+        <label>Тип операции</label>
+        <div class="kind-toggle tx-filter-kind" id="txFilterKind">
+          <button type="button" data-kind="all" class="active">Все</button>
+          <button type="button" data-kind="income">Доходы</button>
+          <button type="button" data-kind="expense">Расходы</button>
+        </div>
+      </div>
+      <div class="form-row">
+        <label>Категория</label>
+        <select id="txFilterCategory"><option value="all">Все категории</option></select>
+      </div>
+      <button type="button" class="btn-primary" id="txFilterApplyBtn">Применить</button>
+      <button type="button" class="btn-ghost" id="txFilterResetBtn" style="width:100%;margin-top:8px;">Сбросить</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 <div class="undo-toast" id="undoToast"><span id="undoToastMsg"></span><button type="button" id="undoToastBtn">Отменить</button></div>
 <div class="loading-bar" id="loadingBar"></div>
@@ -2303,6 +2350,7 @@ let state = {
   txPeriod: 'sync',      // 'sync' | 'all' | 'YYYY-MM'
   txVisibleCount: 5,
   txSearch: '',
+  txFilter: { kind: 'all', category: 'all' }, // §6.3: фильтр по типу и категории
   txSort: { key: null, dir: 'asc' },        // key: 'category' | 'amount' | 'date'
   recurringSort: { key: null, dir: 'asc' }, // key: 'name' | 'amount' | 'date'
   shoppingList: [],
@@ -5659,6 +5707,70 @@ document.getElementById('txTableBody').addEventListener('click', (e) => {
   openTxDetailSheet(tr.dataset.txId);
 });
 
+/* §6.3: фильтры операций в bottom sheet (тип + категория) с активными чипами. */
+const KIND_LABEL = { income: 'Доходы', expense: 'Расходы' };
+function txDistinctCategories() {
+  const set = new Set();
+  state.transactions.filter(hasHappened).forEach(t => { if (t.category) set.add(t.category); });
+  return [...set].sort((a, b) => a.localeCompare(b));
+}
+function openTxFilterSheet() {
+  // Заполняем select категорий актуальным списком; сохраняем текущий выбор.
+  const sel = document.getElementById('txFilterCategory');
+  const cur = state.txFilter.category;
+  sel.innerHTML = '<option value="all">Все категории</option>' +
+    txDistinctCategories().map(c => `<option value="${c}">${c}</option>`).join('');
+  sel.value = [...sel.options].some(o => o.value === cur) ? cur : 'all';
+  document.querySelectorAll('#txFilterKind button').forEach(b =>
+    b.classList.toggle('active', b.dataset.kind === state.txFilter.kind));
+  document.getElementById('txFilterOverlay').classList.add('visible');
+}
+function closeTxFilterSheet() {
+  document.getElementById('txFilterOverlay').classList.remove('visible');
+}
+document.getElementById('txFilterBtn').addEventListener('click', openTxFilterSheet);
+document.getElementById('txFilterCloseBtn').addEventListener('click', closeTxFilterSheet);
+document.getElementById('txFilterOverlay').addEventListener('click', (e) => {
+  if (e.target.id === 'txFilterOverlay') closeTxFilterSheet();
+});
+document.getElementById('txFilterKind').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-kind]');
+  if (!btn) return;
+  document.querySelectorAll('#txFilterKind button').forEach(b => b.classList.toggle('active', b === btn));
+});
+document.getElementById('txFilterApplyBtn').addEventListener('click', () => {
+  const activeKind = document.querySelector('#txFilterKind button.active');
+  state.txFilter.kind = activeKind ? activeKind.dataset.kind : 'all';
+  state.txFilter.category = document.getElementById('txFilterCategory').value;
+  state.txVisibleCount = 5;
+  closeTxFilterSheet();
+  renderTable();
+});
+document.getElementById('txFilterResetBtn').addEventListener('click', () => {
+  state.txFilter = { kind: 'all', category: 'all' };
+  state.txVisibleCount = 5;
+  closeTxFilterSheet();
+  renderTable();
+});
+function renderTxActiveFilters() {
+  const box = document.getElementById('txActiveFilters');
+  if (!box) return;
+  const chips = [];
+  if (state.txFilter.kind !== 'all')
+    chips.push(`<span class="tx-filter-chip">${KIND_LABEL[state.txFilter.kind]}<button type="button" data-clear="kind" aria-label="Убрать фильтр"><i data-lucide="x"></i></button></span>`);
+  if (state.txFilter.category !== 'all')
+    chips.push(`<span class="tx-filter-chip">${state.txFilter.category}<button type="button" data-clear="category" aria-label="Убрать фильтр"><i data-lucide="x"></i></button></span>`);
+  box.innerHTML = chips.join('');
+  document.getElementById('txFilterBtn').classList.toggle('has-filters', chips.length > 0);
+}
+document.getElementById('txActiveFilters').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-clear]');
+  if (!btn) return;
+  state.txFilter[btn.dataset.clear] = 'all';
+  state.txVisibleCount = 5;
+  renderTable();
+});
+
 /* ---------------- MONTH / YEAR SELECT ---------------- */
 document.getElementById('monthSelect').addEventListener('change', (e) => {
   state.selectedMonth = e.target.value;
@@ -6153,6 +6265,21 @@ function dayGroupLabel(dateStr) {
   if (dateStr === yest) return 'Вчера';
   return capFirst(formatDateHuman(dateStr));
 }
+// Относительный день строчными для второй строки карточки: «сегодня» / «вчера» / «16 июля».
+function relDayLabel(dateStr) {
+  const today = todayStr();
+  const yest = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  if (dateStr === today) return 'сегодня';
+  if (dateStr === yest) return 'вчера';
+  return formatDateHuman(dateStr);
+}
+// §6.6: вторая строка карточки-операции — «комментарий · сегодня, 14:35».
+function txSecondLine(t) {
+  const timeStr = t.time ? t.time.slice(0, 5) : '';
+  const when = relDayLabel(t.date) + (timeStr ? ', ' + timeStr : '');
+  const comment = (t.comment || '').trim();
+  return comment ? `${comment} · ${when}` : capFirst(when);
+}
 
 function renderRecentTransactions() {
   const list = state.transactions.filter(hasHappened)
@@ -6189,6 +6316,11 @@ function renderTable() {
     );
   }
 
+  // §6.3: фильтр по типу и категории.
+  if (state.txFilter.kind !== 'all') list = list.filter(t => t.kind === state.txFilter.kind);
+  if (state.txFilter.category !== 'all') list = list.filter(t => t.category === state.txFilter.category);
+  renderTxActiveFilters();
+
   const { key, dir } = state.txSort;
   const dateTimeKey = (t) => t.date + 'T' + (t.time ? t.time.slice(0, 5) : '00:00');
   if (key === 'amount') {
@@ -6206,7 +6338,8 @@ function renderTable() {
   tbody.innerHTML = '';
   const emptyNote = document.getElementById('emptyNote');
   emptyNote.style.display = list.length ? 'none' : 'block';
-  emptyNote.textContent = q ? 'Ничего не найдено' : 'Нет операций за этот период';
+  const filtersActive = state.txFilter.kind !== 'all' || state.txFilter.category !== 'all';
+  emptyNote.textContent = (q || filtersActive) ? 'Ничего не найдено' : 'Нет операций за этот период';
 
   // §6.4: группировка по датам с итогом дня — только в режиме сортировки по дате.
   const grouped = !key || key === 'date';
@@ -6238,7 +6371,7 @@ function renderTable() {
           <input type="date" class="shopping-date-input tx-date-input" value="${t.date}" min="2020-01-01" max="2099-12-31" onchange="updateTxDate('${t.id}', this.value)">
           <input type="time" class="tx-time-input" value="${timeStr}" onchange="updateTxTime('${t.id}', this.value)">
         </div>
-        <span class="tx-date-plain">${capFirst(formatDateHuman(t.date))}${timeStr ? ', ' + timeStr : ''}</span>
+        <span class="tx-date-plain">${txSecondLine(t)}</span>
       </td>
       <td class="rc-primary"><span class="mobile-finance-icon ${vis.cls}"><i data-lucide="${vis.icon}"></i></span><span class="cat-badge">${txCategoryLabel(t)}</span></td>
       <td class="comment-cell tx-comment-cell rc-secondary" onclick="this.classList.toggle('rc-expanded')">${t.comment || ''}</td>
@@ -6263,6 +6396,9 @@ function renderTable() {
   } else {
     loadMoreBtn.style.display = 'none';
   }
+  // Иконки категорий в строках + иконки-крестики в чипах фильтров: создаём здесь,
+  // т.к. renderTable вызывается напрямую при поиске/сортировке/фильтре (без renderEverything).
+  if (window.lucide) lucide.createIcons();
 }
 
 /* ---------------- CHARTS ---------------- */
