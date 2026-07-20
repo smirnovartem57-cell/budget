@@ -5500,10 +5500,14 @@ function renderRecurring() {
   let total = 0;
   let remaining = 0;
   active.forEach(([groupId, g]) => {
+    // Сверка с фактом: если операция-расход с таким именем уже есть в этом месяце —
+    // подставляем её сумму вместо шаблонной и считаем платёж совершённым. 2026-07-20
+    const matchOp = matchingActualForRecurring(g, currentMonthKey);
+    if (matchOp) g.amount = Number(matchOp.amount);
     total += g.amount;
     const tr = document.createElement('tr');
     const endFmt = g.endDate ? new Date(g.endDate).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '';
-    const isPaid = g.currentMonthDate && g.currentMonthDate <= today;
+    const isPaid = (g.currentMonthDate && g.currentMonthDate <= today) || !!matchOp;
     if (!isPaid) remaining += g.amount;
     tr.innerHTML = `
       <td class="rc-primary"><span class="cat-badge">${g.subcategory ? `${g.category} · ${g.subcategory}` : g.category}</span></td>
@@ -5538,6 +5542,19 @@ function getActiveRecurringGroups() {
     }
   });
   return Object.values(groups).filter(g => !g.endDate || g.endDate >= today);
+}
+
+// Сверка «плана» ежемесячного расхода с фактом: если в этом месяце уже есть обычная
+// (не авто-регулярная) операция-расход с тем же именем — возвращаем её как факт, чтобы
+// подставить фактическую сумму вместо шаблонной. Совпадение по названию: полный ярлык
+// «Категория · Название», либо по подкатегории/категории (как в блоке «Предстоит»). 2026-07-20
+function matchingActualForRecurring(g, monthK) {
+  const label = g.subcategory ? `${g.category} · ${g.subcategory}` : g.category;
+  return state.transactions.find(t =>
+    t.kind === 'expense' && !t.is_recurring && monthKey(t.date) === monthK && hasHappened(t) &&
+    (txCategoryLabel(t) === label ||
+     (g.subcategory && t.subcategory === g.subcategory) ||
+     (!g.subcategory && t.category === g.category)));
 }
 
 function renderRecurringDueSoon() {
