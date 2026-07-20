@@ -844,6 +844,11 @@
   .rs-stat-value { font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .rs-progress-track { height: 6px; background: var(--bg-page); border: 1px solid var(--border); border-radius: 999px; overflow: hidden; margin-top: 10px; }
   .rs-progress-fill { height: 100%; background: var(--income-accent); border-radius: 999px; transition: width .3s ease; }
+  /* §5: сводка подписок + строка с иконкой сервиса. */
+  .sub-summary { margin: 4px 0 14px; }
+  .sub-primary { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .sub-primary-text { min-width: 0; }
+  .sub-name-txt { font-weight: 700; word-break: break-word; }
   /* §4: заголовки групп по статусу. По умолчанию (desktop) скрыты — таблица остаётся плоской;
      показываются только в карточном режиме. */
   .recurring-status-group { display: none; }
@@ -1399,7 +1404,7 @@
     .responsive-card-table tr.tx-day-group td { padding: 8px 2px 4px !important; }
     /* §4: заголовки групп статуса «Ежемесячных расходов» видны в карточном режиме;
        свёрнутые группы прячут свои строки; хедер-бейджи в шапке панели скрыты (есть сводка). */
-    #recurringHeaderBadges { display: none !important; }
+    #recurringHeaderBadges, #subscriptionsTotalBadge { display: none !important; }
     .responsive-card-table tr.recurring-status-group { display: block; width: 100%;
       background: transparent; border: none; box-shadow: none; padding: 0; margin: 10px 0 4px; cursor: pointer; }
     .responsive-card-table tr.recurring-status-group td { display: flex; align-items: center; justify-content: space-between;
@@ -1744,6 +1749,13 @@
           <span><img class="h2-icon" src="icons/subscriptions.png" alt="">Подписки</span>
           <span class="badge-info badge-normalcase" id="subscriptionsTotalBadge">0 ₽/мес.</span>
         </h2>
+        <div class="sub-summary" id="subSummary">
+          <div class="rs-stats">
+            <div class="rs-stat"><span class="rs-stat-label">В месяц</span><span class="rs-stat-value amount-expense" id="subSumMonthly">0 ₽</span></div>
+            <div class="rs-stat"><span class="rs-stat-label">В год</span><span class="rs-stat-value" id="subSumYearly">0 ₽</span></div>
+            <div class="rs-stat"><span class="rs-stat-label">Ближайшее списание</span><span class="rs-stat-value" id="subSumNext">—</span></div>
+          </div>
+        </div>
         <div class="sub-add-form">
           <input type="text" class="sub-name" id="subscriptionNameInput" placeholder="Например: Яндекс Плюс">
           <input type="number" class="sub-amount" id="subscriptionAmountInput" placeholder="Сумма" min="0" step="1">
@@ -4483,6 +4495,41 @@ function renderSubscriptionsSummary() {
   const total = activeSubs.reduce((s, sub) => s + Number(sub.amount), 0);
   document.getElementById('subscriptionsTotalBadge').textContent =
     `${fmt.format(total)}/мес.` + (activeSubs.length ? ` · ${activeSubs.length} ${pluralSubscription(activeSubs.length)}` : '');
+  // §5: сводка «в месяц / в год / ближайшее списание».
+  document.getElementById('subSumMonthly').textContent = fmt.format(total);
+  document.getElementById('subSumYearly').textContent = fmt.format(total * 12);
+  const nextSub = activeSubs
+    .filter(s => s.next_billing_date)
+    .sort((a, b) => a.next_billing_date.localeCompare(b.next_billing_date))[0];
+  const nextEl = document.getElementById('subSumNext');
+  if (nextSub) {
+    const rem = daysRemainingLabel(nextSub.next_billing_date);
+    nextEl.textContent = capFirst(formatDateHuman(nextSub.next_billing_date));
+    nextEl.title = `${nextSub.name} · ${rem.text}`;
+  } else {
+    nextEl.textContent = '—';
+    nextEl.title = '';
+  }
+}
+
+// §5: смысловая иконка по названию сервиса подписки.
+function subscriptionVisual(name) {
+  const s = (name || '').toLowerCase();
+  const map = [
+    [/кинопоиск|плюс|яндекс/, 'clapperboard', 'icon-red'],
+    [/spotify|музык|apple music|звук|deezer|sber ?zvuk|сбер ?звук/, 'music', 'icon-green'],
+    [/icloud|облак|dropbox|google ?one|storage|диск|\bгб\b|\bтб\b/, 'cloud', 'icon-blue'],
+    [/netflix|okko|ivi|кино|фильм|movie|premier|wink|megogo|amediateka/, 'clapperboard', 'icon-red'],
+    [/youtube|twitch/, 'play', 'icon-red'],
+    [/ps ?plus|playstation|xbox|steam|game|игр|nintendo/, 'gamepad-2', 'icon-purple'],
+    [/vpn/, 'shield', 'icon-blue'],
+    [/chatgpt|gpt|midjourney|claude|нейросет|\bии\b|\bai\b/, 'sparkles', 'icon-purple'],
+    [/фитнес|gym|спорт|health|здоров|тренир/, 'dumbbell', 'icon-orange'],
+    [/связь|моб|тариф|интернет|mts|мтс|билайн|мегафон|tele2|теле2/, 'wifi', 'icon-blue'],
+    [/premium|про\b|plus|подписк/, 'star', 'icon-orange'],
+  ];
+  for (const [re, icon, cls] of map) if (re.test(s)) return { icon, cls };
+  return { icon: 'credit-card', cls: 'icon-blue' };
 }
 
 function renderSubscriptions() {
@@ -4521,12 +4568,21 @@ function renderSubscriptions() {
         <td style="white-space:nowrap;"><button class="btn-tiny icon-btn active" onclick="toggleSubscriptionEdit('${sub.id}')" title="Готово" aria-label="Готово"><i data-lucide="check"></i></button></td>
       `;
     } else {
-      const status = sub.is_active ? purchaseStatus(sub.next_billing_date) : null;
+      const rawStatus = sub.is_active ? purchaseStatus(sub.next_billing_date) : null;
+      // §5: без «зелёного спама» — показываем только значимые статусы (Просрочено/Скоро),
+      // «Запланировано» на дальних датах не рисуем (дата и «осталось N дней» уже об этом говорят).
+      const status = rawStatus && (rawStatus.cls === 'overdue' || rawStatus.cls === 'soon') ? rawStatus : null;
       const dateStr = sub.next_billing_date ? formatDateHuman(sub.next_billing_date) : '—';
+      const vis = subscriptionVisual(sub.name);
       tr.innerHTML = `
-        <td class="rc-primary" style="word-break: break-word;">
-          <div style="font-weight:700;">${escapeHtml(sub.name)}</div>
-          ${!sub.is_active ? '<span class="cat-badge" style="background:var(--bg-secondary);color:var(--text-secondary);">Неактивна</span>' : (status ? `<span class="status-badge ${status.cls}">${status.text}</span>` : '')}
+        <td class="rc-primary">
+          <div class="sub-primary">
+            <span class="mobile-finance-icon ${vis.cls}"><i data-lucide="${vis.icon}"></i></span>
+            <div class="sub-primary-text">
+              <div class="sub-name-txt">${escapeHtml(sub.name)}</div>
+              ${!sub.is_active ? '<span class="cat-badge" style="background:var(--bg-secondary);color:var(--text-secondary);">Неактивна</span>' : (status ? `<span class="status-badge ${status.cls}">${status.text}</span>` : '')}
+            </div>
+          </div>
         </td>
         <td class="rc-secondary">
           <div>${dateStr}</div>
