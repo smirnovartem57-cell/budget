@@ -836,6 +836,24 @@
   .recurring-due-soon { font-size: 12.5px; color: var(--text-secondary); margin: -6px 0 14px; }
   .recurring-due-soon strong { color: var(--text-primary); font-variant-numeric: tabular-nums; }
 
+  /* §4: сводка «Всего / Оплачено / Осталось» + прогресс оплаты за месяц. */
+  .recurring-summary { margin: 4px 0 14px; }
+  .rs-stats { display: flex; gap: 8px; }
+  .rs-stat { flex: 1; background: var(--bg-page); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+  .rs-stat-label { font-size: 11.5px; color: var(--text-secondary); font-weight: 600; }
+  .rs-stat-value { font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rs-progress-track { height: 6px; background: var(--bg-page); border: 1px solid var(--border); border-radius: 999px; overflow: hidden; margin-top: 10px; }
+  .rs-progress-fill { height: 100%; background: var(--income-accent); border-radius: 999px; transition: width .3s ease; }
+  /* §4: заголовки групп по статусу. По умолчанию (desktop) скрыты — таблица остаётся плоской;
+     показываются только в карточном режиме. */
+  .recurring-status-group { display: none; }
+  .recurring-row.rrow-hidden { display: table-row; }
+  .rstatus-dot { display: inline-block; width: 8px; height: 8px; border-radius: 999px; }
+  .rstatus-dot.overdue { background: var(--expense-accent); }
+  .rstatus-dot.soon { background: var(--warning); }
+  .rstatus-dot.later { background: var(--btn-primary); }
+  .rstatus-dot.paid { background: var(--income-accent); }
+
   .payments-timeline { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 4px; -webkit-overflow-scrolling: touch; }
   .payments-timeline-item { flex: 0 0 auto; min-width: 92px; max-width: 92px; background: var(--bg-secondary); border-radius: var(--radius-sm); padding: 10px 10px; text-align: center; }
   .payments-timeline-item.due-soon { background: var(--warning-bg); }
@@ -1379,6 +1397,21 @@
     /* §6.4: строка-заголовок дня не превращается в карточку */
     .responsive-card-table tr.tx-day-group { display: block; background: transparent; border: none; box-shadow: none; padding: 0; margin: 6px 0 2px; }
     .responsive-card-table tr.tx-day-group td { padding: 8px 2px 4px !important; }
+    /* §4: заголовки групп статуса «Ежемесячных расходов» видны в карточном режиме;
+       свёрнутые группы прячут свои строки; хедер-бейджи в шапке панели скрыты (есть сводка). */
+    #recurringHeaderBadges { display: none !important; }
+    .responsive-card-table tr.recurring-status-group { display: block; width: 100%;
+      background: transparent; border: none; box-shadow: none; padding: 0; margin: 10px 0 4px; cursor: pointer; }
+    .responsive-card-table tr.recurring-status-group td { display: flex; align-items: center; justify-content: space-between;
+      width: 100%; padding: 6px 2px !important; border: none; }
+    .rstatus-head { display: inline-flex; align-items: center; gap: 8px; }
+    .rstatus-label { font-size: 13px; font-weight: 700; color: var(--text-primary); }
+    .rstatus-count { font-size: 11.5px; font-weight: 700; color: var(--text-secondary); background: var(--bg-page);
+      border: 1px solid var(--border); border-radius: 999px; padding: 1px 7px; }
+    .rstatus-right { display: inline-flex; align-items: center; gap: 8px; }
+    .rstatus-sum { font-size: 12.5px; font-weight: 700; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+    .rstatus-right svg { width: 16px; height: 16px; color: var(--text-secondary); }
+    .responsive-card-table tr.recurring-row.rrow-hidden { display: none; }
     /* rc-secondary cells auto-flow down column 1 (rows 2, 3, …) so a row with both
        a date and a comment stacks them without overlapping. */
     .responsive-card-table td.rc-secondary { grid-column: 1; font-size: 12.5px; color: var(--text-secondary); margin-top: 1px; }
@@ -1740,11 +1773,19 @@
       <div class="panel" id="recurringPanel">
         <h2 style="justify-content:space-between;">
           <span><img class="h2-icon" src="icons/payments.png" alt="">Ежемесячные расходы</span>
-          <span style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+          <span id="recurringHeaderBadges" style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
             <span class="badge-info" id="recurringTotalBadge">0 ₽</span>
             <span class="badge-info" id="recurringRemainingBadge" style="background:var(--expense-bg); color:var(--expense-accent);" title="Осталось оплатить в этом месяце">0 ₽</span>
           </span>
         </h2>
+        <div class="recurring-summary" id="recurringSummary">
+          <div class="rs-stats">
+            <div class="rs-stat"><span class="rs-stat-label">Всего</span><span class="rs-stat-value" id="recurringSumTotal">0 ₽</span></div>
+            <div class="rs-stat"><span class="rs-stat-label">Оплачено</span><span class="rs-stat-value amount-income" id="recurringSumPaid">0 ₽</span></div>
+            <div class="rs-stat"><span class="rs-stat-label">Осталось</span><span class="rs-stat-value amount-expense" id="recurringSumRemaining">0 ₽</span></div>
+          </div>
+          <div class="rs-progress-track"><div class="rs-progress-fill" id="recurringProgressFill"></div></div>
+        </div>
         <div class="recurring-due-soon" id="recurringDueSoon"></div>
         <div style="overflow-x:auto;">
           <table class="responsive-card-table">
@@ -2353,6 +2394,7 @@ let state = {
   txFilter: { kind: 'all', category: 'all' }, // §6.3: фильтр по типу и категории
   txSort: { key: null, dir: 'asc' },        // key: 'category' | 'amount' | 'date'
   recurringSort: { key: null, dir: 'asc' }, // key: 'name' | 'amount' | 'date'
+  recurringCollapsed: { overdue: false, soon: false, later: false, paid: true }, // §4: «Оплачено» свёрнуто по умолчанию
   shoppingList: [],
   shoppingSort: { key: null, dir: 'asc' },  // key: 'name' | 'amount' | 'date'
   debtsSort: { key: null, dir: 'asc' },     // key: 'date'
@@ -5482,35 +5524,69 @@ function renderRecurring() {
   });
 
   const { key, dir } = state.recurringSort;
-  const active = Object.entries(groups).filter(([, g]) => !g.endDate || g.endDate >= today);
-  if (key === 'amount') {
-    active.sort((a, b) => (a[1].amount - b[1].amount) * (dir === 'asc' ? 1 : -1));
-  } else if (key === 'name') {
-    active.sort((a, b) => (a[1].subcategory || '').localeCompare(b[1].subcategory || '') * (dir === 'asc' ? 1 : -1));
-  } else if (key === 'date') {
-    active.sort((a, b) => a[1].minDate.localeCompare(b[1].minDate) * (dir === 'asc' ? 1 : -1));
-  } else {
-    active.sort((a, b) => a[1].minDate.localeCompare(b[1].minDate));
-  }
+  const horizon7d = new Date(); horizon7d.setDate(horizon7d.getDate() + 7);
+  const horizon7 = horizon7d.toISOString().slice(0, 10);
+  const STATUS_ORDER = { overdue: 0, soon: 1, later: 2, paid: 3 };
+  const STATUS_LABEL = { overdue: 'Просрочено', soon: 'Ближайшие', later: 'Позже', paid: 'Оплачено' };
+
+  // Обогащаем группы: сверка с фактом, статус в текущем месяце, дата платежа.
+  const items = Object.entries(groups)
+    .filter(([, g]) => !g.endDate || g.endDate >= today)
+    .map(([groupId, g]) => {
+      // Сверка с фактом: операция-расход с таким именем в этом месяце заменяет шаблонную сумму. 2026-07-20
+      const matchOp = matchingActualForRecurring(g, currentMonthKey);
+      if (matchOp) g.amount = Number(matchOp.amount);
+      const isPaid = (g.currentMonthDate && g.currentMonthDate <= today) || !!matchOp;
+      const due = `${currentMonthKey}-${g.minDate.slice(8, 10)}`;
+      let status;
+      if (isPaid) status = 'paid';
+      else if (due < today) status = 'overdue';
+      else if (due <= horizon7) status = 'soon';
+      else status = 'later';
+      return { groupId, g, isPaid, due, status };
+    });
+
+  let total = 0, remaining = 0, paid = 0;
+  items.forEach(it => { total += it.g.amount; if (it.isPaid) paid += it.g.amount; else remaining += it.g.amount; });
+
+  // Явный клик по заголовку столбца — плоский список; иначе — группировка по статусу.
+  const grouped = !key;
+  if (key === 'amount') items.sort((a, b) => (a.g.amount - b.g.amount) * (dir === 'asc' ? 1 : -1));
+  else if (key === 'name') items.sort((a, b) => (a.g.subcategory || '').localeCompare(b.g.subcategory || '') * (dir === 'asc' ? 1 : -1));
+  else if (key === 'date') items.sort((a, b) => a.g.minDate.localeCompare(b.g.minDate) * (dir === 'asc' ? 1 : -1));
+  else items.sort((a, b) => (STATUS_ORDER[a.status] - STATUS_ORDER[b.status]) || a.due.localeCompare(b.due));
   updateSortArrows(state.recurringSort, ['recurringSortName', 'recurringSortDate', 'recurringSortAmount']);
 
   const tbody = document.getElementById('recurringTableBody');
   tbody.innerHTML = '';
-  document.getElementById('recurringEmptyNote').style.display = active.length ? 'none' : 'block';
-  let total = 0;
-  let remaining = 0;
-  active.forEach(([groupId, g]) => {
-    // Сверка с фактом: если операция-расход с таким именем уже есть в этом месяце —
-    // подставляем её сумму вместо шаблонной и считаем платёж совершённым. 2026-07-20
-    const matchOp = matchingActualForRecurring(g, currentMonthKey);
-    if (matchOp) g.amount = Number(matchOp.amount);
-    total += g.amount;
+  document.getElementById('recurringEmptyNote').style.display = items.length ? 'none' : 'block';
+
+  // Счётчики/суммы по статусам для заголовков групп.
+  const statusAgg = {};
+  items.forEach(it => { const a = (statusAgg[it.status] = statusAgg[it.status] || { count: 0, sum: 0 }); a.count++; a.sum += it.g.amount; });
+
+  let lastStatus = null;
+  items.forEach(({ groupId, g, isPaid, status }) => {
+    if (grouped && status !== lastStatus) {
+      lastStatus = status;
+      const collapsed = !!state.recurringCollapsed[status];
+      const agg = statusAgg[status];
+      const hr = document.createElement('tr');
+      hr.className = 'recurring-status-group' + (collapsed ? ' collapsed' : '');
+      hr.dataset.status = status;
+      hr.innerHTML = `<td colspan="4">
+        <span class="rstatus-head"><span class="rstatus-dot ${status}"></span><span class="rstatus-label">${STATUS_LABEL[status]}</span><span class="rstatus-count">${agg.count}</span></span>
+        <span class="rstatus-right"><span class="rstatus-sum">${fmt.format(agg.sum)}</span><i data-lucide="chevron-${collapsed ? 'down' : 'up'}"></i></span>
+      </td>`;
+      tbody.appendChild(hr);
+    }
+    const vis = categoryVisual(g);
     const tr = document.createElement('tr');
+    tr.className = 'recurring-row' + (grouped && state.recurringCollapsed[status] ? ' rrow-hidden' : '');
+    tr.dataset.rstatus = status;
     const endFmt = g.endDate ? new Date(g.endDate).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '';
-    const isPaid = (g.currentMonthDate && g.currentMonthDate <= today) || !!matchOp;
-    if (!isPaid) remaining += g.amount;
     tr.innerHTML = `
-      <td class="rc-primary"><span class="cat-badge">${g.subcategory ? `${g.category} · ${g.subcategory}` : g.category}</span></td>
+      <td class="rc-primary"><span class="mobile-finance-icon ${vis.cls}"><i data-lucide="${vis.icon}"></i></span><span class="cat-badge">${g.subcategory ? `${g.category} · ${g.subcategory}` : g.category}</span></td>
       <td class="rc-secondary">
         <input type="date" class="shopping-date-input recurring-date-input" value="${g.minDate}" min="2020-01-01" max="2099-12-31" onchange="updateRecurringGroupDate('${groupId}', this.value)">
         ${endFmt ? `<div class="days-remaining">до ${endFmt}</div>` : ''}
@@ -5524,6 +5600,11 @@ function renderRecurring() {
   document.getElementById('recurringTotalFooter').textContent = fmt.format(total);
   document.getElementById('recurringRemainingFooter').textContent = fmt.format(remaining);
   document.getElementById('recurringRemainingBadge').textContent = 'Осталось ' + fmt.format(remaining);
+  document.getElementById('recurringSumTotal').textContent = fmt.format(total);
+  document.getElementById('recurringSumPaid').textContent = fmt.format(paid);
+  document.getElementById('recurringSumRemaining').textContent = fmt.format(remaining);
+  document.getElementById('recurringProgressFill').style.width = (total ? Math.round(paid / total * 100) : 0) + '%';
+  if (window.lucide) lucide.createIcons();
 }
 
 // One row per still-active recurring expense "template" (category/subcategory + monthly amount),
@@ -5924,6 +6005,14 @@ setupSortableHeader('txSortAmount', state.txSort, renderTable);
 setupSortableHeader('recurringSortName', state.recurringSort, renderRecurring);
 setupSortableHeader('recurringSortDate', state.recurringSort, renderRecurring);
 setupSortableHeader('recurringSortAmount', state.recurringSort, renderRecurring);
+// §4: тап по заголовку статуса сворачивает/разворачивает группу (мобильный режим).
+document.getElementById('recurringTableBody').addEventListener('click', (e) => {
+  const head = e.target.closest('tr.recurring-status-group');
+  if (!head) return;
+  const st = head.dataset.status;
+  state.recurringCollapsed[st] = !state.recurringCollapsed[st];
+  renderRecurring();
+});
 setupSortableHeader('subscriptionsSortName', state.subscriptionsSort, renderSubscriptions);
 setupSortableHeader('subscriptionsSortDate', state.subscriptionsSort, renderSubscriptions);
 setupSortableHeader('subscriptionsSortAmount', state.subscriptionsSort, renderSubscriptions);
