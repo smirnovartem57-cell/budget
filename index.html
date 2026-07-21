@@ -2895,12 +2895,37 @@ const pinNewDigits = createPinDigitGroup('pinNewDigits', () => document.getEleme
 const pinConfirmDigits = createPinDigitGroup('pinConfirmDigits', () => document.getElementById('pinSaveBtn').click());
 const pinLockDigits = createPinDigitGroup('pinLockDigits', () => submitPinLock());
 
+let pinWasLocked = false;
 function checkPinLock() {
   // Fail open (never lock) if this browser can't do the hash check at all —
   // better than permanently stranding someone behind a PIN screen it can't verify.
   const locked = !!(currentUser && hasCryptoSubtle && getPinHash() && !isPinUnlockedThisSession());
   document.getElementById('pinLockOverlay').classList.toggle('visible', locked);
-  if (locked) { pinLockDigits.clear(); pinLockDigits.focus(); refreshBioUI(); }
+  if (locked) {
+    pinLockDigits.clear();
+    pinLockDigits.focus();
+    refreshBioUI();
+    // При переходе в заблокированное состояние сразу пробуем Face ID / отпечаток,
+    // если он настроен, чтобы не требовать лишнего тапа. Срабатывает один раз на
+    // блокировку (повторные вызовы checkPinLock уже заблокированного экрана не дёргают
+    // биометрию). Любая ошибка/отказ — тихий откат на PIN и ручную кнопку.
+    if (!pinWasLocked) maybeAutoBio();
+  }
+  pinWasLocked = locked;
+}
+async function maybeAutoBio() {
+  if (!getBioCredId()) return;                 // Face ID не настроен
+  if (!(await bioAvailable())) return;         // платформенный аутентификатор недоступен
+  try {
+    if (await unlockWithBio()) {
+      markPinUnlocked();
+      document.getElementById('pinLockOverlay').classList.remove('visible');
+      pinWasLocked = false;
+    }
+  } catch (e) {
+    // Браузер может требовать пользовательский жест или биометрия не распознана —
+    // остаёмся на экране PIN с кнопкой «Войти по Face ID». Ничего не ломаем.
+  }
 }
 
 /* ---------------- F7 (2026-07-17): вход по Face ID / отпечатку (WebAuthn) ----------------
