@@ -2951,7 +2951,9 @@ async function registerBio() {
     rp: { name: 'Семейный бюджет' },
     user: { id: new TextEncoder().encode(uid), name: uid, displayName: 'Бюджет' },
     pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
-    authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required' },
+    // residentKey: 'discouraged' — не создаём discoverable-пасскей, чтобы iOS не показывал
+    // лишний лист выбора ключа, а сразу шёл в Face ID (замок локальный, ключ не нужен в списке).
+    authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required', residentKey: 'discouraged', requireResidentKey: false },
     timeout: 60000,
   } });
   setBioCredId(bufToB64(cred.rawId));
@@ -2961,7 +2963,10 @@ async function unlockWithBio() {
   if (!id) return false;
   await navigator.credentials.get({ publicKey: {
     challenge: crypto.getRandomValues(new Uint8Array(32)),
-    allowCredentials: [{ id: b64ToBuf(id), type: 'public-key' }],
+    // transports: ['internal'] — подсказка, что ключ на этом же устройстве (платформенный
+    // аутентификатор). Позволяет пропустить промежуточный лист «Использовать ключ входа» и
+    // уйти сразу в Face ID / отпечаток. 2026-07-20
+    allowCredentials: [{ id: b64ToBuf(id), type: 'public-key', transports: ['internal'] }],
     userVerification: 'required',
     timeout: 60000,
   } });
