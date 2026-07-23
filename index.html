@@ -1061,6 +1061,9 @@
   .btn-tiny.active:hover { color: #fff; }
   .btn-tiny.icon-btn { padding: 6px 9px; font-size: 13px; }
   .btn-tiny svg { width: 14px; height: 14px; display: block; }
+  /* Кнопка «списать долг» — заметный красный тон, чтобы отличалась от «⋯» и читалась как «уменьшить». */
+  .btn-tiny.debt-minus-btn { background: var(--expense-bg); border-color: transparent; color: var(--expense-accent); }
+  .btn-tiny.debt-minus-btn:hover { border-color: var(--expense-accent); color: var(--expense-accent); }
   .debt-row-paid { opacity: 0.5; }
   .debt-row-paid .cat-badge { text-decoration: line-through; }
 
