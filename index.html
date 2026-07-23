@@ -1061,11 +1061,6 @@
   .btn-tiny.active:hover { color: #fff; }
   .btn-tiny.icon-btn { padding: 6px 9px; font-size: 13px; }
   .btn-tiny svg { width: 14px; height: 14px; display: block; }
-  /* Кнопка «Списать долг» — заметный красный тон + подпись, чтобы её нельзя было пропустить. */
-  .btn-tiny.debt-minus-btn { display: inline-flex; align-items: center; gap: 4px; font-weight: 700;
-    background: var(--expense-bg); border-color: transparent; color: var(--expense-accent); }
-  .btn-tiny.debt-minus-btn:hover { border-color: var(--expense-accent); color: var(--expense-accent); }
-  .btn-tiny.debt-minus-btn svg { width: 13px; height: 13px; }
   .debt-row-paid { opacity: 0.5; }
   .debt-row-paid .cat-badge { text-decoration: line-through; }
 
@@ -1461,8 +1456,6 @@
        Single-button cells (delete-only) keep their button since it isn't hidden. */
     .responsive-card-table td.rc-actions .btn-tiny:not(.rc-menu-btn) { display: none; }
     .responsive-card-table td.rc-actions .rc-menu-btn { display: flex; }
-    /* «−» (уменьшить долг) остаётся прямой кнопкой на карточке и в мобильном режиме. */
-    .responsive-card-table td.rc-actions .btn-tiny.debt-minus-btn { display: flex; }
     /* "Скоро/Просрочено" status pill is redundant on mobile — the days-remaining
        line below already says it; hide it inside the compact primary cell only. */
     .responsive-card-table td.rc-primary .status-badge { display: none; }
@@ -1956,6 +1949,24 @@
           <input type="text" id="debtCommentInput" placeholder="Например: занял на ремонт">
         </div>
         <button class="btn-primary" id="debtSubmitBtn">Добавить долг</button>
+        </div>
+
+        <!-- СПИСАТЬ ДОЛГ — по той же логике, что «Добавить долг» (сворачиваемая форма) -->
+        <button type="button" class="btn-secondary add-form-toggle" style="margin-top:10px;" data-open-label="− Списать долг" data-close-label="Свернуть" onclick="toggleAddForm('debtWriteoffBody', this)">− Списать долг</button>
+        <div id="debtWriteoffBody" class="add-form-body" style="display:none;">
+          <div class="form-row">
+            <label>Какой долг уменьшить</label>
+            <select id="debtWriteoffSelect"></select>
+          </div>
+          <div class="form-row">
+            <label>Сумма списания, ₽</label>
+            <input type="number" id="debtWriteoffAmount" placeholder="0" min="0" step="1">
+          </div>
+          <div class="form-row">
+            <label>Дата</label>
+            <input type="date" id="debtWriteoffDate" min="2020-01-01" max="2099-12-31">
+          </div>
+          <button class="btn-primary" id="debtWriteoffSubmitBtn">Списать</button>
         </div>
       </div>
 
@@ -4147,6 +4158,36 @@ document.getElementById('debtSubmitBtn').addEventListener('click', async () => {
   await loadAll();
 });
 
+// «Списать долг» (отдельная форма рядом с «Добавить долг»). Списывает произвольную сумму
+// с выбранного непогашенного долга — та же логика, что частичное погашение (recordDebtPayment).
+document.getElementById('debtWriteoffDate').valueAsDate = new Date();
+function renderDebtWriteoffOptions() {
+  const sel = document.getElementById('debtWriteoffSelect');
+  if (!sel) return;
+  const prev = sel.value;
+  const open = state.debts.filter(d => !d.is_paid && debtRemaining(d) > 0)
+    .sort((a, b) => a.debtor_name.localeCompare(b.debtor_name) || a.date.localeCompare(b.date));
+  if (!open.length) {
+    sel.innerHTML = '<option value="">Нет непогашенных долгов</option>';
+    return;
+  }
+  sel.innerHTML = open.map(d =>
+    `<option value="${d.id}">${escapeHtml(d.debtor_name)} · остаток ${fmt.format(debtRemaining(d))}${d.comment ? ' · ' + escapeHtml(d.comment) : ''} (${formatDateHuman(d.date)})</option>`
+  ).join('');
+  if (open.some(d => d.id === prev)) sel.value = prev;
+}
+document.getElementById('debtWriteoffSubmitBtn').addEventListener('click', async () => {
+  if (!isConfigured) { toast('Сначала подключите базу данных'); return; }
+  const id = document.getElementById('debtWriteoffSelect').value;
+  const d = state.debts.find(x => x.id === id);
+  if (!d) { toast('Выберите долг'); return; }
+  const amount = parseFloat(document.getElementById('debtWriteoffAmount').value);
+  if (!amount || amount <= 0) { toast('Введите сумму больше нуля'); return; }
+  const date = document.getElementById('debtWriteoffDate').value || todayStr();
+  document.getElementById('debtWriteoffAmount').value = '';
+  await recordDebtPayment(d, amount, date);
+});
+
 async function deleteDebt(id) {
   if (!(await confirmDialog('Удалить этот долг?'))) return;
   const { error } = await supabaseClient.from('debts').delete().eq('id', id);
@@ -4241,6 +4282,7 @@ function renderDebtsSummary() {
 }
 
 function renderDebts() {
+  renderDebtWriteoffOptions();
   const grid = document.getElementById('debtsByPersonGrid');
   const unpaid = state.debts.filter(d => !d.is_paid);
   const byPerson = {};
@@ -4328,7 +4370,6 @@ function renderDebts() {
         <td class="comment-cell debts-comment-cell rc-secondary" onclick="this.classList.toggle('rc-expanded')">${d.comment ? escapeHtml(d.comment) : ''}</td>
         <td class="rc-amount amount-income" style="text-align:right;">${fmt.format(d.is_paid ? d.amount : remaining)}</td>
         <td class="rc-actions" style="white-space:nowrap; display:flex; gap:4px; align-items:center;">
-          ${d.is_paid ? '' : `<button class="btn-tiny debt-minus-btn" onclick="partialPayDebt('${d.id}')" title="Списать (уменьшить) долг" aria-label="Списать долг"><i data-lucide="minus"></i> Списать</button>`}
           <button class="btn-tiny icon-btn" onclick="toggleDebtPaid('${d.id}', ${d.is_paid ? 'false' : 'true'})" title="${d.is_paid ? 'Вернуть в долги' : 'Отметить оплаченным'}" aria-label="${d.is_paid ? 'Вернуть в долги' : 'Отметить оплаченным'}">${d.is_paid ? '<i data-lucide="undo-2"></i>' : '<i data-lucide="check"></i>'}</button>
           <button class="btn-tiny icon-btn" onclick="toggleDebtEdit('${d.id}')" title="Редактировать" aria-label="Редактировать"><i data-lucide="pencil"></i></button>
           <button class="btn-tiny icon-btn rc-menu-btn" onclick="openDebtActionMenu('${d.id}')" title="Ещё" aria-label="Ещё"><i data-lucide="more-horizontal"></i></button>
