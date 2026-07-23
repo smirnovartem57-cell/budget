@@ -1061,9 +1061,11 @@
   .btn-tiny.active:hover { color: #fff; }
   .btn-tiny.icon-btn { padding: 6px 9px; font-size: 13px; }
   .btn-tiny svg { width: 14px; height: 14px; display: block; }
-  /* Кнопка «списать долг» — заметный красный тон, чтобы отличалась от «⋯» и читалась как «уменьшить». */
-  .btn-tiny.debt-minus-btn { background: var(--expense-bg); border-color: transparent; color: var(--expense-accent); }
+  /* Кнопка «Списать долг» — заметный красный тон + подпись, чтобы её нельзя было пропустить. */
+  .btn-tiny.debt-minus-btn { display: inline-flex; align-items: center; gap: 4px; font-weight: 700;
+    background: var(--expense-bg); border-color: transparent; color: var(--expense-accent); }
   .btn-tiny.debt-minus-btn:hover { border-color: var(--expense-accent); color: var(--expense-accent); }
+  .btn-tiny.debt-minus-btn svg { width: 13px; height: 13px; }
   .debt-row-paid { opacity: 0.5; }
   .debt-row-paid .cat-badge { text-decoration: line-through; }
 
@@ -4326,7 +4328,7 @@ function renderDebts() {
         <td class="comment-cell debts-comment-cell rc-secondary" onclick="this.classList.toggle('rc-expanded')">${d.comment ? escapeHtml(d.comment) : ''}</td>
         <td class="rc-amount amount-income" style="text-align:right;">${fmt.format(d.is_paid ? d.amount : remaining)}</td>
         <td class="rc-actions" style="white-space:nowrap; display:flex; gap:4px; align-items:center;">
-          ${d.is_paid ? '' : `<button class="btn-tiny icon-btn debt-minus-btn" onclick="partialPayDebt('${d.id}')" title="Уменьшить долг (частичное погашение)" aria-label="Уменьшить долг"><i data-lucide="minus"></i></button>`}
+          ${d.is_paid ? '' : `<button class="btn-tiny debt-minus-btn" onclick="partialPayDebt('${d.id}')" title="Списать (уменьшить) долг" aria-label="Списать долг"><i data-lucide="minus"></i> Списать</button>`}
           <button class="btn-tiny icon-btn" onclick="toggleDebtPaid('${d.id}', ${d.is_paid ? 'false' : 'true'})" title="${d.is_paid ? 'Вернуть в долги' : 'Отметить оплаченным'}" aria-label="${d.is_paid ? 'Вернуть в долги' : 'Отметить оплаченным'}">${d.is_paid ? '<i data-lucide="undo-2"></i>' : '<i data-lucide="check"></i>'}</button>
           <button class="btn-tiny icon-btn" onclick="toggleDebtEdit('${d.id}')" title="Редактировать" aria-label="Редактировать"><i data-lucide="pencil"></i></button>
           <button class="btn-tiny icon-btn rc-menu-btn" onclick="openDebtActionMenu('${d.id}')" title="Ещё" aria-label="Ещё"><i data-lucide="more-horizontal"></i></button>
