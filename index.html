@@ -205,7 +205,10 @@
     background: rgba(16,24,40,0.5);
     display: none;
     align-items: center; justify-content: center;
-    z-index: 1100;
+    /* Выше любого bottom-sheet-modal (z-index:1100) — иначе более поздний в DOM модал (например
+       календарь проверки расходов, который переоткрывается при закрытии панели операции) может
+       перекрыть уже открытый диалог подтверждения. */
+    z-index: 1200;
     opacity: 0;
     transition: opacity .2s ease;
   }
@@ -230,7 +233,7 @@
     background: rgba(16,24,40,0.5);
     display: none;
     align-items: center; justify-content: center;
-    z-index: 1100;
+    z-index: 1200; /* см. .confirm-dialog-overlay — выше любого bottom-sheet-modal */
     opacity: 0;
     transition: opacity .2s ease;
   }
@@ -683,6 +686,29 @@
   .cfp-row .cfp-label { font-size: 12.5px; color: var(--text-secondary); }
   .cfp-row .cfp-value { font-size: 13.5px; font-weight: 600; color: var(--text-primary); font-variant-numeric: tabular-nums; text-align: right; }
   .compact-detail-btn { width: 100%; margin-top: 12px; min-height: 40px; }
+
+  /* ТЗ №3 (2026-07-24) «Календарь проверки расходов» — компактный блок последних 7 дней. */
+  .expense-check-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-bottom: 10px; }
+  .ec-day-chip {
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    border: none; background: transparent; cursor: pointer; padding: 4px 2px;
+    min-height: 40px; border-radius: 10px; -webkit-tap-highlight-color: transparent;
+  }
+  .ec-day-chip:hover { background: var(--surface-2, #F3F5F9); }
+  .ec-day-dow { font-size: 10.5px; color: var(--text-secondary); font-weight: 600; text-transform: capitalize; }
+  .ec-day-num { font-size: 12.5px; color: var(--text-primary); font-weight: 700; font-variant-numeric: tabular-nums; }
+  .ec-day-dot {
+    width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    border: 2px solid var(--border); background: var(--card-bg);
+  }
+  .ec-day-dot svg, .ec-day-dot i { width: 11px; height: 11px; }
+  .ec-status-checked .ec-day-dot { background: var(--income-accent); border-color: var(--income-accent); color: #fff; }
+  .ec-status-has-unchecked .ec-day-dot { background: var(--btn-primary); border-color: var(--btn-primary); }
+  .ec-status-empty-unchecked .ec-day-dot { background: var(--card-bg); border-color: var(--border); }
+  .ec-status-needs-recheck .ec-day-dot { background: var(--warning); border-color: var(--warning); }
+  .ec-is-today .ec-day-dow, .ec-is-today .ec-day-num { color: var(--btn-primary); }
+  .ec-is-today { box-shadow: inset 0 0 0 1.5px var(--btn-primary); }
+  .expense-check-summary { font-size: 12.5px; color: var(--text-secondary); margin-bottom: 4px; }
 
   /* «Долги» — компактная сводка (кнопка-строка + count/«Подробнее» под ней). */
   .debts-compact-panel { margin-bottom: 22px; }
@@ -1591,6 +1617,83 @@
     .bottom-sheet-modal .bottom-sheet-close svg { width: 16px; height: 16px; }
   }
 
+  /* ===================== ТЗ №3 (2026-07-24): КАЛЕНДАРЬ ПРОВЕРКИ РАСХОДОВ ===================== */
+  #expenseCalendarOverlay .bottom-sheet.ec-cal-sheet { max-width: 460px; }
+  @media (min-width: 900px) {
+    #expenseCalendarOverlay .bottom-sheet.ec-cal-sheet { max-width: 780px; }
+  }
+  .ec-onboarding-hint {
+    background: var(--info-bg, #EEF3FF); border-radius: 14px; padding: 12px 14px; margin-bottom: 14px;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .ec-onboarding-hint p { margin: 0; font-size: 13px; color: var(--text-primary); line-height: 1.45; }
+  .ec-onboarding-hint .btn-secondary { align-self: flex-start; min-height: 36px; padding: 0 16px; }
+
+  .ec-cal-body { display: flex; flex-direction: column; gap: 16px; }
+  .ec-cal-month-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .ec-cal-month-label { font-size: 15px; font-weight: 700; color: var(--text-primary); text-transform: capitalize; }
+  .ec-month-nav-btn {
+    width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--border); background: var(--card-bg);
+    display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-secondary);
+  }
+  .ec-month-nav-btn:disabled { opacity: .35; cursor: default; }
+  .ec-month-nav-btn svg { width: 16px; height: 16px; }
+  .ec-cal-weekdays { display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; margin-bottom: 4px; }
+  .ec-cal-weekdays span { font-size: 11px; color: var(--text-secondary); font-weight: 600; }
+  .ec-cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+  .ec-cal-day-btn {
+    aspect-ratio: 1; min-height: 40px; min-width: 40px; border-radius: 12px; border: 1.5px solid var(--border);
+    background: var(--card-bg); display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 2px; cursor: pointer; padding: 2px; -webkit-tap-highlight-color: transparent;
+  }
+  .ec-cal-day-btn .ec-cal-day-num { font-size: 13px; font-weight: 700; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+  .ec-cal-day-btn .ec-cal-day-sub { font-size: 9.5px; color: var(--text-secondary); line-height: 1; }
+  .ec-cal-day-btn.ec-status-checked { background: color-mix(in srgb, var(--income-accent) 14%, var(--card-bg)); border-color: transparent; }
+  .ec-cal-day-btn.ec-status-has-unchecked { background: color-mix(in srgb, var(--btn-primary) 12%, var(--card-bg)); border-color: transparent; }
+  .ec-cal-day-btn.ec-status-empty-unchecked { background: var(--card-bg); border-color: var(--border); }
+  .ec-cal-day-btn.ec-status-needs-recheck { background: color-mix(in srgb, var(--warning) 16%, var(--card-bg)); border-color: transparent; }
+  .ec-cal-day-btn.ec-is-today { box-shadow: inset 0 0 0 2px var(--btn-primary); }
+  .ec-cal-day-btn.ec-is-future, .ec-cal-day-btn.ec-is-outside-month { opacity: .35; cursor: default; background: transparent; border-color: transparent; }
+  .ec-cal-day-btn.ec-is-selected { box-shadow: 0 0 0 2px var(--text-primary); }
+  .ec-cal-day-check-icon { width: 12px; height: 12px; color: var(--income-accent); }
+  .ec-cal-error { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; background: var(--info-bg); border-radius: 10px; font-size: 12.5px; color: var(--text-secondary); margin-top: 10px; }
+  .ec-cal-skeleton-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+  .ec-cal-skeleton-cell { aspect-ratio: 1; border-radius: 12px; background: var(--surface-2, #F0F2F6); animation: ec-pulse 1.1s ease-in-out infinite; }
+  @keyframes ec-pulse { 0%, 100% { opacity: .5; } 50% { opacity: 1; } }
+
+  .ec-day-back-btn { display: none; align-items: center; gap: 4px; border: none; background: transparent; color: var(--btn-primary); font-size: 13px; font-weight: 600; cursor: pointer; padding: 6px 0; margin-bottom: 6px; }
+  .ec-day-back-btn svg { width: 16px; height: 16px; }
+  .ec-day-title { font-size: 15px; font-weight: 700; color: var(--text-primary); margin-bottom: 4px; }
+  .ec-day-summary { font-size: 13px; color: var(--text-secondary); margin-bottom: 10px; }
+  .ec-day-status-badge { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 999px; font-size: 12.5px; font-weight: 600; margin-bottom: 14px; }
+  .ec-day-status-badge.ec-status-checked { background: color-mix(in srgb, var(--income-accent) 16%, transparent); color: var(--income-accent); }
+  .ec-day-status-badge.ec-status-has-unchecked { background: color-mix(in srgb, var(--btn-primary) 14%, transparent); color: var(--btn-primary); }
+  .ec-day-status-badge.ec-status-empty-unchecked { background: var(--surface-2, #F0F2F6); color: var(--text-secondary); }
+  .ec-day-status-badge.ec-status-needs-recheck { background: color-mix(in srgb, var(--warning) 18%, transparent); color: var(--warning); }
+  .ec-day-tx-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; max-height: 40vh; overflow-y: auto; }
+  .ec-day-tx-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 14px; cursor: pointer; background: var(--card-bg); }
+  .ec-day-tx-row:hover { border-color: var(--btn-primary); }
+  .ec-day-tx-main { flex: 1; min-width: 0; }
+  .ec-day-tx-cat { font-size: 13px; font-weight: 600; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ec-day-tx-sub { font-size: 11.5px; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ec-day-tx-amount { font-weight: 700; font-size: 13.5px; color: var(--expense-accent); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .ec-day-actions { display: flex; flex-direction: column; gap: 8px; }
+  .ec-day-actions .btn-primary, .ec-day-actions .btn-secondary, .ec-day-actions .btn-ghost { min-height: 44px; }
+  .ec-day-recheck-hint { font-size: 12px; color: var(--text-secondary); margin-top: -6px; margin-bottom: 10px; }
+
+  @media (max-width: 899px) {
+    .ec-cal-body.ec-mobile-view-grid .ec-cal-day-pane { display: none !important; }
+    .ec-cal-body.ec-mobile-view-day .ec-cal-grid-pane { display: none !important; }
+    .ec-cal-body.ec-mobile-view-day .ec-cal-day-pane { display: block !important; }
+    .ec-cal-body.ec-mobile-view-day .ec-day-back-btn { display: flex; }
+  }
+  @media (min-width: 900px) {
+    .ec-cal-body { flex-direction: row; align-items: flex-start; }
+    .ec-cal-grid-pane { flex: 0 0 340px; }
+    .ec-cal-day-pane { flex: 1; min-width: 0; border-left: 1px solid var(--border); padding-left: 20px; display: block !important; }
+    #ecDayPaneBody:empty::before { content: 'Выберите день в календаре'; color: var(--text-secondary); font-size: 13px; }
+  }
+
   /* ===================== RESPONSIVE CARD TABLE (mobile) ===================== */
   /* Compact mobile card (2026-07-15): what — a shared row layout that turns each
      table row into a compact card (name/category left + amount right on line 1,
@@ -1814,6 +1917,16 @@
       <span class="badge-info" id="recentTxSeeAllBtn" style="cursor:pointer;">Все операции →</span>
     </h2>
     <div id="recentTxList"></div>
+  </div>
+
+  <!-- ТЗ №3 (2026-07-24) «Календарь проверки расходов»: компактный блок последних 7 дней.
+       Статус «Проверен» ставится ТОЛЬКО вручную — наличие операций само по себе не переводит
+       день в проверенный (см. getDayStatus). -->
+  <div class="panel" id="expenseCheckPanel">
+    <h2><span>Проверка расходов</span></h2>
+    <div class="expense-check-days" id="expenseCheckDays"></div>
+    <div class="expense-check-summary" id="expenseCheckSummary"></div>
+    <button type="button" class="btn-ghost compact-detail-btn" id="expenseCheckOpenCalendarBtn">Открыть календарь</button>
   </div>
   </div><!-- /home-col-center (верхняя часть: месяц + последние операции) -->
 
@@ -2143,6 +2256,7 @@
         </h2>
         <div class="tx-controls">
           <input type="text" id="txSearchInput" placeholder="Поиск по комментарию, категории или сумме…">
+          <button type="button" class="tx-filter-btn" id="txCalendarCheckBtn" aria-label="Проверка расходов по дням" title="Проверка расходов по дням"><i data-lucide="calendar-check"></i></button>
           <button type="button" class="tx-filter-btn" id="txFilterBtn" aria-label="Фильтры"><i data-lucide="sliders-horizontal"></i></button>
         </div>
         <div class="tx-active-filters" id="txActiveFilters"></div>
@@ -2706,6 +2820,47 @@
   </div>
 </div>
 
+<!-- ТЗ №3 (2026-07-24) «Календарь проверки расходов». Один overlay, две панели: сетка месяца и
+     панель выбранного дня — на мобильном день ЗАМЕНЯЕТ сетку (не накладывается), на широком
+     экране обе видны рядом (flex-row, см. CSS §24). -->
+<div class="bottom-sheet-overlay bottom-sheet-modal" id="expenseCalendarOverlay">
+  <div class="bottom-sheet ec-cal-sheet">
+    <div class="bottom-sheet-handle"></div>
+    <button type="button" class="bottom-sheet-close" id="expenseCalendarCloseBtn" aria-label="Закрыть"><i data-lucide="x"></i></button>
+    <div class="panel ec-cal-panel">
+      <h2 style="margin-bottom:10px;">Проверка расходов</h2>
+
+      <div class="ec-onboarding-hint" id="ecOnboardingHint" style="display:none;">
+        <p>Отмечайте дни, когда все расходы уже внесены. Так будет видно, какие даты ещё нужно проверить.</p>
+        <button type="button" class="btn-secondary" id="ecOnboardingOkBtn">Понятно</button>
+      </div>
+
+      <div class="ec-cal-body" id="ecCalBody">
+        <div class="ec-cal-grid-pane" id="ecGridPane">
+          <div class="ec-cal-month-nav">
+            <button type="button" class="ec-month-nav-btn" id="ecPrevMonthBtn" aria-label="Предыдущий месяц"><i data-lucide="chevron-left"></i></button>
+            <span class="ec-cal-month-label" id="ecMonthLabel"></span>
+            <button type="button" class="ec-month-nav-btn" id="ecNextMonthBtn" aria-label="Следующий месяц"><i data-lucide="chevron-right"></i></button>
+          </div>
+          <div class="ec-cal-weekdays">
+            <span>Пн</span><span>Вт</span><span>Ср</span><span>Чт</span><span>Пт</span><span>Сб</span><span>Вс</span>
+          </div>
+          <div class="ec-cal-grid" id="ecCalGrid"></div>
+          <div class="ec-cal-skeleton-grid" id="ecCalSkeleton" style="display:none;"></div>
+          <div class="ec-cal-error" id="ecCalError" style="display:none;">
+            <span>Не удалось загрузить статусы проверки</span>
+            <button type="button" class="btn-tiny" id="ecCalRetryBtn">Повторить</button>
+          </div>
+        </div>
+        <div class="ec-cal-day-pane" id="ecDayPane" style="display:none;">
+          <button type="button" class="ec-day-back-btn" id="ecDayBackBtn"><i data-lucide="chevron-left"></i> Назад к календарю</button>
+          <div id="ecDayPaneBody"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 <div class="undo-toast" id="undoToast"><span id="undoToastMsg"></span><button type="button" id="undoToastBtn">Отменить</button></div>
 <div class="loading-bar" id="loadingBar"></div>
@@ -2801,6 +2956,15 @@ let state = {
   balanceLoaded: false,       // сверки хотя бы раз успешно загружены (иначе — skeleton)
   balanceLoadError: false,    // не удалось загрузить сверки — показать ошибку в карточке
   discrepancyDismissed: false,// пользователь закрыл справку о расхождении
+  // ТЗ №3 (2026-07-24) «Календарь проверки расходов»:
+  expenseDayChecks: [],       // строки expense_day_checks текущего пользователя
+  dayChecksLoadError: false,  // не удалось загрузить отметки — календарь операций всё равно доступен
+  dayChecksLoaded: false,
+  dayChecksInvalidatedLocally: new Set(), // даты, у которых отметка снята мутацией расхода В ЭТОЙ сессии — «Требует повторной проверки» (не персистится, см. §15)
+  calendarMonth: null,        // 'YYYY-MM' открытого месяца в полном календаре
+  calendarSelectedDate: null, // выбранный день внутри календаря
+  calendarMobileView: 'grid', // 'grid' | 'day' — на мобильном день заменяет сетку, а не накладывается
+  calendarReturnDate: null,   // если задано — форма добавления/редактирования операции при закрытии вернёт панель этого дня
 };
 
 // Порог показа справочного расхождения между операциями и остатками (ТЗ §8). Меньше — не показываем.
@@ -3553,6 +3717,10 @@ async function loadAll() {
     const subsQuery = supabaseClient.from('subscriptions').select('*').order('next_billing_date', { ascending: true });
     const debtPayQuery = supabaseClient.from('debt_payments').select('*').order('date', { ascending: true });
     const snapQuery = supabaseClient.from('balance_snapshots').select('*').order('created_at', { ascending: false });
+    // ТЗ №3 (2026-07-24) «Календарь проверки расходов»: отметки принадлежат только реальному
+    // пользователю — анонимный/демо-режим не пишет и не читает их (пустой список, календарь всё
+    // равно показывает операции, просто без сохранённых отметок).
+    const dayChecksQuery = supabaseClient.from('expense_day_checks').select('*');
     if (currentUser) {
       txQuery.eq('user_id', currentUser.id);
       debtQuery.eq('user_id', currentUser.id);
@@ -3563,6 +3731,7 @@ async function loadAll() {
       subsQuery.eq('user_id', currentUser.id);
       debtPayQuery.eq('user_id', currentUser.id);
       snapQuery.eq('user_id', currentUser.id);
+      dayChecksQuery.eq('user_id', currentUser.id);
     } else {
       txQuery.is('user_id', null);
       debtQuery.is('user_id', null);
@@ -3573,9 +3742,10 @@ async function loadAll() {
       subsQuery.is('user_id', null);
       debtPayQuery.is('user_id', null);
       snapQuery.is('user_id', null);
+      dayChecksQuery.is('user_id', null);
     }
 
-    const [{ data: cats, error: catErr }, { data: txs, error: txErr }, { data: debts, error: debtErr }, { data: shopping, error: shoppingErr }, { data: income, error: incomeErr }, { data: notes, error: notesErr }, { data: rules, error: rulesErr }, { data: subs, error: subsErr }, { data: dpays, error: dpErr }, { data: snaps, error: snapErr }] = await withTimeout(Promise.all([
+    const [{ data: cats, error: catErr }, { data: txs, error: txErr }, { data: debts, error: debtErr }, { data: shopping, error: shoppingErr }, { data: income, error: incomeErr }, { data: notes, error: notesErr }, { data: rules, error: rulesErr }, { data: subs, error: subsErr }, { data: dpays, error: dpErr }, { data: snaps, error: snapErr }, { data: dayChecks, error: dayChecksErr }] = await withTimeout(Promise.all([
       supabaseClient.from('categories').select('*').order('created_at'),
       txQuery,
       debtQuery,
@@ -3586,6 +3756,7 @@ async function loadAll() {
       subsQuery,
       debtPayQuery,
       snapQuery,
+      dayChecksQuery,
     ]), 15000, 'Сервер не отвечает — проверьте интернет-соединение');
     const loadErrors = [
       [catErr, 'категорий'], [txErr, 'операций'], [debtErr, 'долгов'],
@@ -3612,6 +3783,10 @@ async function loadAll() {
     state.balanceLoadError = !!snapErr;
     state.balanceSnapshots = snaps || [];
     if (!snapErr) state.balanceLoaded = true;
+    // Отметки проверки — как и сверки остатка (§28): ошибка их загрузки не блокирует остальное
+    // приложение, календарь операций остаётся доступным, только без сохранённых статусов.
+    state.dayChecksLoadError = !!dayChecksErr;
+    if (!dayChecksErr) { state.expenseDayChecks = dayChecks || []; state.dayChecksLoaded = true; }
 
     if (!state.selectedMonth) {
       const now = new Date();
@@ -3670,6 +3845,13 @@ function openTxSheet(mode) {
 function closeTxSheet() {
   document.getElementById('txSheetOverlay').classList.remove('visible');
   state.operationFormMode = null;
+  // ТЗ №3 §12: если форма была открыта из панели дня календаря — вернуться к ней после
+  // закрытия (в т.ч. после успешного сохранения, которое тоже закрывает это окно).
+  if (state.calendarReturnDate) {
+    const d = state.calendarReturnDate;
+    state.calendarReturnDate = null;
+    openExpenseDayPanel(d);
+  }
 }
 // ТЗ №2 §8: «Повторить расход» из истории — закрывает детальный лист, открывает ФОРМУ СОЗДАНИЯ
 // (не режим редактирования), переносит категорию/название/комментарий, НЕ переносит сумму/дату/id.
@@ -4594,6 +4776,11 @@ async function submitTxSheet(keepOpen) {
       return; // §13/§22: при ошибке форму не очищаем, значения остаются
     }
     saveLastUsedTx(state.kind, category, subcategory);
+    // ТЗ №3 §15: новый расход снимает отметку проверки со своей даты (доход — не трогает).
+    if (state.kind === 'expense') {
+      const uniqueDates = [...new Set(payloads.map(p => p.date))];
+      for (const d of uniqueDates) await invalidateExpenseDayCheck(d);
+    }
 
     if (comment) {
       const normalized = normalizeText(comment);
@@ -5064,6 +5251,7 @@ async function recordShoppingBought(item, amount, date) {
   if (newTx && newTx.id) patch.linked_transaction_id = newTx.id;
   const { error: upErr } = await supabaseClient.from('shopping_list').update(patch).eq('id', item.id);
   if (upErr) { toast('Операция создана, но не удалось отметить покупку: ' + upErr.message); await loadAll(); return; }
+  await invalidateExpenseDayCheck(date); // ТЗ №3 §15: покупка добавила расход — снять отметку с даты
   await loadAll();
 
   toastWithUndo(`Куплено — ${fmt.format(amount)} добавлено в расходы`, (newTx && newTx.id) ? async () => {
@@ -5071,6 +5259,7 @@ async function recordShoppingBought(item, amount, date) {
     await supabaseClient.from('shopping_list')
       .update({ is_bought: false, bought_date: null, bought_amount: null, linked_transaction_id: null })
       .eq('id', item.id);
+    await invalidateExpenseDayCheck(date);
     await loadAll();
     toast('Отменено');
   } : null);
@@ -6366,29 +6555,80 @@ function renderRecurringBreakdown() {
     }).join('');
 }
 
+/* ---------------- EXPENSE DAY CHECKS (календарь проверки расходов, ТЗ №3 2026-07-24) ---------------- */
+// Локальный календарный день — по конвенции проекта (Asia/Almaty, см. BALANCE_TIMEZONE/
+// localSnapshotDateStr выше), а не todayStr()/toISOString(), которые дают дату по UTC.
+function calendarTodayStr() { return localSnapshotDateStr(); }
+
+function getDayCheck(dateStr) {
+  return state.expenseDayChecks.find(c => c.check_date === dateStr) || null;
+}
+// §17: сортировка операций внутри дня — по фактической дате (уже гарантировано вызывающим кодом
+// фильтром date===dateStr), при равенстве даты — created_at DESC.
+function expenseTxForDay(dateStr) {
+  return state.transactions
+    .filter(t => t.kind === 'expense' && t.date === dateStr)
+    .sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
+}
+// §1/§2: 5 статусов дня. Наличие операций НИКОГДА не переводит день в «Проверен» само по себе —
+// только явная строка в expense_day_checks это делает.
+function getDayStatus(dateStr) {
+  if (dateStr > calendarTodayStr()) return 'future';
+  if (getDayCheck(dateStr)) return 'checked';
+  if (state.dayChecksInvalidatedLocally.has(dateStr)) return 'needs-recheck';
+  return expenseTxForDay(dateStr).length ? 'has-unchecked' : 'empty-unchecked';
+}
+
+// §15: «простая реализация» — при любой мутации РАСХОДА снимаем отметку проверки этой даты
+// (если она была). Доходы сюда не попадают ни при одном вызове (см. места вызова ниже).
+// §16: снятие отметки — вторичная операция; если расход/мутация уже сохранены успешно, ошибка
+// снятия отметки не откатывает их — только нейтральный тост.
+async function invalidateExpenseDayCheck(dateStr) {
+  if (!dateStr || !currentUser) return;
+  const existing = getDayCheck(dateStr);
+  if (!existing) return; // день не был проверен — снимать нечего
+  let { error } = await supabaseClient.from('expense_day_checks').delete().eq('id', existing.id);
+  if (error) {
+    await new Promise(r => setTimeout(r, 1200));
+    ({ error } = await supabaseClient.from('expense_day_checks').delete().eq('id', existing.id));
+  }
+  if (error) { toast('Расход сохранён, но статус проверки дня не обновился'); return; }
+  state.expenseDayChecks = state.expenseDayChecks.filter(c => c.id !== existing.id);
+  state.dayChecksInvalidatedLocally.add(dateStr);
+}
+
 /* ---------------- DELETE TRANSACTION ---------------- */
 async function deleteTx(id) {
   if (!(await confirmDialog('Удалить эту операцию?'))) return;
+  const tx = state.transactions.find(t => t.id === id);
   const { error } = await supabaseClient.from('transactions').delete().eq('id', id);
   if (error) { toast('Ошибка: ' + error.message); return; }
   toast('Удалено');
+  if (tx && tx.kind === 'expense') await invalidateExpenseDayCheck(tx.date);
   await loadAll();
 }
 
 async function updateTxDate(id, newDate) {
   if (!isConfigured) { toast('Сначала подключите базу данных'); return; }
   if (!newDate) { toast('Укажите дату'); await loadAll(); return; }
+  const tx = state.transactions.find(t => t.id === id);
   const { error } = await supabaseClient.from('transactions').update({ date: newDate }).eq('id', id);
   if (error) { toast('Ошибка: ' + error.message); return; }
   toast('Дата обновлена');
+  if (tx && tx.kind === 'expense') {
+    await invalidateExpenseDayCheck(tx.date);
+    if (newDate !== tx.date) await invalidateExpenseDayCheck(newDate);
+  }
   await loadAll();
 }
 
 async function updateTxTime(id, newTime) {
   if (!isConfigured) { toast('Сначала подключите базу данных'); return; }
+  const tx = state.transactions.find(t => t.id === id);
   const { error } = await supabaseClient.from('transactions').update({ time: newTime || null }).eq('id', id);
   if (error) { toast('Ошибка: ' + error.message); return; }
   toast('Время обновлено');
+  if (tx && tx.kind === 'expense') await invalidateExpenseDayCheck(tx.date);
   await loadAll();
 }
 
@@ -6396,9 +6636,11 @@ async function updateTxAmount(id, rawValue) {
   if (!isConfigured) { toast('Сначала подключите базу данных'); return; }
   const value = parseFloat(rawValue);
   if (!value || value <= 0) { toast('Сумма должна быть больше нуля'); await loadAll(); return; }
+  const tx = state.transactions.find(t => t.id === id);
   const { error } = await supabaseClient.from('transactions').update({ amount: value }).eq('id', id);
   if (error) { toast('Ошибка: ' + error.message); return; }
   toast('Обновлено');
+  if (tx && tx.kind === 'expense') await invalidateExpenseDayCheck(tx.date);
   await loadAll();
 }
 
@@ -6429,6 +6671,12 @@ function openTxDetailSheet(id) {
 function closeTxDetailSheet() {
   document.getElementById('txDetailOverlay').classList.remove('visible');
   txDetailCurrentId = null;
+  // ТЗ №3 §11/§12: возврат к панели дня календаря после редактирования/удаления/закрытия.
+  if (state.calendarReturnDate) {
+    const d = state.calendarReturnDate;
+    state.calendarReturnDate = null;
+    openExpenseDayPanel(d);
+  }
 }
 document.getElementById('txDetailCloseBtn').addEventListener('click', closeTxDetailSheet);
 document.getElementById('txDetailOverlay').addEventListener('click', (e) => {
@@ -6443,10 +6691,17 @@ document.getElementById('txDetailSaveBtn').addEventListener('click', async () =>
   if (!date) { toast('Укажите дату'); return; }
   const time = document.getElementById('txDetailTime').value || null;
   const comment = document.getElementById('txDetailComment').value.trim();
+  const oldTx = state.transactions.find(t => t.id === txDetailCurrentId);
   const { error } = await supabaseClient.from('transactions')
     .update({ amount, date, time, comment: comment || null })
     .eq('id', txDetailCurrentId);
   if (error) { toast('Ошибка: ' + error.message); return; }
+  // ТЗ №3 §15: правка суммы/даты/времени/комментария расхода снимает отметку со старой даты
+  // и, если дата перенесена, с новой тоже. Перенос дохода отметку не трогает.
+  if (oldTx && oldTx.kind === 'expense') {
+    await invalidateExpenseDayCheck(oldTx.date);
+    if (date !== oldTx.date) await invalidateExpenseDayCheck(date);
+  }
   closeTxDetailSheet();
   toast('Сохранено');
   await loadAll();
@@ -6473,6 +6728,7 @@ document.getElementById('txDetailDuplicateBtn').addEventListener('click', async 
   };
   const { error } = await insertWithRetry('transactions', [payload]);
   if (error) { toast('Ошибка: ' + error.message); return; }
+  if (t.kind === 'expense') await invalidateExpenseDayCheck(payload.date);
   closeTxDetailSheet();
   toast('Операция продублирована на сегодня');
   await loadAll();
@@ -8212,8 +8468,342 @@ function renderEverything() {
   renderExpectedIncome();
   renderIncomeDynamics();
   renderShoppingNotes();
+  renderExpenseCheckWidget();       // ТЗ №3 §6
+  renderExpenseCalendarIfOpen();    // ТЗ №3 §30.18: календарь/панель дня обновляются без перезагрузки
   lucide.createIcons();
   applyAmountMasking();
+}
+
+/* ================= ТЗ №3 (2026-07-24): КАЛЕНДАРЬ ПРОВЕРКИ РАСХОДОВ — UI ================= */
+
+function pluralExpense(n) {
+  const n10 = n % 10, n100 = n % 100;
+  if (n10 === 1 && n100 !== 11) return 'расход';
+  if ([2, 3, 4].includes(n10) && ![12, 13, 14].includes(n100)) return 'расхода';
+  return 'расходов';
+}
+function ecDayAriaLabel(dateStr, status) {
+  const dateLabel = formatDateHuman(dateStr);
+  if (status === 'future') return `${dateLabel}, будущая дата`;
+  if (status === 'checked') return `${dateLabel} — расходы проверены`;
+  if (status === 'needs-recheck') return `${dateLabel} — расходы изменились после проверки`;
+  if (status === 'has-unchecked') {
+    const n = expenseTxForDay(dateStr).length;
+    return `${dateLabel}, ${n} ${pluralExpense(n)}, день не проверен`;
+  }
+  return `${dateLabel} — расходы не внесены, день не проверен`;
+}
+function nextMonthKey(mKey) {
+  const [y, m] = mKey.split('-').map(Number);
+  const d = new Date(y, m, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+// §6: компактный блок — последние 7 календарных дней, включая сегодня.
+const EC_WEEKDAY_SHORT = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб']; // индекс = Date#getUTCDay()
+function last7DayStrings() {
+  const today = calendarTodayStr();
+  const [y, m, d] = today.split('-').map(Number);
+  const base = Date.UTC(y, m - 1, d);
+  const days = [];
+  for (let i = 6; i >= 0; i--) days.push(new Date(base - i * 86400000).toISOString().slice(0, 10));
+  return days;
+}
+function renderExpenseCheckWidget() {
+  const daysBox = document.getElementById('expenseCheckDays');
+  const summaryBox = document.getElementById('expenseCheckSummary');
+  if (!daysBox || !summaryBox) return;
+  const days = last7DayStrings();
+  const todayKey = calendarTodayStr();
+  daysBox.innerHTML = days.map(dateStr => {
+    const status = getDayStatus(dateStr);
+    const d = parseInt(dateStr.slice(8, 10), 10);
+    const dow = EC_WEEKDAY_SHORT[new Date(dateStr + 'T00:00:00Z').getUTCDay()];
+    const isToday = dateStr === todayKey;
+    const label = ecDayAriaLabel(dateStr, status);
+    const icon = status === 'checked' ? '<i data-lucide="check"></i>' : '';
+    return `<button type="button" class="ec-day-chip ec-status-${status}${isToday ? ' ec-is-today' : ''}" data-date="${dateStr}" aria-label="${escapeHtml(label)}">
+      <span class="ec-day-dow">${dow}</span>
+      <span class="ec-day-num">${d}</span>
+      <span class="ec-day-dot">${icon}</span>
+    </button>`;
+  }).join('');
+
+  const checkedCount = days.filter(d => getDayStatus(d) === 'checked').length;
+  const anyChecksExist = state.expenseDayChecks.length > 0 || state.dayChecksInvalidatedLocally.size > 0;
+  let summaryText;
+  if (checkedCount === 7) summaryText = 'Все последние дни проверены';
+  else if (!anyChecksExist) summaryText = 'Отмечайте проверенные дни, чтобы не забывать расходы';
+  else summaryText = `Проверено ${checkedCount} из последних 7 дней`;
+  summaryBox.textContent = summaryText;
+  if (window.lucide) lucide.createIcons();
+}
+document.getElementById('expenseCheckDays').addEventListener('click', (e) => {
+  const btn = e.target.closest('.ec-day-chip');
+  if (!btn) return;
+  openExpenseCalendarOverlay();
+  openExpenseDayPanel(btn.dataset.date);
+});
+
+// §18: короткая подсказка при первом открытии календаря — один раз на устройство.
+function maybeShowEcOnboarding() {
+  const hint = document.getElementById('ecOnboardingHint');
+  if (!hint) return;
+  hint.style.display = localStorage.getItem('ecOnboardingSeen') === '1' ? 'none' : 'flex';
+}
+document.getElementById('ecOnboardingOkBtn').addEventListener('click', () => {
+  localStorage.setItem('ecOnboardingSeen', '1');
+  document.getElementById('ecOnboardingHint').style.display = 'none';
+});
+
+function ecSetMobileView(view) {
+  state.calendarMobileView = view;
+  const body = document.getElementById('ecCalBody');
+  body.classList.toggle('ec-mobile-view-grid', view === 'grid');
+  body.classList.toggle('ec-mobile-view-day', view === 'day');
+}
+
+function openExpenseCalendarOverlay() {
+  if (!state.calendarMonth) state.calendarMonth = calendarTodayStr().slice(0, 7);
+  ecSetMobileView('grid');
+  document.getElementById('expenseCalendarOverlay').classList.add('visible');
+  maybeShowEcOnboarding();
+  renderExpenseCalendarGrid();
+  renderExpenseDayPane();
+}
+function closeExpenseCalendarOverlay() {
+  document.getElementById('expenseCalendarOverlay').classList.remove('visible');
+  state.calendarSelectedDate = null;
+  state.calendarReturnDate = null;
+}
+document.getElementById('expenseCheckOpenCalendarBtn').addEventListener('click', openExpenseCalendarOverlay);
+document.getElementById('txCalendarCheckBtn').addEventListener('click', openExpenseCalendarOverlay);
+document.getElementById('expenseCalendarCloseBtn').addEventListener('click', closeExpenseCalendarOverlay);
+document.getElementById('expenseCalendarOverlay').addEventListener('click', (e) => {
+  if (e.target.id === 'expenseCalendarOverlay') closeExpenseCalendarOverlay();
+});
+document.getElementById('ecDayBackBtn').addEventListener('click', () => {
+  state.calendarSelectedDate = null;
+  ecSetMobileView('grid');
+});
+
+// §27/§30.18: перерисовываем без отдельного запроса, если оверлей уже открыт (вызывается из
+// renderEverything() после каждого loadAll()).
+function renderExpenseCalendarIfOpen() {
+  if (document.getElementById('expenseCalendarOverlay').classList.contains('visible')) {
+    renderExpenseCalendarGrid();
+    renderExpenseDayPane();
+  }
+}
+
+function renderExpenseCalendarGrid() {
+  const grid = document.getElementById('ecCalGrid');
+  const skeleton = document.getElementById('ecCalSkeleton');
+  const label = document.getElementById('ecMonthLabel');
+  const errBox = document.getElementById('ecCalError');
+  if (!grid || !state.calendarMonth) return;
+  // §28: пока данные ни разу не загружались, показываем skeleton сетки, а не пустые дни.
+  if (!state.lastLoadedAt) {
+    if (!skeleton.childElementCount) skeleton.innerHTML = Array.from({ length: 35 }, () => '<div class="ec-cal-skeleton-cell"></div>').join('');
+    skeleton.style.display = 'grid';
+    grid.style.display = 'none';
+    return;
+  }
+  skeleton.style.display = 'none';
+  grid.style.display = 'grid';
+  label.textContent = capFirst(monthLabel(state.calendarMonth));
+  const [y, m] = state.calendarMonth.split('-').map(Number);
+  const firstDow = (new Date(y, m - 1, 1).getDay() + 6) % 7; // Monday = 0
+  const totalDays = new Date(y, m, 0).getDate();
+  const todayKey = calendarTodayStr();
+  let html = '';
+  for (let i = 0; i < firstDow; i++) html += `<div class="ec-cal-day-btn ec-is-outside-month" aria-hidden="true"></div>`;
+  for (let d = 1; d <= totalDays; d++) {
+    const dateStr = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    const status = getDayStatus(dateStr);
+    const isToday = dateStr === todayKey;
+    const isSelected = dateStr === state.calendarSelectedDate;
+    const label = ecDayAriaLabel(dateStr, status);
+    let sub = '';
+    if (status === 'checked') sub = '<i data-lucide="check" class="ec-cal-day-check-icon"></i>';
+    else if (status === 'has-unchecked' || status === 'needs-recheck') {
+      const n = expenseTxForDay(dateStr).length;
+      if (n) sub = `<span class="ec-cal-day-sub">${n} ${n === 1 ? 'операция' : 'операции'}</span>`;
+    }
+    const classes = ['ec-cal-day-btn', `ec-status-${status}`];
+    if (isToday) classes.push('ec-is-today');
+    if (isSelected) classes.push('ec-is-selected');
+    if (status === 'future') classes.push('ec-is-future');
+    html += `<button type="button" class="${classes.join(' ')}" data-date="${dateStr}" aria-label="${escapeHtml(label)}"${status === 'future' ? ' disabled' : ''}>
+      <span class="ec-cal-day-num">${d}</span>${sub}
+    </button>`;
+  }
+  grid.innerHTML = html;
+  // §8: запрещаем переход дальше текущего месяца.
+  document.getElementById('ecNextMonthBtn').disabled = state.calendarMonth >= todayKey.slice(0, 7);
+  errBox.style.display = state.dayChecksLoadError ? 'flex' : 'none';
+  if (window.lucide) lucide.createIcons();
+}
+document.getElementById('ecCalGrid').addEventListener('click', (e) => {
+  const btn = e.target.closest('.ec-cal-day-btn');
+  if (!btn || btn.disabled || btn.classList.contains('ec-is-outside-month')) return;
+  openExpenseDayPanel(btn.dataset.date);
+});
+document.getElementById('ecPrevMonthBtn').addEventListener('click', () => {
+  state.calendarMonth = prevMonthKey(state.calendarMonth);
+  renderExpenseCalendarGrid();
+});
+document.getElementById('ecNextMonthBtn').addEventListener('click', () => {
+  const next = nextMonthKey(state.calendarMonth);
+  if (next > calendarTodayStr().slice(0, 7)) return;
+  state.calendarMonth = next;
+  renderExpenseCalendarGrid();
+});
+document.getElementById('ecCalRetryBtn').addEventListener('click', async () => { await loadAll(); });
+
+function openExpenseDayPanel(dateStr) {
+  if (!document.getElementById('expenseCalendarOverlay').classList.contains('visible')) {
+    document.getElementById('expenseCalendarOverlay').classList.add('visible');
+  }
+  state.calendarMonth = dateStr.slice(0, 7);
+  state.calendarSelectedDate = dateStr;
+  ecSetMobileView('day');
+  renderExpenseCalendarGrid();
+  renderExpenseDayPane();
+}
+
+function renderExpenseDayPane() {
+  const body = document.getElementById('ecDayPaneBody');
+  if (!body) return;
+  const dateStr = state.calendarSelectedDate;
+  if (!dateStr) { body.innerHTML = ''; return; }
+  const txList = expenseTxForDay(dateStr);
+  const total = txList.reduce((s, t) => s + Number(t.amount), 0);
+  const status = getDayStatus(dateStr);
+  const isToday = dateStr === calendarTodayStr();
+  // §10: сводка — если расходов нет, честно об этом, а не «расходов не было».
+  const summaryText = txList.length ? `${txList.length} ${pluralExpense(txList.length)} на ${fmt.format(total)}` : 'Расходов в приложении нет';
+
+  const txListHtml = txList.length ? `<div class="ec-day-tx-list">${txList.map(t => `
+    <div class="ec-day-tx-row" data-id="${t.id}">
+      <img class="category-icon-3d ci-chip" src="${getCategoryIcon(t.category, 'expense')}" alt="">
+      <div class="ec-day-tx-main">
+        <div class="ec-day-tx-cat">${escapeHtml(t.category)}${t.subcategory ? ' · ' + escapeHtml(t.subcategory) : ''}</div>
+        ${t.comment ? `<div class="ec-day-tx-sub">${escapeHtml(t.comment)}</div>` : ''}
+      </div>
+      <div class="ec-day-tx-amount">−${fmt.format(Number(t.amount))}</div>
+    </div>`).join('')}</div>` : '';
+
+  let actionsHtml;
+  if (status === 'checked') {
+    actionsHtml = `
+      <div class="ec-day-status-badge ec-status-checked"><i data-lucide="check"></i> День проверен</div>
+      <div class="ec-day-actions">
+        <button type="button" class="btn-secondary" id="ecDayAddExpenseBtn">Добавить расход</button>
+        <button type="button" class="btn-ghost" id="ecDayUnconfirmBtn">Снять отметку</button>
+      </div>`;
+  } else {
+    const badgeClass = status === 'needs-recheck' ? 'ec-status-needs-recheck' : (txList.length ? 'ec-status-has-unchecked' : 'ec-status-empty-unchecked');
+    const badgeText = status === 'needs-recheck' ? 'Требует повторной проверки' : 'День не проверен';
+    // §13: формулировка кнопки подтверждения зависит от того, есть ли расходы и является ли день сегодняшним.
+    const confirmLabel = isToday
+      ? 'Все расходы на данный момент внесены'
+      : (txList.length ? 'Все расходы за день внесены' : 'Расходов не было — отметить день проверенным');
+    actionsHtml = `
+      <div class="ec-day-status-badge ${badgeClass}">${badgeText}</div>
+      ${isToday ? '<div class="ec-day-recheck-hint">Если позже появится новый расход, день потребуется проверить снова.</div>' : ''}
+      <div class="ec-day-actions">
+        <button type="button" class="btn-secondary" id="ecDayAddExpenseBtn">Добавить расход</button>
+        <button type="button" class="btn-primary" id="ecDayConfirmBtn">${confirmLabel}</button>
+      </div>`;
+  }
+
+  body.innerHTML = `
+    <div class="ec-day-title">Расходы за ${formatDateHuman(dateStr)}</div>
+    <div class="ec-day-summary">${summaryText}</div>
+    ${txListHtml}
+    ${actionsHtml}
+  `;
+  if (window.lucide) lucide.createIcons();
+
+  body.querySelectorAll('.ec-day-tx-row').forEach(row => {
+    row.addEventListener('click', () => {
+      // §11: по нажатию — существующая панель операции; после закрытия/сохранения/удаления
+      // вернуться к этому же дню (см. closeTxDetailSheet).
+      state.calendarReturnDate = dateStr;
+      document.getElementById('expenseCalendarOverlay').classList.remove('visible');
+      openTxDetailSheet(row.dataset.id);
+    });
+  });
+  const addBtn = document.getElementById('ecDayAddExpenseBtn');
+  if (addBtn) addBtn.addEventListener('click', () => openAddExpenseFromDay(dateStr));
+  const confirmBtn = document.getElementById('ecDayConfirmBtn');
+  if (confirmBtn) confirmBtn.addEventListener('click', () => confirmExpenseDay(dateStr));
+  const unconfirmBtn = document.getElementById('ecDayUnconfirmBtn');
+  if (unconfirmBtn) unconfirmBtn.addEventListener('click', () => unconfirmExpenseDay(dateStr));
+}
+
+// §12: открывает существующую форму create-expense, подставляет только дату — сумма, категория,
+// название и комментарий остаются пустыми (обычное поведение формы, ничего не переопределяем).
+function openAddExpenseFromDay(dateStr) {
+  state.calendarReturnDate = dateStr;
+  document.getElementById('expenseCalendarOverlay').classList.remove('visible');
+  openTxSheet('create-expense');
+  setKind('expense');
+  document.getElementById('dateInput').value = dateStr;
+}
+
+// §13/§29: подтверждение дня — блокировка повторного нажатия, обработка конфликта 23505.
+let ecConfirmInFlight = false;
+async function confirmExpenseDay(dateStr) {
+  if (ecConfirmInFlight) return;
+  if (!currentUser) { toast('Сначала войдите в аккаунт, чтобы отмечать дни проверенными'); return; }
+  ecConfirmInFlight = true;
+  const btn = document.getElementById('ecDayConfirmBtn');
+  if (btn) btn.disabled = true;
+  try {
+    const nowIso = new Date().toISOString();
+    let { data, error } = await supabaseClient.from('expense_day_checks')
+      .insert({ user_id: currentUser.id, check_date: dateStr, checked_at: nowIso })
+      .select();
+    if (error && error.code === '23505') {
+      const { data: existing } = await supabaseClient.from('expense_day_checks')
+        .select('*').eq('user_id', currentUser.id).eq('check_date', dateStr).maybeSingle();
+      if (existing) {
+        state.expenseDayChecks = state.expenseDayChecks.filter(c => c.check_date !== dateStr).concat(existing);
+        state.dayChecksInvalidatedLocally.delete(dateStr);
+        toast('День проверен');
+        renderExpenseDayPane(); renderExpenseCalendarGrid(); renderExpenseCheckWidget();
+        return;
+      }
+    }
+    if (error) { toast('Не удалось отметить день проверенным'); return; }
+    if (data && data[0]) state.expenseDayChecks.push(data[0]);
+    state.dayChecksInvalidatedLocally.delete(dateStr);
+    toast('День проверен');
+    renderExpenseDayPane(); renderExpenseCalendarGrid(); renderExpenseCheckWidget();
+  } finally {
+    ecConfirmInFlight = false;
+  }
+}
+
+// §14: снятие отметки — обратимо, без дополнительного подтверждающего окна.
+async function unconfirmExpenseDay(dateStr) {
+  if (ecConfirmInFlight) return;
+  const existing = getDayCheck(dateStr);
+  if (!existing) return;
+  ecConfirmInFlight = true;
+  const btn = document.getElementById('ecDayUnconfirmBtn');
+  if (btn) btn.disabled = true;
+  try {
+    const { error } = await supabaseClient.from('expense_day_checks').delete().eq('id', existing.id);
+    if (error) { toast('Не удалось снять отметку'); return; }
+    state.expenseDayChecks = state.expenseDayChecks.filter(c => c.id !== existing.id);
+    state.dayChecksInvalidatedLocally.delete(dateStr);
+    renderExpenseDayPane(); renderExpenseCalendarGrid(); renderExpenseCheckWidget();
+  } finally {
+    ecConfirmInFlight = false;
+  }
 }
 
 let amountsHidden = localStorage.getItem('amountsHidden') === '1';
