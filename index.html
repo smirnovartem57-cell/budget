@@ -461,6 +461,30 @@
     padding: 28px 20px 60px;
   }
 
+  /* §6: десктоп-дашборд главной. Обёртки-колонки прозрачны на мобильном/планшете (одна колонка,
+     порядок блоков = мобильный), а на ширине от 1100px раскладываются в 3 колонки через CSS Grid.
+     Одна семантическая разметка, без дублирования. */
+  .home-col { display: contents; }
+  @media (min-width: 1100px) {
+    .container { max-width: 1240px; }
+    .home-grid {
+      display: grid;
+      grid-template-columns: minmax(280px, 300px) minmax(460px, 560px) minmax(280px, 300px);
+      gap: 20px;
+      align-items: start;
+      justify-content: center;
+    }
+    /* grid-row: 1 на всех — иначе sparse-автоплейсмент уводит центральную колонку во 2-й ряд */
+    .home-col { display: block; grid-row: 1; }
+    .home-col-left   { grid-column: 1; }
+    .home-col-center { grid-column: 2; }  /* центральная колонка — визуально главная */
+    .home-col-right  { grid-column: 3; }
+    /* в узкой центральной колонке «Новая операция» встаёт над таблицей «Операции» */
+    .home-col-center .main-grid { grid-template-columns: 1fr; }
+    /* секции не растягиваем на весь монитор — ширину держит сетка колонок */
+    .home-col > .panel, .home-col > .summary-grid, .home-col > .io-cards { margin-bottom: 20px; }
+  }
+
   .config-banner {
     background: #FDEEEE;
     border: 1px solid #E7B9B4;
@@ -746,7 +770,11 @@
   .analytics-back svg { width: 16px; height: 16px; }
   .analytics-teaser { display: block; width: 100%; text-align: left; cursor: pointer; border: 1px solid var(--border); background: var(--card-bg); }
   .analytics-teaser-text { font-size: 13px; color: var(--text-secondary); line-height: 1.45; margin-bottom: 8px; }
-  .analytics-teaser-link { color: var(--btn-primary); font-weight: 700; font-size: 13.5px; }
+  .analytics-teaser-link { color: var(--purple); font-weight: 700; font-size: 13.5px; }
+  /* §3: фиолетовый — цвет аналитики (только акценты, не большие области). */
+  #analyticsTeaser h2 svg { color: var(--purple); }
+  #dynamicsBadge, #expenseOverviewBadge { background: var(--purple-bg); color: var(--purple); }
+  #dynamicsByDayBtn.active, #dynamicsByMonthBtn.active { background: var(--purple); border-color: var(--purple); color: #fff; }
   .page-tab-btn {
     padding: 10px 18px;
     border-radius: var(--radius-sm);
@@ -1570,6 +1598,10 @@
   </div>
 
   <div id="budgetView">
+  <!-- §6 (2026-07-24): десктоп-дашборд в 3 колонки. На <1100px обёртки прозрачны (display:contents),
+       порядок блоков остаётся мобильным; на десктопе визуальные колонки задаёт grid-column. -->
+  <div class="home-grid">
+  <div class="home-col home-col-left">
   <!-- A3 (2026-07-17): hero-остаток + фраза-прогноз + компактный ряд из 3 метрик -->
   <div class="summary-grid">
     <div class="summary-card balance hero">
@@ -1600,6 +1632,8 @@
     <span class="debts-row-label">Долги</span>
     <span class="debts-row-right"><span class="debts-row-value" id="debtsMonthTotal">—</span> <i data-lucide="chevron-right"></i></span>
   </button>
+  </div><!-- /home-col-left -->
+  <div class="home-col home-col-right">
 
   <!-- A3: единая лента предстоящих движений за месяц (подписки + ежемес. расходы + ожид. доходы) -->
   <div class="panel" id="upcomingFeedPanel">
@@ -1664,6 +1698,8 @@
       </div>
     </button>
   </div>
+  </div><!-- /home-col-right -->
+  <div class="home-col home-col-center">
 
   <div class="main-grid">
     <!-- FORM (inline on desktop; slides up as a bottom sheet on mobile, opened via the quick-action card above or the bottom-nav "+" button) -->
@@ -1923,6 +1959,8 @@
       </div>
     </div>
   </div>
+  </div><!-- /home-col-center -->
+  </div><!-- /home-grid -->
   </div>
 
   <!-- ТЗ 2026-07-18 Этап 1: отдельный экран «Аналитика» (подробные графики переносятся сюда) -->
