@@ -379,6 +379,23 @@
   .upcoming-amount { font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; font-size: 13.5px; }
   .upcoming-amount.out { color: var(--expense-accent); }
   .upcoming-amount.in { color: var(--income-accent); }
+  /* 2026-07-24: 3D-иконки категорий (единый набор PNG, ТЗ). Одна точка вывода — <img>,
+     без tint/recolor/фильтров, с сохранением пропорций; лёгкое скругление скрывает край холста. */
+  .category-icon-3d {
+    display: block;
+    width: var(--category-icon-size, 44px);
+    height: var(--category-icon-size, 44px);
+    object-fit: contain;
+    flex: 0 0 auto;
+    border-radius: 10px;
+    user-select: none;
+    -webkit-user-drag: none;
+  }
+  .category-icon-3d.ci-lg { --category-icon-size: 52px; }
+  .category-icon-3d.ci-row { --category-icon-size: 40px; }
+  .category-icon-3d.ci-sm { --category-icon-size: 24px; border-radius: 6px; }
+  /* Иконка + подпись категории в одну строку (и в табличном, и в карточном режиме). */
+  .cat-cell { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
   /* 2026-07-19: единый значок категории + пастельные фоны (ТЗ §3.3/§3.4) */
   .mobile-finance-icon { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 10px; flex-shrink: 0; }
   .mobile-finance-icon svg { width: 18px; height: 18px; }
@@ -592,17 +609,21 @@
   .datetime-row input[type=time] { flex: 1; }
   .quick-cat-row { display: flex; gap: 5px; flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; margin-bottom: 8px; padding-bottom: 2px; }
   .quick-cat-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
     border: 1px solid var(--border);
     background: var(--card-bg);
     color: var(--text-primary);
     border-radius: 999px;
-    padding: 5px 9px;
+    padding: 5px 12px 5px 6px;
     font-size: 11.5px;
     font-weight: 600;
     white-space: nowrap;
     flex-shrink: 0;
     cursor: pointer;
   }
+  .category-icon-3d.ci-chip { --category-icon-size: 24px; border-radius: 7px; }
   .quick-cat-btn:hover { border-color: var(--expense-accent); color: var(--expense-accent); }
   .quick-cat-btn.active { background: var(--expense-accent); border-color: var(--expense-accent); color: #fff; }
   /* F2 (2026-07-17): быстрый/полный режим bottom-sheet «Новая операция» */
@@ -798,7 +819,7 @@
   .category-ranking-total-caption { font-size: 11px; color: var(--text-muted); margin-bottom: 14px; }
   .category-ranking-row { margin-bottom: 12px; }
   .category-ranking-row:last-child { margin-bottom: 0; }
-  .category-ranking-row-head { display: flex; align-items: baseline; gap: 6px; margin-bottom: 5px; }
+  .category-ranking-row-head { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
   .category-ranking-name { font-size: 13.5px; font-weight: 600; color: var(--text-primary); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
   .category-ranking-amount { font-size: 13px; font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; flex-shrink: 0; }
   .category-ranking-pct { font-size: 11.5px; color: var(--text-secondary); flex-shrink: 0; width: 42px; text-align: right; }
@@ -2332,7 +2353,7 @@
     <button type="button" class="bottom-sheet-close" id="txDetailCloseBtn" aria-label="Закрыть"><i data-lucide="x"></i></button>
     <div class="panel">
       <div class="tx-detail-head">
-        <span class="mobile-finance-icon" id="txDetailIcon"></span>
+        <img class="category-icon-3d ci-lg" id="txDetailIcon" alt="" decoding="async">
         <div style="min-width:0;">
           <div class="tx-detail-cat" id="txDetailCat"></div>
           <div class="tx-detail-sub" id="txDetailSub"></div>
@@ -3965,7 +3986,7 @@ function renderFrequentCats() {
   const current = document.getElementById('categorySelect').value;
   const cats = getFrequentCategories(state.kind, 6);
   row.innerHTML = cats.length
-    ? cats.map(c => `<button type="button" class="quick-cat-btn${c === current ? ' active' : ''}" data-cat="${escapeHtml(c)}">${escapeHtml(c)}</button>`).join('')
+    ? cats.map(c => `<button type="button" class="quick-cat-btn${c === current ? ' active' : ''}" data-cat="${escapeHtml(c)}">${categoryIconImg(c, state.kind, 'ci-chip')}<span>${escapeHtml(c)}</span></button>`).join('')
     : '<span class="quick-cat-hint" style="margin:0;">Категорий пока нет — добавьте через «Все поля»</span>';
 }
 
@@ -5503,14 +5524,19 @@ function renderExpectedIncome() {
     } else {
       tr.innerHTML = `
         <td class="rc-primary">
-          <div style="font-weight:700; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
-            ${escapeHtml(item.name)}
-            ${item.is_received ? '<span class="cat-badge" style="background:var(--income-bg);color:var(--income-accent);">Получено</span>' : ''}
-          </div>
-          <div class="days-remaining">${item.category ? escapeHtml(item.category) : ''}${item.is_recurring ? ' · Ежемесячно' : ''}</div>
-          ${item.received_amount != null && !moneyEqual(item.received_amount, item.amount)
-            ? `<div class="days-remaining" style="color:var(--warning);">Получено ${fmt.format(item.received_amount)} из ${fmt.format(item.amount)}</div>`
-            : ''}
+          <span class="cat-cell" style="align-items:flex-start;">
+            ${categoryIconImg(item.category, 'income')}
+            <span style="min-width:0; flex:1;">
+              <div style="font-weight:700; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                ${escapeHtml(item.name)}
+                ${item.is_received ? '<span class="cat-badge" style="background:var(--income-bg);color:var(--income-accent);">Получено</span>' : ''}
+              </div>
+              <div class="days-remaining">${item.category ? escapeHtml(item.category) : ''}${item.is_recurring ? ' · Ежемесячно' : ''}</div>
+              ${item.received_amount != null && !moneyEqual(item.received_amount, item.amount)
+                ? `<div class="days-remaining" style="color:var(--warning);">Получено ${fmt.format(item.received_amount)} из ${fmt.format(item.amount)}</div>`
+                : ''}
+            </span>
+          </span>
         </td>
         <td class="rc-secondary">
           <div>${item.expected_date ? formatDateHuman(item.expected_date) : '—'}</div>
@@ -5736,13 +5762,12 @@ function renderRecurring() {
       </td>`;
       tbody.appendChild(hr);
     }
-    const vis = categoryVisual(g);
     const tr = document.createElement('tr');
     tr.className = 'recurring-row' + (grouped && state.recurringCollapsed[status] ? ' rrow-hidden' : '');
     tr.dataset.rstatus = status;
     const endFmt = g.endDate ? new Date(g.endDate).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '';
     tr.innerHTML = `
-      <td class="rc-primary"><span class="mobile-finance-icon ${vis.cls}"><i data-lucide="${vis.icon}"></i></span><span class="cat-badge">${g.subcategory ? `${g.category} · ${g.subcategory}` : g.category}</span></td>
+      <td class="rc-primary"><span class="cat-cell">${categoryIconImg(g.category, 'expense')}<span class="cat-badge">${g.subcategory ? `${g.category} · ${g.subcategory}` : g.category}</span></span></td>
       <td class="rc-secondary">
         <input type="date" class="shopping-date-input recurring-date-input" value="${g.minDate}" min="2020-01-01" max="2099-12-31" onchange="updateRecurringGroupDate('${groupId}', this.value)">
         ${endFmt ? `<div class="days-remaining">до ${endFmt}</div>` : ''}
@@ -5890,10 +5915,8 @@ function openTxDetailSheet(id) {
   const t = state.transactions.find(x => x.id === id);
   if (!t) return;
   txDetailCurrentId = id;
-  const vis = categoryVisual(t);
   const iconEl = document.getElementById('txDetailIcon');
-  iconEl.className = 'mobile-finance-icon ' + vis.cls;
-  iconEl.innerHTML = `<i data-lucide="${vis.icon}"></i>`;
+  iconEl.src = getCategoryIcon(t.category, t.kind);
   document.getElementById('txDetailCat').textContent = txCategoryLabel(t);
   document.getElementById('txDetailSub').textContent = t.kind === 'income' ? 'Доход' : 'Расход';
   const amtEl = document.getElementById('txDetailAmount');
@@ -6495,28 +6518,79 @@ function txCategoryLabel(t) {
 }
 
 // 2026-07-19: смысловая Lucide-иконка + цвет по категории операции (ТЗ §3.3/§6.6).
-function categoryVisual(t) {
-  const s = `${t.category || ''} ${t.subcategory || ''}`.toLowerCase();
-  const map = [
-    [/ипотек|жиль|аренд|квартир|\bдом\b/, 'house', 'icon-blue'],
-    [/жкх|комму|электр|\bсвет\b|\bгаз\b|\bвода\b/, 'plug-zap', 'icon-orange'],
-    [/интернет|провайд|wi-?fi/, 'wifi', 'icon-blue'],
-    [/связь|мобиль|телефон|сотов/, 'smartphone', 'icon-blue'],
-    [/транспорт|бензин|топлив|\bавто|такси|метро|проезд|каршер/, 'car', 'icon-blue'],
-    [/продукт|\bеда\b|магазин|супермаркет|пятёр|перекрёст|магнит|лент|ашан|вкусвил/, 'shopping-basket', 'icon-green'],
-    [/образован|школ|\bкурс|учеб|универ|репетит/, 'graduation-cap', 'icon-purple'],
-    [/здоров|аптек|медиц|\bврач|лекарств|стомат/, 'heart-pulse', 'icon-red'],
-    [/кредит|займ|\bбанк|ссуд|рассроч/, 'landmark', 'icon-orange'],
-    [/страхов|осаго|каско/, 'shield-check', 'icon-green'],
-    [/\bдет|ребён|ребен|садик|детсад|няня/, 'baby', 'icon-purple'],
-    [/развлеч|\bигр|кино|\bбар\b|кафе|ресторан|отдых/, 'gamepad-2', 'icon-purple'],
-    [/подписк|сервис|облак|хранилищ/, 'app-window', 'icon-purple'],
-    [/зарплат|\bдоход|клиент|гонорар|аванс|\bоплата\b|выплат/, 'wallet', 'icon-green'],
-    [/обязатель/, 'receipt-text', 'icon-orange'],
-    [/покупк/, 'shopping-bag', 'icon-blue'],
-  ];
-  for (const [re, icon, cls] of map) if (re.test(s)) return { icon, cls };
-  return t.kind === 'income' ? { icon: 'circle-plus', cls: 'icon-green' } : { icon: 'circle-minus', cls: 'icon-red' };
+/* ================= 3D-ИКОНКИ КАТЕГОРИЙ (единый resolver, 2026-07-24) =================
+   Единственная точка истины для иконок категорий во всех экранах. Ключ — русское название
+   категории (в БД нет стабильного slug/ID), плюс алиасы из icon_manifest.json и фактические
+   названия категорий приложения. Неизвестные категории → fallback по типу операции. */
+const CATEGORY_ICON_BASE = 'assets/icons/categories/3d';
+const CATEGORY_ICON_FALLBACK = {
+  expense: CATEGORY_ICON_BASE + '/expenses/21_other_expense.png',
+  income: CATEGORY_ICON_BASE + '/income/27_other_income.png',
+};
+const CATEGORY_ICON_MAP = Object.freeze({
+  // ——— расходы (алиасы из manifest) ———
+  'Продукты': CATEGORY_ICON_BASE + '/expenses/01_products.png',
+  'Транспорт': CATEGORY_ICON_BASE + '/expenses/02_transport.png',
+  'Жильё': CATEGORY_ICON_BASE + '/expenses/03_housing.png',
+  'Жилье': CATEGORY_ICON_BASE + '/expenses/03_housing.png',
+  'ЖКХ': CATEGORY_ICON_BASE + '/expenses/04_utilities.png',
+  'Коммунальные услуги': CATEGORY_ICON_BASE + '/expenses/04_utilities.png',
+  'Интернет и связь': CATEGORY_ICON_BASE + '/expenses/05_internet_communication.png',
+  'Связь': CATEGORY_ICON_BASE + '/expenses/05_internet_communication.png',
+  'Интернет': CATEGORY_ICON_BASE + '/expenses/05_internet_communication.png',
+  'Здоровье': CATEGORY_ICON_BASE + '/expenses/06_health.png',
+  'Медицина': CATEGORY_ICON_BASE + '/expenses/06_health.png',
+  'Дети': CATEGORY_ICON_BASE + '/expenses/07_children.png',
+  'Образование': CATEGORY_ICON_BASE + '/expenses/08_education.png',
+  'Кафе и рестораны': CATEGORY_ICON_BASE + '/expenses/09_cafes_restaurants.png',
+  'Кафе': CATEGORY_ICON_BASE + '/expenses/09_cafes_restaurants.png',
+  'Рестораны': CATEGORY_ICON_BASE + '/expenses/09_cafes_restaurants.png',
+  'Развлечения': CATEGORY_ICON_BASE + '/expenses/10_entertainment.png',
+  'Одежда и обувь': CATEGORY_ICON_BASE + '/expenses/11_clothing_shoes.png',
+  'Одежда': CATEGORY_ICON_BASE + '/expenses/11_clothing_shoes.png',
+  'Обувь': CATEGORY_ICON_BASE + '/expenses/11_clothing_shoes.png',
+  'Красота и уход': CATEGORY_ICON_BASE + '/expenses/12_beauty_care.png',
+  'Красота': CATEGORY_ICON_BASE + '/expenses/12_beauty_care.png',
+  'Уход': CATEGORY_ICON_BASE + '/expenses/12_beauty_care.png',
+  'Дом и быт': CATEGORY_ICON_BASE + '/expenses/13_home_household.png',
+  'Быт': CATEGORY_ICON_BASE + '/expenses/13_home_household.png',
+  'Покупки': CATEGORY_ICON_BASE + '/expenses/14_shopping.png',
+  'Подарки': CATEGORY_ICON_BASE + '/expenses/15_gifts.png',
+  'Путешествия': CATEGORY_ICON_BASE + '/expenses/16_travel.png',
+  'Отпуск': CATEGORY_ICON_BASE + '/expenses/16_travel.png',
+  'Кредиты': CATEGORY_ICON_BASE + '/expenses/17_loans.png',
+  'Кредит': CATEGORY_ICON_BASE + '/expenses/17_loans.png',
+  'Страхование': CATEGORY_ICON_BASE + '/expenses/18_insurance.png',
+  'Страховка': CATEGORY_ICON_BASE + '/expenses/18_insurance.png',
+  'Подписки': CATEGORY_ICON_BASE + '/expenses/19_subscriptions.png',
+  'Обязательные расходы': CATEGORY_ICON_BASE + '/expenses/20_mandatory_expenses.png',
+  'Прочее': CATEGORY_ICON_BASE + '/expenses/21_other_expense.png',
+  'Прочие расходы': CATEGORY_ICON_BASE + '/expenses/21_other_expense.png',
+  // ——— доходы (алиасы из manifest) ———
+  'Зарплата': CATEGORY_ICON_BASE + '/income/22_salary.png',
+  'Аванс': CATEGORY_ICON_BASE + '/income/23_advance.png',
+  'Дополнительный доход': CATEGORY_ICON_BASE + '/income/24_additional_income.png',
+  'Подработка': CATEGORY_ICON_BASE + '/income/24_additional_income.png',
+  'Возврат средств': CATEGORY_ICON_BASE + '/income/25_refund.png',
+  'Возврат': CATEGORY_ICON_BASE + '/income/25_refund.png',
+  'Подарок / перевод': CATEGORY_ICON_BASE + '/income/26_gift_transfer.png',
+  'Подарок': CATEGORY_ICON_BASE + '/income/26_gift_transfer.png',
+  'Перевод': CATEGORY_ICON_BASE + '/income/26_gift_transfer.png',
+  'Прочий доход': CATEGORY_ICON_BASE + '/income/27_other_income.png',
+  // ——— фактические названия категорий приложения (расширенные алиасы) ———
+  'Обязательный': CATEGORY_ICON_BASE + '/expenses/20_mandatory_expenses.png',
+  'Клиенты': CATEGORY_ICON_BASE + '/income/24_additional_income.png',
+  'Гонорар': CATEGORY_ICON_BASE + '/income/24_additional_income.png',
+});
+// operationType: 'expense' | 'income'. Возвращает путь к PNG по стабильному ключу категории.
+function getCategoryIcon(category, operationType = 'expense') {
+  const key = String(category || '').trim();
+  if (CATEGORY_ICON_MAP[key]) return CATEGORY_ICON_MAP[key];
+  return operationType === 'income' ? CATEGORY_ICON_FALLBACK.income : CATEGORY_ICON_FALLBACK.expense;
+}
+// Готовый <img> категории для вставки в разметку (единый вид на всех экранах).
+function categoryIconImg(category, operationType, sizeClass = 'ci-row') {
+  return `<img class="category-icon-3d ${sizeClass}" src="${getCategoryIcon(category, operationType)}" alt="" loading="lazy" decoding="async">`;
 }
 
 // «Сегодня» / «Вчера» / «18 июля» — заголовок группы операций по дате.
@@ -6550,7 +6624,7 @@ function renderRecentTransactions() {
   const box = document.getElementById('recentTxList');
   box.innerHTML = list.map(t => `
     <div class="recent-tx-row">
-      <div class="recent-tx-icon ${t.kind}"><i data-lucide="${t.kind === 'income' ? 'arrow-down-left' : 'arrow-up-right'}"></i></div>
+      ${categoryIconImg(t.category, t.kind)}
       <div class="recent-tx-info">
         <div class="recent-tx-cat">${txCategoryLabel(t)}</div>
         <div class="recent-tx-date">${t.date}${t.comment ? ' · ' + escapeHtml(t.comment) : ''}</div>
@@ -6621,7 +6695,6 @@ function renderTable() {
       hr.innerHTML = `<td colspan="5"><span class="tx-day-label">${dayGroupLabel(t.date)}</span>${totalHtml}</td>`;
       tbody.appendChild(hr);
     }
-    const vis = categoryVisual(t);
     const sign = t.kind === 'income' ? '+' : '−';
     const timeStr = t.time ? t.time.slice(0, 5) : '';
     const tr = document.createElement('tr');
@@ -6635,7 +6708,7 @@ function renderTable() {
         </div>
         <span class="tx-date-plain">${txSecondLine(t)}</span>
       </td>
-      <td class="rc-primary"><span class="mobile-finance-icon ${vis.cls}"><i data-lucide="${vis.icon}"></i></span><span class="cat-badge">${txCategoryLabel(t)}</span></td>
+      <td class="rc-primary"><span class="cat-cell">${categoryIconImg(t.category, t.kind)}<span class="cat-badge">${txCategoryLabel(t)}</span></span></td>
       <td class="comment-cell tx-comment-cell rc-secondary" onclick="this.classList.toggle('rc-expanded')">${t.comment || ''}</td>
       <td class="rc-amount ${t.kind === 'income' ? 'amount-income' : 'amount-expense'}" style="text-align:right;">
         <span class="tx-amount-edit">${sign}
@@ -7015,6 +7088,7 @@ function renderCategoryRanking(boxId, kind) {
     return `
       <div class="category-ranking-row">
         <div class="category-ranking-row-head">
+          ${categoryIconImg(name, kind, 'ci-sm')}
           <span class="category-ranking-name">${escapeHtml(name)}</span>
           <span class="category-ranking-amount">${fmt.format(amount)}</span>
           <span class="category-ranking-pct">${pct.toFixed(1)}%</span>
@@ -7031,6 +7105,7 @@ function renderCategoryRanking(boxId, kind) {
       html += `
         <div class="category-ranking-row">
           <div class="category-ranking-row-head">
+            ${categoryIconImg('', kind, 'ci-sm')}
             <span class="category-ranking-name">Остальные категории</span>
             <span class="category-ranking-amount">${fmt.format(restTotal)}</span>
             <span class="category-ranking-pct">${restPct.toFixed(1)}%</span>
