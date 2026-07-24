@@ -7245,17 +7245,17 @@ function renderRealBalance() {
     return;
   }
 
-  // §19/§20: подпись — если со сверки что-то изменилось, поясняем, что сумма расчётная;
-  // для устаревшей сверки (>7 дней) — отдельный текст ТЗ §20, независимо от наличия изменений.
+  // §19/§20 (доработка по замечанию): статус сверки — отдельная, всегда одинаковая строка
+  // («какая часть точная»), не зависящая от того, изменился ли текущий остаток операциями
+  // («какая часть расчётная» — это уже сама главная сумма). Для устаревшей сверки (>7 дней) —
+  // отдельный текст ТЗ §20.
   let statusText;
   if (level === 'old') {
     statusText = `Расчётный остаток на основе сверки ${days} ${pluralDays(days)} назад`;
-  } else if (calc.operationsDelta !== 0) {
-    statusText = `На основе сверки от ${formatDateHuman(snapDay(snap))} и внесённых операций`;
   } else if (days <= 0) {
-    statusText = wasEdited ? `Обновлено сегодня в ${timeStr}` : `Сверено сегодня в ${timeStr}`;
+    statusText = wasEdited ? `Обновлено сегодня в ${timeStr}` : `Подтверждено вручную сегодня в ${timeStr}`;
   } else {
-    statusText = `Последняя сверка ${days} ${pluralDays(days)} назад`;
+    statusText = `Подтверждено вручную ${days} ${pluralDays(days)} назад`;
   }
 
   const btnLabel = level === 'old' ? 'Сверить остаток' : 'Обновить остаток';
@@ -7279,8 +7279,8 @@ function renderRealBalance() {
     }
     if (hasOperationsBreakdown) {
       html += `<div class="rb-break-row"><span>Подтверждено вручную</span><span>${fmt.format(calc.confirmedBalance)}</span></div>`;
-      if (calc.incomeDelta !== 0) html += `<div class="rb-break-row"><span>Доходы после сверки</span><span class="rb-pos">+${fmt.format(calc.incomeDelta)}</span></div>`;
-      if (calc.expenseDelta !== 0) html += `<div class="rb-break-row"><span>Расходы после сверки</span><span class="rb-neg">${fmt.format(calc.expenseDelta)}</span></div>`;
+      if (calc.incomeDelta !== 0) html += `<div class="rb-break-row"><span>Внесённые доходы</span><span class="rb-pos">+${fmt.format(calc.incomeDelta)}</span></div>`;
+      if (calc.expenseDelta !== 0) html += `<div class="rb-break-row"><span>Внесённые расходы</span><span class="rb-neg">${fmt.format(calc.expenseDelta)}</span></div>`;
       html += `<div class="rb-break-row rb-break-total"><span>Текущий остаток</span><span>${fmt.format(calc.currentBalance)}</span></div>`;
     }
     html += `</div>`;
