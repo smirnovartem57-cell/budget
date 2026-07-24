@@ -772,35 +772,44 @@
   .datetime-row { display: flex; gap: 8px; }
   .datetime-row input[type=date] { flex: 1.3; }
   .datetime-row input[type=time] { flex: 1; }
-  .quick-cat-row { display: flex; gap: 5px; flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; margin-bottom: 8px; padding-bottom: 2px; }
+  /* ТЗ №2 (2026-07-24) §5/§6: карточки «Недавние категории» — grid, не строка с горизонтальным
+     скроллом, тап-таргет не меньше 44px по высоте. */
+  .quick-cat-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 8px; }
   .quick-cat-btn {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    border: 1px solid var(--border);
+    border: 1.5px solid var(--border);
     background: var(--card-bg);
     color: var(--text-primary);
-    border-radius: 999px;
-    padding: 5px 12px 5px 6px;
-    font-size: 11.5px;
+    border-radius: 12px;
+    padding: 7px 10px;
+    min-height: 44px;
+    font-size: 12px;
     font-weight: 600;
-    white-space: nowrap;
-    flex-shrink: 0;
+    line-height: 1.2;
     cursor: pointer;
   }
-  .category-icon-3d.ci-chip { --category-icon-size: 30px; border-radius: 8px; }
+  .quick-cat-btn span { overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .category-icon-3d.ci-chip { --category-icon-size: 28px; border-radius: 8px; flex-shrink: 0; }
   .quick-cat-btn:hover { border-color: var(--expense-accent); color: var(--expense-accent); }
-  .quick-cat-btn.active { background: var(--expense-accent); border-color: var(--expense-accent); color: #fff; }
-  /* F2 (2026-07-17): быстрый/полный режим bottom-sheet «Новая операция» */
-  .sheet-mode-toggle { display: inline-flex; background: var(--surface-2, #eef2f7); border-radius: 10px; padding: 3px; gap: 3px; margin: 6px 0 14px; }
-  .sheet-mode-toggle button { border: none; background: transparent; padding: 7px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--text-secondary); cursor: pointer; -webkit-tap-highlight-color: transparent; }
-  .sheet-mode-toggle button.active { background: var(--card-bg, #fff); color: var(--text-primary); box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+  .quick-cat-btn.active { background: var(--expense-accent); border-color: var(--expense-accent); color: #fff; box-shadow: inset 0 0 0 2px rgba(255,255,255,.5); }
   .sheet-amount-row { display: flex; gap: 8px; align-items: stretch; }
   .sheet-amount-row .sheet-amount-input { flex: 1; min-width: 0; }
-  #txSheetPanel.mode-quick .sheet-full-only { display: none; }
-  #txSheetPanel.mode-full .sheet-quick-only { display: none; }
-  #txSheetPanel.mode-quick .sheet-amount-input { font-size: 30px; font-weight: 800; text-align: center; padding: 12px; height: auto; font-variant-numeric: tabular-nums; }
+  .sheet-amount-input { font-size: 30px; font-weight: 800; text-align: center; padding: 12px; height: auto; font-variant-numeric: tabular-nums; }
   .quick-cat-hint { font-size: 12px; color: var(--text-secondary); margin-top: 6px; }
+  /* ТЗ №2 §7: карточки «Повторить недавний расход» */
+  .repeat-expense-row { display: flex; flex-direction: column; gap: 6px; }
+  .repeat-expense-btn {
+    display: flex; align-items: center; gap: 10px; width: 100%;
+    border: 1.5px solid var(--border); background: var(--card-bg); border-radius: 14px;
+    padding: 8px 12px; min-height: 44px; text-align: left; cursor: pointer;
+  }
+  .repeat-expense-btn:hover { border-color: var(--expense-accent); }
+  .repeat-expense-btn .rp-main { flex: 1; min-width: 0; font-size: 13px; font-weight: 600; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .repeat-expense-btn .rp-last { font-size: 11.5px; color: var(--text-secondary); font-weight: 500; flex-shrink: 0; }
+  .sheet-save-row { display: flex; flex-direction: column; gap: 8px; }
+  .sheet-save-row .btn-primary, .sheet-save-row .btn-secondary { min-height: 48px; }
   .cat-suggestion {
     margin-top: 8px;
     padding: 8px 10px;
@@ -944,6 +953,7 @@
   }
   .btn-primary { background: var(--btn-primary); color: var(--btn-primary-text); width: 100%; }
   .btn-primary:hover { background: var(--btn-primary-hover); }
+  .btn-primary:disabled, .btn-secondary:disabled { opacity: .6; cursor: default; }
   .btn-secondary { background: var(--info-bg); color: var(--btn-primary); }
   .btn-secondary:hover { background: #DCE7FF; }
   .btn-danger { background: var(--expense-accent); color: #fff; }
@@ -1897,9 +1907,9 @@
     <div class="bottom-sheet">
     <div class="bottom-sheet-handle"></div>
     <button type="button" class="bottom-sheet-close" id="txSheetCloseBtn" aria-label="Закрыть"><i data-lucide="x"></i></button>
-    <div class="panel mode-quick" id="txSheetPanel">
+    <div class="panel" id="txSheetPanel">
       <h2 style="justify-content:space-between;">
-        <span>Новая операция</span>
+        <span id="txSheetTitle">Новая операция</span>
         <label class="ai-toggle-label" title="Подсказывать категорию по правилам, истории и словарю">
           <input type="checkbox" id="aiAutoCatToggle"> <i data-lucide="sparkles" style="width:14px;height:14px;vertical-align:-2px;"></i> Автокатегория
         </label>
@@ -1907,12 +1917,6 @@
       <div class="kind-toggle">
         <button type="button" id="btnKindIncome" class="active income-active">Доход</button>
         <button type="button" id="btnKindExpense">Расход</button>
-      </div>
-
-      <!-- F2 (2026-07-17): быстрый/полный режим добавления -->
-      <div class="sheet-mode-toggle" id="sheetModeToggle">
-        <button type="button" id="sheetModeQuickBtn" class="active">Быстро</button>
-        <button type="button" id="sheetModeFullBtn">Все поля</button>
       </div>
 
       <div class="form-row">
@@ -1923,14 +1927,23 @@
         </div>
       </div>
 
-      <!-- F2: частые категории по частоте использования — быстрый режим -->
-      <div class="form-row sheet-quick-only" id="frequentCatBlock">
-        <label>Частые категории</label>
+      <!-- ТЗ №2 (2026-07-24) §5: «Недавние категории» — последние уникальные категории расходов,
+           только для расхода. Быстрый путь: тап по карточке выбирает категорию в обычном списке
+           ниже, не сохраняет операцию автоматически. -->
+      <div class="form-row" id="frequentCatBlock">
+        <label>Недавние категории</label>
         <div class="quick-cat-row" id="quickCatRow"></div>
-        <div class="quick-cat-hint" id="quickCatHint">Коснитесь категории — операция добавится одним нажатием</div>
+        <div class="quick-cat-hint" id="quickCatHint">Коснитесь категории, чтобы выбрать её — сумму и сохранение введите ниже</div>
       </div>
 
-      <div class="sheet-full-only" id="sheetFullFields">
+      <!-- ТЗ №2 §7: «Повторить недавний расход» — до 3 последних уникальных расходов. Переносит
+           категорию/название/комментарий, НЕ переносит сумму и дату (дата = сегодня). -->
+      <div class="form-row" id="repeatExpenseBlock" style="display:none;">
+        <label>Повторить недавний расход</label>
+        <div class="repeat-expense-row" id="repeatExpenseRow"></div>
+      </div>
+
+      <div id="sheetFullFields">
         <div class="form-row">
           <label>Категория</label>
           <select id="categorySelect"></select>
@@ -1981,7 +1994,10 @@
         </div>
       </div>
 
-      <button class="btn-primary" id="submitBtn">Добавить</button>
+      <div class="sheet-save-row">
+        <button class="btn-primary" id="submitBtn">Добавить</button>
+        <button type="button" class="btn-secondary" id="submitAndAddBtn" style="display:none;">Сохранить и добавить ещё</button>
+      </div>
     </div>
     </div>
     </div>
@@ -2655,6 +2671,9 @@
       <div class="form-row"><label>Дата и время</label><div class="datetime-row"><input type="date" id="txDetailDate" min="2020-01-01" max="2099-12-31"><input type="time" id="txDetailTime"></div></div>
       <div class="form-row"><label>Комментарий</label><input type="text" id="txDetailComment" placeholder="Например: покупки домой"></div>
       <button type="button" class="btn-primary" id="txDetailSaveBtn">Сохранить</button>
+      <!-- ТЗ №2 (2026-07-24) §8: «Повторить расход» — только для расхода, открывает форму создания
+           (НЕ режим редактирования), сумму не переносит. -->
+      <button type="button" class="btn-secondary" id="txDetailRepeatBtn" style="width:100%;margin-top:8px;display:none;"><i data-lucide="rotate-ccw"></i> Повторить расход</button>
       <div class="tx-detail-actions">
         <button type="button" class="btn-secondary" id="txDetailDuplicateBtn"><i data-lucide="copy"></i> Дублировать</button>
         <button type="button" class="btn-ghost tx-detail-delete" id="txDetailDeleteBtn"><i data-lucide="trash-2"></i> Удалить</button>
@@ -2747,6 +2766,7 @@ const fmt = { format: fmt_format };
 
 let state = {
   kind: 'income',        // income | expense
+  operationFormMode: null, // ТЗ №2 §15: 'create-expense' | 'create-income' | 'repeat-expense'
   categories: [],
   transactions: [],
   debts: [],
@@ -3636,15 +3656,34 @@ document.getElementById('navBudgetBtn').addEventListener('click', () => switchPa
 document.getElementById('navDebtsBtn').addEventListener('click', () => switchPageTab('debts'));
 document.getElementById('navShoppingBtn').addEventListener('click', () => switchPageTab('shopping'));
 document.getElementById('navIncomeBtn').addEventListener('click', () => switchPageTab('income'));
-function openTxSheet() {
+// ТЗ №2 (2026-07-24) §15: явные режимы формы, не выводятся из текста заголовка.
+// 'create-expense' | 'create-income' | 'repeat-expense'. Сбрасывается при закрытии/после сохранения.
+function openTxSheet(mode) {
   switchPageTab('budget');
-  setSheetMode('quick');
+  state.operationFormMode = mode || 'create-expense';
+  document.getElementById('txSheetTitle').textContent = state.operationFormMode === 'repeat-expense' ? 'Повторить расход' : 'Новая операция';
   renderFrequentCats();
+  renderRepeatExpenseBlock();
   document.getElementById('txSheetOverlay').classList.add('visible');
   setTimeout(() => document.getElementById('amountInput').focus(), 300);
 }
 function closeTxSheet() {
   document.getElementById('txSheetOverlay').classList.remove('visible');
+  state.operationFormMode = null;
+}
+// ТЗ №2 §8: «Повторить расход» из истории — закрывает детальный лист, открывает ФОРМУ СОЗДАНИЯ
+// (не режим редактирования), переносит категорию/название/комментарий, НЕ переносит сумму/дату/id.
+function openRepeatExpenseFromHistory(tx) {
+  if (!tx || tx.kind !== 'expense') return;
+  closeTxDetailSheet();
+  openTxSheet('repeat-expense');
+  setKind('expense');
+  fillCategoryFields(tx.category, tx.subcategory);
+  document.getElementById('commentInput').value = tx.comment || '';
+  document.getElementById('amountInput').value = '';
+  document.getElementById('dateInput').value = todayStr();
+  document.getElementById('timeInput').value = new Date().toTimeString().slice(0, 5);
+  setTimeout(() => document.getElementById('amountInput').focus(), 50);
 }
 document.getElementById('navAddBtn').addEventListener('click', openTxSheet);
 // Быстрые действия (ТЗ 2026-07-24 «главная вокруг остатка», §8) — используют существующие
@@ -3797,6 +3836,9 @@ document.getElementById('dynamicsByMonthBtn').addEventListener('click', () => {
 
 function setKind(kind) {
   state.kind = kind;
+  // repeat-expense режим переживает переключение расход->расход, но не расход->доход.
+  state.operationFormMode = (state.operationFormMode === 'repeat-expense' && kind === 'expense')
+    ? 'repeat-expense' : (kind === 'income' ? 'create-income' : 'create-expense');
   categoryManuallySet = false;
   pendingSuggestion = null;
   hideCatSuggestion();
@@ -3805,7 +3847,12 @@ function setKind(kind) {
   document.getElementById('btnKindExpense').classList.toggle('active', kind === 'expense');
   document.getElementById('btnKindExpense').classList.toggle('expense-active', kind === 'expense');
   document.getElementById('recurringRow').style.display = kind === 'expense' ? 'block' : 'none';
-  renderFrequentCats(); // F2: частые категории пересобираются под выбранный тип
+  // ТЗ №2 §12/§13: кнопка «Сохранить расход» и «Сохранить и добавить ещё» — только для расхода;
+  // доход сохраняет прежнюю формулировку и не получает вторую кнопку.
+  document.getElementById('submitBtn').textContent = kind === 'expense' ? 'Сохранить расход' : 'Добавить';
+  document.getElementById('submitAndAddBtn').style.display = kind === 'expense' ? '' : 'none';
+  renderFrequentCats(); // ТЗ №2 §5: недавние категории пересобираются под выбранный тип
+  renderRepeatExpenseBlock(); // ТЗ №2 §7
   if (kind === 'income') {
     document.getElementById('recurringCheckbox').checked = false;
     document.getElementById('recurringEndDateRow').style.display = 'none';
@@ -4296,26 +4343,31 @@ function syncQuickCatButtons() {
   });
 }
 
-// F2: чипы «частых категорий» строятся по фактической частоте использования (kind-aware),
-// с добором из существующих категорий, если истории мало.
-function getFrequentCategories(kind, n = 6) {
-  const counts = {};
-  state.transactions.forEach(t => { if (t.kind === kind && t.category) counts[t.category] = (counts[t.category] || 0) + 1; });
-  const ranked = Object.entries(counts).sort((a, b) => b[1] - a[1]).map(([c]) => c);
-  if (ranked.length < n) {
-    state.categories.filter(c => c.kind === kind).forEach(c => { if (!ranked.includes(c.name)) ranked.push(c.name); });
+// ТЗ №2 (2026-07-24) §5: «Недавние категории» — только для расхода, только по РЕЦЕНТНОСТИ
+// (не по частоте): проходим уже загруженные транзакции от новых к старым, собираем уникальные
+// категории до лимита. Никакого нового запроса к Supabase, никакого рейтинга по частоте.
+function getRecentCategories(kind, n) {
+  const seen = [];
+  for (const t of state.transactions) {
+    if (t.kind !== kind || !t.category) continue;
+    if (!seen.includes(t.category)) seen.push(t.category);
+    if (seen.length >= n) break;
   }
-  return ranked.slice(0, n);
+  return seen;
 }
 
 function renderFrequentCats() {
   const row = document.getElementById('quickCatRow');
-  if (!row) return;
+  const block = document.getElementById('frequentCatBlock');
+  if (!row || !block) return;
+  if (state.kind !== 'expense') { block.style.display = 'none'; return; }
   const current = document.getElementById('categorySelect').value;
-  const cats = getFrequentCategories(state.kind, 6);
-  row.innerHTML = cats.length
-    ? cats.map(c => `<button type="button" class="quick-cat-btn${c === current ? ' active' : ''}" data-cat="${escapeHtml(c)}">${categoryIconImg(c, state.kind, 'ci-chip')}<span>${escapeHtml(c)}</span></button>`).join('')
-    : '<span class="quick-cat-hint" style="margin:0;">Категорий пока нет — добавьте через «Все поля»</span>';
+  const n = window.innerWidth <= 767 ? 6 : 8; // §5: мобильный 4-6, десктоп 6-8
+  const cats = getRecentCategories('expense', n);
+  if (!cats.length) { block.style.display = 'none'; return; } // §5: расходов ещё нет — блок не показываем
+  block.style.display = '';
+  row.innerHTML = cats.map(c => `<button type="button" class="quick-cat-btn${c === current ? ' active' : ''}" data-cat="${escapeHtml(c)}">${categoryIconImg(c, 'expense', 'ci-chip')}<span>${escapeHtml(c)}</span></button>`).join('');
+  if (window.lucide) lucide.createIcons();
 }
 
 // Event delegation, т.к. чипы перестраиваются динамически.
@@ -4332,19 +4384,59 @@ document.getElementById('quickCatRow').addEventListener('click', (e) => {
   syncQuickCatButtons();
 });
 
-function setSheetMode(mode) {
-  state.sheetMode = mode;
-  const panel = document.getElementById('txSheetPanel');
-  if (panel) {
-    panel.classList.toggle('mode-quick', mode === 'quick');
-    panel.classList.toggle('mode-full', mode === 'full');
+// ТЗ №2 §7: «Повторить недавний расход» — до 3 последних УНИКАЛЬНЫХ расходов. Уникальность —
+// не показываем подряд идущие операции с одинаковой категорией+названием+комментарием.
+function getRepeatExpenseCandidates() {
+  const result = [];
+  let lastKey = null;
+  for (const t of state.transactions) {
+    if (t.kind !== 'expense') continue;
+    const key = t.category + '|' + (t.subcategory || '') + '|' + (t.comment || '');
+    if (key === lastKey) continue;
+    lastKey = key;
+    result.push(t);
+    if (result.length >= 3) break;
   }
-  document.getElementById('sheetModeQuickBtn').classList.toggle('active', mode === 'quick');
-  document.getElementById('sheetModeFullBtn').classList.toggle('active', mode === 'full');
-  if (mode === 'quick') renderFrequentCats();
+  return result;
 }
-document.getElementById('sheetModeQuickBtn').addEventListener('click', () => setSheetMode('quick'));
-document.getElementById('sheetModeFullBtn').addEventListener('click', () => setSheetMode('full'));
+
+function renderRepeatExpenseBlock() {
+  const block = document.getElementById('repeatExpenseBlock');
+  const row = document.getElementById('repeatExpenseRow');
+  if (!block || !row) return;
+  if (state.kind !== 'expense') { block.style.display = 'none'; return; }
+  const candidates = getRepeatExpenseCandidates();
+  if (!candidates.length) { block.style.display = 'none'; return; }
+  block.style.display = '';
+  row.innerHTML = candidates.map(t => {
+    const label = escapeHtml(t.category) + (t.subcategory ? ' / ' + escapeHtml(t.subcategory) : '') + (t.comment ? ' · ' + escapeHtml(t.comment) : '');
+    return `<button type="button" class="repeat-expense-btn" data-id="${t.id}"><span class="rp-main">${label}</span><span class="rp-last">Последний раз: ${fmt.format(Number(t.amount))}</span></button>`;
+  }).join('');
+}
+
+// Выбор категории+названия по значению (используется чипами «Недавние» через сеттер напрямую,
+// и «Повторить недавний расход»/«Повторить» из истории). Сумму и дату НЕ трогает.
+function fillCategoryFields(category, subcategory) {
+  const catSel = document.getElementById('categorySelect');
+  if (![...catSel.options].some(o => o.value === category)) return false;
+  catSel.value = category;
+  catSel.dispatchEvent(new Event('change'));
+  if (subcategory) {
+    const nameSel = document.getElementById('nameSelect');
+    if (nameSel && [...nameSel.options].some(o => o.value === subcategory)) nameSel.value = subcategory;
+  }
+  syncQuickCatButtons();
+  return true;
+}
+
+document.getElementById('repeatExpenseRow').addEventListener('click', (e) => {
+  const btn = e.target.closest('.repeat-expense-btn');
+  if (!btn) return;
+  const t = state.transactions.find(x => x.id === btn.dataset.id);
+  if (!t) return;
+  fillCategoryFields(t.category, t.subcategory);
+  document.getElementById('commentInput').value = t.comment || '';
+});
 
 // Remembers the last category/name used per kind (income/expense), so the
 // form pre-selects it next time instead of always resetting to the first
@@ -4415,20 +4507,49 @@ document.getElementById('newCatSave').addEventListener('click', async () => {
 });
 
 /* ---------------- SUBMIT TRANSACTION ---------------- */
-document.getElementById('submitBtn').addEventListener('click', async () => {
+// ТЗ №2 (2026-07-24) §13: «Сохранить и добавить ещё» — форма остаётся открытой, сумма/категория/
+// название/комментарий сбрасываются (категория намеренно НЕ повторяется автоматически, чтобы
+// не создать расход не в той категории по инерции), дата остаётся как выбрана, фокус — на сумму.
+function resetSheetFieldsForAddAnother() {
+  document.getElementById('amountInput').value = '';
+  document.getElementById('commentInput').value = '';
+  document.getElementById('timeInput').value = new Date().toTimeString().slice(0, 5);
+  const catSel = document.getElementById('categorySelect');
+  const placeholder = document.createElement('option');
+  placeholder.value = ''; placeholder.textContent = 'Выберите категорию'; placeholder.disabled = true;
+  catSel.insertBefore(placeholder, catSel.firstChild);
+  catSel.value = '';
+  document.getElementById('nameRow').classList.remove('visible');
+  document.getElementById('newCatInline').classList.remove('visible');
+  hideCatSuggestion();
+  pendingSuggestion = null;
+  syncQuickCatButtons();
+  renderFrequentCats();
+  renderRepeatExpenseBlock();
+  document.getElementById('amountInput').focus();
+}
+
+let txSaveInFlight = false;
+async function submitTxSheet(keepOpen) {
+  if (txSaveInFlight) return; // §12/§22: блокируем повторный клик, пока сохранение в процессе
   if (!isConfigured) { toast('Сначала подключите базу данных (см. README.md)'); return; }
   const sel = document.getElementById('categorySelect');
   const category = sel.value;
-  if (!category || category === '__new__') { toast('Выберите или добавьте категорию'); return; }
+  if (!category || category === '__new__') {
+    toast(state.kind === 'expense' ? 'Выберите категорию' : 'Выберите или добавьте категорию');
+    return;
+  }
   let subcategory = null;
-  // F2: в быстром режиме «Название» не требуем (поля скрыты) — добавляем по одной категории.
-  if (state.sheetMode !== 'quick' && document.getElementById('nameRow').classList.contains('visible')) {
+  if (document.getElementById('nameRow').classList.contains('visible')) {
     const nameSel = document.getElementById('nameSelect');
     if (!nameSel.value || nameSel.value === '__new__') { toast('Выберите или добавьте название'); return; }
     subcategory = nameSel.value;
   }
   const amount = parseFloat(document.getElementById('amountInput').value);
-  if (!amount || amount <= 0) { toast('Введите сумму больше нуля'); return; }
+  if (!amount || amount <= 0) {
+    toast(state.kind === 'expense' ? 'Укажите сумму расхода' : 'Введите сумму больше нуля');
+    return;
+  }
   const date = document.getElementById('dateInput').value || new Date().toISOString().slice(0,10);
   const time = document.getElementById('timeInput').value || null;
   const comment = document.getElementById('commentInput').value.trim();
@@ -4445,39 +4566,66 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
       is_recurring: true, recurring_end_date: endDate, recurring_group_id: groupId, user_id: userId,
     }));
   } else {
+    // §15/§16: и обычное создание, и «Повторить» (repeat-expense) всегда идут через INSERT —
+    // старая операция (если это повтор) нигде здесь не читается и не обновляется.
     payloads = [{ kind: state.kind, category, subcategory, amount, date, time, comment: comment || null, user_id: userId }];
   }
 
-  const { error } = await insertWithRetry('transactions', payloads);
-  if (error) { toast('Ошибка: ' + error.message); return; }
-  saveLastUsedTx(state.kind, category, subcategory);
+  const submitBtn = document.getElementById('submitBtn');
+  const addBtn = document.getElementById('submitAndAddBtn');
+  const prevSubmitText = submitBtn.textContent;
+  txSaveInFlight = true;
+  submitBtn.disabled = true; addBtn.disabled = true;
+  submitBtn.textContent = 'Сохранение…';
+  try {
+    const { error } = await insertWithRetry('transactions', payloads);
+    if (error) {
+      toast(state.kind === 'expense' ? 'Не удалось сохранить расход. Проверьте соединение и попробуйте снова.' : ('Ошибка: ' + error.message));
+      return; // §13/§22: при ошибке форму не очищаем, значения остаются
+    }
+    saveLastUsedTx(state.kind, category, subcategory);
 
-  if (comment) {
-    const normalized = normalizeText(comment);
-    if (pendingSuggestion) {
-      const wasAccepted = pendingSuggestion.category === category && (pendingSuggestion.subcategory || null) === subcategory;
-      logAiAction('categorization', 'transaction', null, { comment, kind: state.kind }, pendingSuggestion, pendingSuggestion.confidence, wasAccepted ? 'accepted' : 'corrected');
+    if (comment) {
+      const normalized = normalizeText(comment);
+      if (pendingSuggestion) {
+        const wasAccepted = pendingSuggestion.category === category && (pendingSuggestion.subcategory || null) === subcategory;
+        logAiAction('categorization', 'transaction', null, { comment, kind: state.kind }, pendingSuggestion, pendingSuggestion.confidence, wasAccepted ? 'accepted' : 'corrected');
+      }
+      const hasRule = state.categoryRules.some(r => r.kind === state.kind && r.normalized_value === normalized);
+      if (!hasRule && normalized.length >= 3 && confirm(`Запомнить категорию «${category}${subcategory ? ' · ' + subcategory : ''}» для «${comment}»?`)) {
+        const { error: ruleErr } = await supabaseClient.from('category_rules').insert({
+          user_id: userId, kind: state.kind, match_type: 'contains', match_value: comment, normalized_value: normalized, category, subcategory,
+        });
+        if (ruleErr) toast('Не удалось сохранить правило: ' + ruleErr.message);
+      }
     }
-    const hasRule = state.categoryRules.some(r => r.kind === state.kind && r.normalized_value === normalized);
-    if (!hasRule && normalized.length >= 3 && confirm(`Запомнить категорию «${category}${subcategory ? ' · ' + subcategory : ''}» для «${comment}»?`)) {
-      const { error: ruleErr } = await supabaseClient.from('category_rules').insert({
-        user_id: userId, kind: state.kind, match_type: 'contains', match_value: comment, normalized_value: normalized, category, subcategory,
-      });
-      if (ruleErr) toast('Не удалось сохранить правило: ' + ruleErr.message);
+    pendingSuggestion = null;
+
+    if (isRecurring) toast(`Добавлено платежей: ${payloads.length}`);
+    else toast(state.kind === 'expense' ? 'Расход добавлен' : 'Операция добавлена');
+
+    document.getElementById('recurringCheckbox').checked = false;
+    document.getElementById('recurringEndDateRow').style.display = 'none';
+    hideCatSuggestion();
+
+    if (keepOpen) {
+      await loadAll();
+      resetSheetFieldsForAddAnother();
+    } else {
+      document.getElementById('amountInput').value = '';
+      document.getElementById('timeInput').value = new Date().toTimeString().slice(0, 5);
+      document.getElementById('commentInput').value = '';
+      closeTxSheet();
+      await loadAll();
     }
+  } finally {
+    txSaveInFlight = false;
+    submitBtn.disabled = false; addBtn.disabled = false;
+    submitBtn.textContent = prevSubmitText;
   }
-  pendingSuggestion = null;
-
-  toast(isRecurring ? `Добавлено платежей: ${payloads.length}` : 'Операция добавлена');
-  document.getElementById('amountInput').value = '';
-  document.getElementById('timeInput').value = new Date().toTimeString().slice(0, 5);
-  document.getElementById('commentInput').value = '';
-  document.getElementById('recurringCheckbox').checked = false;
-  document.getElementById('recurringEndDateRow').style.display = 'none';
-  hideCatSuggestion();
-  closeTxSheet();
-  await loadAll();
-});
+}
+document.getElementById('submitBtn').addEventListener('click', () => submitTxSheet(false));
+document.getElementById('submitAndAddBtn').addEventListener('click', () => submitTxSheet(true));
 
 document.getElementById('dateInput').valueAsDate = new Date();
 document.getElementById('timeInput').value = new Date().toTimeString().slice(0, 5);
@@ -6263,6 +6411,8 @@ function openTxDetailSheet(id) {
   document.getElementById('txDetailDate').value = t.date;
   document.getElementById('txDetailTime').value = t.time ? t.time.slice(0, 5) : '';
   document.getElementById('txDetailComment').value = t.comment || '';
+  const repeatBtn = document.getElementById('txDetailRepeatBtn');
+  if (repeatBtn) repeatBtn.style.display = t.kind === 'expense' ? '' : 'none';
   document.getElementById('txDetailOverlay').classList.add('visible');
   if (window.lucide) lucide.createIcons();
 }
@@ -6296,6 +6446,11 @@ document.getElementById('txDetailDeleteBtn').addEventListener('click', async () 
   if (!id) return;
   closeTxDetailSheet();
   await deleteTx(id);
+});
+document.getElementById('txDetailRepeatBtn').addEventListener('click', () => {
+  const t = state.transactions.find(x => x.id === txDetailCurrentId);
+  if (!t) return;
+  openRepeatExpenseFromHistory(t);
 });
 document.getElementById('txDetailDuplicateBtn').addEventListener('click', async () => {
   const t = state.transactions.find(x => x.id === txDetailCurrentId);
@@ -7243,9 +7398,14 @@ function renderHomeSubscriptionsWidget() {
   const total = activeSubs.reduce((s, sub) => s + Number(sub.amount), 0);
   if (badge) badge.textContent = activeSubs.length ? `${activeSubs.length} ${pluralSubscription(activeSubs.length)}` : '';
   if (!activeSubs.length) { body.innerHTML = '<div class="empty-note">Нет активных подписок</div>'; return; }
-  const nextSub = activeSubs.filter(s => s.next_billing_date).sort((a, b) => a.next_billing_date.localeCompare(b.next_billing_date))[0];
+  // ТЗ №2 (2026-07-24) §24: точечная правка — «ближайшее» списание берём только среди активных
+  // подписок с датой сегодня-или-в-будущем; прошедшую дату как ближайшую не показываем.
+  const todayKey = todayStr();
+  const nextSub = activeSubs.filter(s => s.next_billing_date && s.next_billing_date >= todayKey)
+    .sort((a, b) => a.next_billing_date.localeCompare(b.next_billing_date))[0];
   body.innerHTML = `
-    ${nextSub ? `<div class="cfp-row"><span class="cfp-label">Ближайшее: ${escapeHtml(nextSub.name)}</span><span class="cfp-value">${fmt.format(Number(nextSub.amount))}</span></div>` : ''}
+    ${nextSub ? `<div class="cfp-row"><span class="cfp-label">Ближайшее: ${escapeHtml(nextSub.name)}</span><span class="cfp-value">${fmt.format(Number(nextSub.amount))}</span></div>`
+              : `<div class="cfp-row"><span class="cfp-label">Ближайших списаний нет</span></div>`}
     <div class="cfp-row"><span class="cfp-label">В месяц</span><span class="cfp-value">${fmt.format(total)}</span></div>`;
 }
 
