@@ -393,7 +393,7 @@
   }
   .category-icon-3d.ci-lg { --category-icon-size: 52px; }
   .category-icon-3d.ci-row { --category-icon-size: 40px; }
-  .category-icon-3d.ci-sm { --category-icon-size: 24px; border-radius: 6px; }
+  .category-icon-3d.ci-sm { --category-icon-size: 26px; border-radius: 6px; }
   /* Иконка + подпись категории в одну строку (и в табличном, и в карточном режиме). */
   .cat-cell { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
   /* 2026-07-19: единый значок категории + пастельные фоны (ТЗ §3.3/§3.4) */
@@ -566,7 +566,9 @@
     background: var(--card-bg);
     border: 1px solid var(--border);
     border-radius: var(--radius);
-    box-shadow: var(--shadow-card);
+    /* §2: вторичные секции — лёгкая тень, опираемся на границу и отступы, чтобы экран не был
+       визуально тяжёлым. Крупная карта остатка и верхние сводки сохраняют сильную тень. */
+    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
     padding: 22px;
     margin-bottom: 20px;
   }
@@ -623,7 +625,7 @@
     flex-shrink: 0;
     cursor: pointer;
   }
-  .category-icon-3d.ci-chip { --category-icon-size: 24px; border-radius: 7px; }
+  .category-icon-3d.ci-chip { --category-icon-size: 30px; border-radius: 8px; }
   .quick-cat-btn:hover { border-color: var(--expense-accent); color: var(--expense-accent); }
   .quick-cat-btn.active { background: var(--expense-accent); border-color: var(--expense-accent); color: #fff; }
   /* F2 (2026-07-17): быстрый/полный режим bottom-sheet «Новая операция» */
