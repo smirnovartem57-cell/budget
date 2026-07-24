@@ -4386,14 +4386,21 @@ document.getElementById('quickCatRow').addEventListener('click', (e) => {
 
 // ТЗ №2 §7: «Повторить недавний расход» — до 3 последних УНИКАЛЬНЫХ расходов. Уникальность —
 // не показываем подряд идущие операции с одинаковой категорией+названием+комментарием.
+// Ключ нормализуется через normalizeText (регистр + пробелы + пунктуация), чтобы «Пятёрочка» и
+// «пятёрочка » считались одной и той же операцией. Дедупликация — по всему списку кандидатов
+// (не только по соседним), т.е. один и тот же набор категория+название+комментарий, даже если
+// между его повторами были другие операции, попадает в «Повторить недавний расход» один раз.
+function repeatExpenseKey(t) {
+  return normalizeText(t.category) + '|' + normalizeText(t.subcategory) + '|' + normalizeText(t.comment);
+}
 function getRepeatExpenseCandidates() {
   const result = [];
-  let lastKey = null;
+  const seenKeys = new Set();
   for (const t of state.transactions) {
     if (t.kind !== 'expense') continue;
-    const key = t.category + '|' + (t.subcategory || '') + '|' + (t.comment || '');
-    if (key === lastKey) continue;
-    lastKey = key;
+    const key = repeatExpenseKey(t);
+    if (seenKeys.has(key)) continue;
+    seenKeys.add(key);
     result.push(t);
     if (result.length >= 3) break;
   }
@@ -4519,6 +4526,9 @@ function resetSheetFieldsForAddAnother() {
   placeholder.value = ''; placeholder.textContent = 'Выберите категорию'; placeholder.disabled = true;
   catSel.insertBefore(placeholder, catSel.firstChild);
   catSel.value = '';
+  // «Название» (подкатегория) сбрасывается вместе с категорией: не просто прячем nameRow, а
+  // очищаем сам select, иначе в DOM остаётся значение от предыдущей категории.
+  document.getElementById('nameSelect').innerHTML = '';
   document.getElementById('nameRow').classList.remove('visible');
   document.getElementById('newCatInline').classList.remove('visible');
   hideCatSuggestion();
