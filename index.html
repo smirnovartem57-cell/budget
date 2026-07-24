@@ -638,7 +638,7 @@
     color: rgba(255,255,255,0.92); padding: 3px 0; font-variant-numeric: tabular-nums; }
   .rb-break-row.rb-break-total { font-weight: 700; border-top: 1px solid rgba(255,255,255,0.22); margin-top: 4px; padding-top: 7px; }
   .rb-break-row .rb-neg { color: #FFC9C9; }
-  .rb-ref { font-size: 12px; color: rgba(255,255,255,0.72); margin-top: 10px; line-height: 1.5; }
+  .rb-break-row .rb-pos { color: #B8F5D0; }
   .rb-history-link { background: none; border: none; color: rgba(255,255,255,0.92); font-size: 12.5px;
     font-weight: 600; text-decoration: underline; cursor: pointer; padding: 10px 0 0; display: block; }
 
@@ -2955,6 +2955,7 @@ let state = {
   balanceSnapshots: [],       // ручные сверки реального остатка семьи (ТЗ 2026-07-24)
   balanceLoaded: false,       // сверки хотя бы раз успешно загружены (иначе — skeleton)
   balanceLoadError: false,    // не удалось загрузить сверки — показать ошибку в карточке
+  balanceBaselineInitFailed: false, // безопасная инициализация operations_*_baseline не удалась (ТЗ доп. §18)
   discrepancyDismissed: false,// пользователь закрыл справку о расхождении
   // ТЗ №3 (2026-07-24) «Календарь проверки расходов»:
   expenseDayChecks: [],       // строки expense_day_checks текущего пользователя
@@ -7116,6 +7117,69 @@ function sumTxRange(kind, afterExclusive, throughInclusive) {
     .reduce((s, t) => s + Number(t.amount || 0), 0);
 }
 
+// ТЗ доп. (2026-07-24) «автоматическое изменение общего остатка после операций», §7/§26:
+// текущий (уже наступивший, hasHappened) подписанный итог операций — только доход/расход,
+// без каких-либо предположений о переводах/погашениях карт. Только по уже загруженному
+// state.transactions, без нового запроса к Supabase.
+function currentIncomeExpenseTotals() {
+  let income = 0, expense = 0;
+  for (const t of state.transactions) {
+    if (!hasHappened(t)) continue;
+    if (t.kind === 'income') income += Number(t.amount) || 0;
+    else if (t.kind === 'expense') expense += Number(t.amount) || 0;
+  }
+  return { income, expense };
+}
+
+// §27: единственная функция расчёта текущего общего остатка семьи — не дублировать формулу
+// больше нигде. baseline хранится как два компонента (operations_income_baseline /
+// operations_expense_baseline), а не один комбинированный operations_balance_baseline из ТЗ §4,
+// потому что §19 явно требует разбивку «Доходы после сверки» / «Расходы после сверки» именно
+// ОТНОСИТЕЛЬНО baseline (не простым фильтром по дате) — из одного комбинированного числа такую
+// разбивку восстановить нельзя. Разница компонентов даёт ту же самую комбинированную величину,
+// формула §2 не меняется.
+function calculateCurrentFamilyBalance() {
+  const snap = latestSnapshot();
+  if (!snap) return null;
+  const confirmedBalance = Number(snap.net_balance) || 0;
+  const hasBaseline = snap.operations_income_baseline != null && snap.operations_expense_baseline != null;
+  if (!hasBaseline) {
+    return { confirmedBalance, incomeDelta: 0, expenseDelta: 0, operationsDelta: 0, currentBalance: confirmedBalance, baselineMissing: true, snap };
+  }
+  const { income, expense } = currentIncomeExpenseTotals();
+  const incomeDelta = income - Number(snap.operations_income_baseline);
+  const expenseDelta = -(expense - Number(snap.operations_expense_baseline));
+  const operationsDelta = incomeDelta + expenseDelta;
+  return { confirmedBalance, incomeDelta, expenseDelta, operationsDelta, currentBalance: confirmedBalance + operationsDelta, baselineMissing: false, snap };
+}
+
+// §18: если у последней сверки нет baseline (переходный момент до безопасной инициализации,
+// либо гипотетический сбой), тихо посчитать и записать его — без изменения net_balance и без
+// показа неправильного пересчитанного остатка до завершения инициализации.
+let balanceBaselineInitInFlight = false;
+async function ensureBalanceBaseline(snap) {
+  if (balanceBaselineInitInFlight || !currentUser) return;
+  balanceBaselineInitInFlight = true;
+  try {
+    const { income, expense } = currentIncomeExpenseTotals();
+    const { error } = await supabaseClient.from('balance_snapshots')
+      .update({ operations_income_baseline: income, operations_expense_baseline: expense })
+      .eq('id', snap.id);
+    if (!error) {
+      snap.operations_income_baseline = income;
+      snap.operations_expense_baseline = expense;
+      state.balanceBaselineInitFailed = false;
+    } else {
+      state.balanceBaselineInitFailed = true;
+    }
+  } catch (e) {
+    state.balanceBaselineInitFailed = true;
+  } finally {
+    balanceBaselineInitInFlight = false;
+    renderRealBalance();
+  }
+}
+
 // Главная карточка «Реальный остаток семьи» со всеми состояниями (ТЗ §2, §3, §9, §10).
 function renderRealBalance() {
   const body = document.getElementById('realBalanceBody');
@@ -7124,7 +7188,7 @@ function renderRealBalance() {
 
   // Состояние: ошибка загрузки (остальное приложение продолжает работать, ТЗ §10)
   if (state.balanceLoadError) {
-    titleEl.textContent = 'Реальный остаток семьи';
+    titleEl.textContent = 'Текущий остаток семьи';
     body.innerHTML = `
       <div class="rb-error-text">Не удалось загрузить остаток</div>
       <button type="button" class="rb-update-btn" id="rbRetryBtn">Повторить</button>`;
@@ -7133,14 +7197,15 @@ function renderRealBalance() {
   }
   // Состояние: загрузка (skeleton вместо «0 ₽», ТЗ §10)
   if (isConfigured && !state.balanceLoaded) {
-    titleEl.textContent = 'Реальный остаток семьи';
+    titleEl.textContent = 'Текущий остаток семьи';
     body.innerHTML = `<div class="rb-skel rb-skel-amount"></div><div class="rb-skel rb-skel-line"></div>`;
     return;
   }
-  // Состояние: первый запуск — сверок ещё нет (ТЗ §9). Не показываем «0 ₽».
+  // Состояние: первый запуск — сверок ещё нет (ТЗ доп. §25). Без ручной сверки текущий остаток
+  // по операциям не считаем — то же пустое состояние, что и раньше.
   const snap = latestSnapshot();
   if (!snap) {
-    titleEl.textContent = 'Реальный остаток семьи';
+    titleEl.textContent = 'Текущий остаток семьи';
     body.innerHTML = `
       <div class="rb-empty-title">Укажите реальный остаток</div>
       <div class="rb-empty-desc">Добавьте примерную сумму на картах и наличными, чтобы видеть реальное финансовое состояние семьи.</div>
@@ -7149,8 +7214,7 @@ function renderRealBalance() {
     return;
   }
 
-  // Нормальное состояние
-  const net = Number(snap.net_balance) || 0;
+  const calc = calculateCurrentFamilyBalance();
   const own = Number(snap.total_own_money) || 0;
   const debt = Number(snap.credit_debt_amount) || 0;
   // Актуальное время последнего изменения — updated_at, если запись редактировалась, иначе
@@ -7161,37 +7225,63 @@ function renderRealBalance() {
   const level = snapFreshnessLevel(days);
   const timeStr = new Date(displayTs).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
 
-  titleEl.textContent = level === 'old' ? 'Последний известный остаток' : 'Реальный остаток семьи';
+  titleEl.textContent = 'Текущий остаток семьи';
 
-  let statusText, subStatus = '';
-  if (days <= 0) statusText = wasEdited ? `Обновлено сегодня в ${timeStr}` : `Сверено сегодня в ${timeStr}`;
-  else if (level === 'old') { statusText = 'Остаток требует обновления'; subStatus = `Последняя сверка ${days} ${pluralDays(days)} назад`; }
-  else statusText = `Последняя сверка ${days} ${pluralDays(days)} назад`;
+  // §18: baseline ещё не инициализирован — временно показываем подтверждённый net_balance, не 0
+  // и не ошибочный пересчёт, тихо запускаем безопасную инициализацию один раз.
+  if (calc.baselineMissing) {
+    if (state.balanceBaselineInitFailed) {
+      body.innerHTML = `
+        <div class="value rb-amount">${fmt.format(calc.confirmedBalance)}</div>
+        <div class="rb-status rb-mid"><span class="rb-status-dot"></span><span class="rb-status-text">Не удалось учесть новые операции</span></div>
+        <button type="button" class="rb-update-btn" id="rbBaselineRetryBtn">Повторить</button>
+        <button type="button" class="rb-history-link" id="rbHistoryLink">История остатков →</button>`;
+      document.getElementById('rbBaselineRetryBtn').addEventListener('click', () => ensureBalanceBaseline(snap));
+      document.getElementById('rbHistoryLink').addEventListener('click', () => openBalanceHistory());
+    } else {
+      body.innerHTML = `<div class="value rb-amount">${fmt.format(calc.confirmedBalance)}</div><div class="rb-skel rb-skel-line"></div>`;
+      ensureBalanceBaseline(snap);
+    }
+    return;
+  }
+
+  // §19/§20: подпись — если со сверки что-то изменилось, поясняем, что сумма расчётная;
+  // для устаревшей сверки (>7 дней) — отдельный текст ТЗ §20, независимо от наличия изменений.
+  let statusText;
+  if (level === 'old') {
+    statusText = `Расчётный остаток на основе сверки ${days} ${pluralDays(days)} назад`;
+  } else if (calc.operationsDelta !== 0) {
+    statusText = `На основе сверки от ${formatDateHuman(snapDay(snap))} и внесённых операций`;
+  } else if (days <= 0) {
+    statusText = wasEdited ? `Обновлено сегодня в ${timeStr}` : `Сверено сегодня в ${timeStr}`;
+  } else {
+    statusText = `Последняя сверка ${days} ${pluralDays(days)} назад`;
+  }
 
   const btnLabel = level === 'old' ? 'Сверить остаток' : 'Обновить остаток';
   const btnClass = level === 'old' ? 'rb-update-btn rb-update-warn' : 'rb-update-btn';
 
-  // «После последней сверки» — справочные суммы операций, внесённых позже (ТЗ §7).
-  const sinceExpense = sumTxRange('expense', snapDay(snap), null);
-  const sinceIncome = sumTxRange('income', snapDay(snap), null);
-
-  let html = `<div class="value rb-amount">${fmt.format(net)}</div>`;
+  let html = `<div class="value rb-amount">${fmt.format(calc.currentBalance)}</div>`;
   html += `<div class="rb-status rb-${level}"><span class="rb-status-dot"></span><span class="rb-status-text">${escapeHtml(statusText)}</span></div>`;
-  if (level === 'old') html += `<div class="rb-substatus">${escapeHtml(subStatus)}. Данные от ${escapeHtml(formatDateHuman(snapDay(snap)))}</div>`;
   html += `<button type="button" class="${btnClass}" id="rbUpdateBtn">${btnLabel}</button>`;
 
-  // Раскрываемая расшифровка: показываем разбивку по долгам только если долг есть (ТЗ §2).
-  const hasDetails = debt > 0 || sinceExpense > 0 || sinceIncome > 0;
+  // Расшифровка: разбивка по долгам (если есть долг) + разбивка «подтверждено/операции/текущий»
+  // (ТЗ доп. §19), если со сверки что-то изменилось.
+  const hasOperationsBreakdown = calc.operationsDelta !== 0;
+  const hasDetails = debt > 0 || hasOperationsBreakdown;
   if (hasDetails) {
     html += `<button type="button" class="rb-details-toggle" id="rbDetailsToggle">Показать расшифровку</button>`;
     html += `<div class="rb-details" id="rbDetails" style="display:none;">`;
     if (debt > 0) {
       html += `<div class="rb-break-row"><span>Деньги на счетах</span><span>${fmt.format(own)}</span></div>`;
       html += `<div class="rb-break-row"><span>Долг по кредиткам</span><span class="rb-neg">−${fmt.format(debt).replace('−','')}</span></div>`;
-      html += `<div class="rb-break-row rb-break-total"><span>Чистый остаток</span><span>${fmt.format(net)}</span></div>`;
+      html += `<div class="rb-break-row rb-break-total"><span>Подтверждённый остаток</span><span>${fmt.format(calc.confirmedBalance)}</span></div>`;
     }
-    if (sinceExpense > 0 || sinceIncome > 0) {
-      html += `<div class="rb-ref">После последней сверки внесено:<br>расходов ${fmt.format(sinceExpense)}, доходов ${fmt.format(sinceIncome)}.<br>Это справочная информация, на остаток не влияет.</div>`;
+    if (hasOperationsBreakdown) {
+      html += `<div class="rb-break-row"><span>Подтверждено вручную</span><span>${fmt.format(calc.confirmedBalance)}</span></div>`;
+      if (calc.incomeDelta !== 0) html += `<div class="rb-break-row"><span>Доходы после сверки</span><span class="rb-pos">+${fmt.format(calc.incomeDelta)}</span></div>`;
+      if (calc.expenseDelta !== 0) html += `<div class="rb-break-row"><span>Расходы после сверки</span><span class="rb-neg">${fmt.format(calc.expenseDelta)}</span></div>`;
+      html += `<div class="rb-break-row rb-break-total"><span>Текущий остаток</span><span>${fmt.format(calc.currentBalance)}</span></div>`;
     }
     html += `</div>`;
   }
@@ -7334,6 +7424,10 @@ async function saveBalanceSnapshot() {
   const own = artem + oksana + cash + other;
   const net = own - debt;
   const isEdit = balanceFormMode === 'edit-today' && editingBalanceSnapshotId;
+  // ТЗ доп. (2026-07-24) §5/§6: любая ручная сверка — новая точка подтверждения. baseline
+  // (доход/расход по уже загруженным операциям) фиксируется в момент сохранения, чтобы сразу
+  // после сверки operations_delta = 0 и текущий остаток равнялся введённому net_balance.
+  const { income: opsIncomeBaseline, expense: opsExpenseBaseline } = currentIncomeExpenseTotals();
 
   balanceSaving = true;
   const btn = document.getElementById('balanceSaveBtn');
@@ -7348,6 +7442,7 @@ async function saveBalanceSnapshot() {
       artem_amount: artem, oksana_amount: oksana, cash_amount: cash,
       credit_debt_amount: debt, other_amount: other,
       total_own_money: own, net_balance: net,
+      operations_income_baseline: opsIncomeBaseline, operations_expense_baseline: opsExpenseBaseline,
       comment: comment || null,
       updated_at: new Date().toISOString(),
     }).eq('id', editingBalanceSnapshotId));
@@ -7357,6 +7452,7 @@ async function saveBalanceSnapshot() {
       artem_amount: artem, oksana_amount: oksana, cash_amount: cash,
       credit_debt_amount: debt, other_amount: other,
       total_own_money: own, net_balance: net,
+      operations_income_baseline: opsIncomeBaseline, operations_expense_baseline: opsExpenseBaseline,
       comment: comment || null,
       created_by: currentUser ? (currentUser.email || currentUser.id) : null,
       snapshot_date: localSnapshotDateStr(),
