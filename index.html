@@ -1094,7 +1094,6 @@
   .goal-breakdown-hint { font-size: 11.5px; color: var(--text-secondary); padding: 0 0 6px; line-height: 1.4; }
   .goal-breakdown-sub-list { padding: 0 0 4px 10px; }
   .goal-breakdown-sub-row { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--text-secondary); padding: 2px 0; }
-  .goal-breakdown-sub-row.is-counted-elsewhere { color: var(--text-tertiary, var(--text-secondary)); font-style: italic; }
   .goal-breakdown-duplicate-warning { font-size: 12px; color: var(--warning); background: var(--warning-bg); padding: 6px 10px; border-radius: var(--radius-sm); margin: 2px 0 6px; }
   @media (max-width: 640px) {
     .goal-queue-item { flex-wrap: wrap; }
@@ -7932,12 +7931,6 @@ function pluralMonths(n) {
   if (b >= 2 && b <= 4) return 'месяца';
   return 'месяцев';
 }
-function pluralOperationsPhrase(n) {
-  const mod10 = n % 10, mod100 = n % 100;
-  if (mod10 === 1 && mod100 !== 11) return 'операция';
-  if ([2, 3, 4].includes(mod10) && ![12, 13, 14].includes(mod100)) return 'операции';
-  return 'операций';
-}
 function pluralActivePaymentsPhrase(n) {
   const mod10 = n % 10, mod100 = n % 100;
   if (mod10 === 1 && mod100 !== 11) return 'активный платёж';
@@ -8327,11 +8320,11 @@ function creditMandatoryAmountMatches(credit) {
 
 // Доп. к ТЗ 2026-07-25 «Исправление расчёта свободного остатка, убрать двойной учёт кредитов»:
 // пять независимых статей — ни одна операция не должна попасть в две строки одновременно.
-// Кредит с payment_already_counted_in_mandatory=true уже сидит внутри «Регулярных расходов»
-// (это гарантируется галочкой в форме кредита, а не подбором по transactions — см. §14) и здесь
-// показывается только справочно, без повторного вычитания. Итог — plannedMonthlyLoad.remainingAfterPlan,
-// который уже включает доплату по кредитам (в отличие от forecast.freeCashFlow, используемого
-// только для авто-сценариев §10/§11).
+// Кредит с payment_already_counted_in_mandatory=true уже сидит внутри «Регулярных расходов» (это
+// гарантируется галочкой в форме кредита, а не подбором по transactions — см. §14) и здесь больше
+// НЕ дублируется отдельной справочной строкой (это только путало — сумма и так уже в итоге).
+// Итог — plannedMonthlyLoad.remainingAfterPlan, который уже включает доплату по кредитам (в
+// отличие от forecast.freeCashFlow, используемого только для авто-сценариев §10/§11).
 function renderGoalBreakdown(goal, forecast) {
   const body = document.getElementById('goalBreakdownBody');
   if (!body) return;
@@ -8340,22 +8333,24 @@ function renderGoalBreakdown(goal, forecast) {
   const row = (label, value, overridden) => `
     <div class="cfp-row"><span class="cfp-label">${label}${overridden ? ' <span class="badge-info badge-normalcase" style="padding:1px 6px;font-size:10.5px;">своё значение</span>' : ''}</span><span class="cfp-value">${fmt.format(value)}</span></div>`;
 
-  // --- Повседневные расходы: состав по категориям ---
+  // --- Повседневные расходы: состав по категориям 1-го уровня (без операций/дат — коротко) ---
   const everydayTx = goalEverydayExpenseTransactions(goal, load.resolved);
   const everydayByCategory = {};
   everydayTx.forEach(t => { everydayByCategory[t.category] = (everydayByCategory[t.category] || 0) + Number(t.amount || 0); });
-  const topEverydayCategories = Object.entries(everydayByCategory).sort((a, b) => b[1] - a[1]).slice(0, 3);
-  const everydayHint = `${everydayTx.length ? `${everydayTx.length} ${pluralOperationsPhrase(everydayTx.length)}` : 'Нет операций за период'}${topEverydayCategories.length ? `: ${topEverydayCategories.map(([c, a]) => `${c} ${fmt.format(a)}`).join(', ')}` : ''}. Без регулярных платежей и кредитов.`;
+  const everydayCategoryRows = Object.entries(everydayByCategory)
+    .sort((a, b) => b[1] - a[1])
+    .map(([c, a]) => `<div class="goal-breakdown-sub-row"><span>${escapeHtml(c)}</span><span>${fmt.format(a)}</span></div>`)
+    .join('');
+  const everydayHint = 'Без регулярных платежей и кредитов.';
 
-  // --- Регулярные расходы: активные группы + подписки + «уже учтённые» кредиты справочно ---
+  // --- Регулярные расходы: только активные группы + подписки (кредиты сюда не выводятся —
+  // они уже отдельной строкой ниже, повторное упоминание здесь только путало). ---
   const activeGroups = getActiveRecurringGroups();
   const activeSubs = state.subscriptions.filter(s => s.is_active);
-  const alreadyCountedCredits = state.credits.filter(c => c.status === 'active' && c.include_in_goal_forecast && c.payment_already_counted_in_mandatory);
   const regularSubRows = [
     ...activeGroups.map(g => `<div class="goal-breakdown-sub-row"><span>${escapeHtml(g.subcategory ? `${g.category} · ${g.subcategory}` : g.category)}</span><span>${fmt.format(g.amount)}</span></div>`),
     ...activeSubs.map(s => `<div class="goal-breakdown-sub-row"><span>${escapeHtml(s.name || 'Подписка')}</span><span>${fmt.format(Number(s.amount))}</span></div>`),
   ].join('');
-  const alreadyCountedRows = alreadyCountedCredits.map(c => `<div class="goal-breakdown-sub-row is-counted-elsewhere"><span>${escapeHtml(c.name)} — уже учтено в регулярных расходах</span><span>${fmt.format(Number(c.monthly_payment || 0))}</span></div>`).join('');
   const totalActivePayments = activeGroups.length + activeSubs.length;
   const regularHint = `${totalActivePayments} ${pluralActivePaymentsPhrase(totalActivePayments)}`;
 
@@ -8377,9 +8372,10 @@ function renderGoalBreakdown(goal, forecast) {
     ${row('Доход за месяц', forecast.monthlyIncome, o.income)}
     ${row('Повседневные расходы', forecast.monthlyVariableExpense, o.variable)}
     <div class="goal-breakdown-hint">${escapeHtml(everydayHint)}</div>
+    ${everydayCategoryRows ? `<div class="goal-breakdown-sub-list">${everydayCategoryRows}</div>` : ''}
     ${row('Регулярные расходы', forecast.monthlyMandatoryExpense, o.mandatory)}
     <div class="goal-breakdown-hint">${escapeHtml(regularHint)}</div>
-    <div class="goal-breakdown-sub-list">${regularSubRows}${alreadyCountedRows}</div>
+    <div class="goal-breakdown-sub-list">${regularSubRows}</div>
     ${row('Минимальные платежи по кредитам', forecast.monthlyCreditPayments, false)}
     ${separateCreditRows ? `<div class="goal-breakdown-sub-list">${separateCreditRows}</div>` : ''}
     ${extraRow}${extraHint}
