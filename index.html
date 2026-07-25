@@ -924,6 +924,88 @@
   }
   .recurring-check-label input { width: auto; }
 
+  /* ---------------- КРЕДИТЫ (2026-07-25, этап 1) ---------------- */
+  .credit-form-hint { font-size: 12px; color: var(--text-secondary); margin-top: 6px; line-height: 1.4; }
+
+  .credits-filter-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .credits-filter-chip {
+    cursor: pointer; border: none; font: inherit;
+    background: var(--bg-secondary); color: var(--text-secondary);
+    padding: 6px 12px; border-radius: 999px; font-size: 12.5px; font-weight: 600;
+    min-height: 30px;
+  }
+  .credits-filter-chip.active { background: var(--info-bg); color: var(--btn-primary); }
+
+  .credits-empty-title { font-weight: 700; font-size: 15px; color: var(--text-primary); margin-bottom: 6px; }
+  .credits-error { display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    padding: 12px 14px; background: var(--warning-bg); border-radius: var(--radius-sm); color: var(--text-primary); }
+
+  .credit-card {
+    display: flex; flex-direction: column; gap: 10px;
+    padding: 16px; margin-bottom: 12px;
+    border: 1px solid var(--border); border-radius: var(--radius-sm);
+    background: var(--card-bg); cursor: pointer;
+    min-height: 44px;
+  }
+  .credit-card:last-child { margin-bottom: 0; }
+  .credit-card-head { display: flex; align-items: flex-start; gap: 10px; }
+  .credit-type-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; margin-top: 6px; }
+  .credit-card-titles { min-width: 0; flex: 1; }
+  .credit-card-type { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .02em; }
+  .credit-card-name { font-size: 15.5px; font-weight: 700; color: var(--text-primary); }
+  .credit-card-lender { font-size: 12.5px; color: var(--text-secondary); }
+  .credit-card-status-badge {
+    font-size: 11.5px; font-weight: 700; padding: 3px 9px; border-radius: 999px; white-space: nowrap;
+  }
+  .credit-card-status-overdue { background: var(--expense-bg); color: var(--expense-accent); }
+  .credit-card-status-soon { background: var(--warning-bg); color: var(--warning); }
+  .credit-card-status-today { background: var(--warning-bg); color: var(--warning); }
+  .credit-card-status-paid { background: var(--bg-secondary); color: var(--text-secondary); }
+  .credit-card-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 14px; }
+  .credit-card-fact-label { font-size: 11.5px; color: var(--text-secondary); }
+  .credit-card-fact-value { font-size: 14px; font-weight: 600; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+  .credit-card-progress-track { height: 6px; border-radius: 999px; background: var(--bg-secondary); overflow: hidden; }
+  .credit-card-progress-fill { height: 100%; border-radius: 999px; }
+  .credit-card-progress-label { font-size: 11.5px; color: var(--text-secondary); }
+
+  /* Цветовые роли типов кредита (§17) — спокойные, не тревожные. */
+  .credit-type-mortgage { color: var(--btn-primary); }
+  .credit-type-mortgage.credit-type-dot { background: var(--btn-primary); }
+  .credit-type-consumer { color: var(--purple); }
+  .credit-type-consumer.credit-type-dot { background: var(--purple); }
+  .credit-type-auto { color: #2AA6A0; }
+  .credit-type-auto.credit-type-dot { background: #2AA6A0; }
+  .credit-type-installment { color: var(--income-accent); }
+  .credit-type-installment.credit-type-dot { background: var(--income-accent); }
+  .credit-type-credit_card { color: var(--orange); }
+  .credit-type-credit_card.credit-type-dot { background: var(--orange); }
+  .credit-type-other { color: var(--text-secondary); }
+  .credit-type-other.credit-type-dot { background: var(--text-secondary); }
+
+  #creditDetailOverlay .bottom-sheet.credit-detail-sheet { max-width: 460px; }
+  @media (min-width: 900px) {
+    #creditDetailOverlay .bottom-sheet.credit-detail-sheet { max-width: 620px; }
+  }
+  .credit-detail-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+  .credit-detail-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 16px; margin-bottom: 16px; }
+  .credit-detail-fact-label { font-size: 12px; color: var(--text-secondary); }
+  .credit-detail-fact-value { font-size: 15px; font-weight: 600; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+  .credit-detail-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-bottom: 16px; }
+  .credit-detail-actions button { min-height: 44px; }
+  .credit-history-item {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    padding: 10px 0; border-bottom: 1px solid var(--border-secondary);
+  }
+  .credit-history-item:last-child { border-bottom: none; }
+  .credit-history-date { font-size: 13px; color: var(--text-secondary); }
+  .credit-history-amount { font-size: 14px; font-weight: 700; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+  .credit-history-remaining { font-size: 11.5px; color: var(--text-secondary); }
+
+  @media (max-width: 480px) {
+    .credit-card-facts { grid-template-columns: 1fr 1fr; }
+    .credit-detail-facts { grid-template-columns: 1fr 1fr; }
+  }
+
   .page-tabs { display: flex; gap: 8px; margin-bottom: 20px; }
   .app-header .page-tabs { margin-bottom: 0; }
   /* ТЗ 2026-07-18: экран «Аналитика» + краткая карточка-тизер на главной */
@@ -1444,7 +1526,7 @@
     .summary-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
     /* Долги/Покупки/Доходы have 4 KPI cards → force 2×2 so the 4th isn't an orphan
        in a 3-col row. Бюджет keeps 3-up (hero + 3 metrics). 2026-07-15 */
-    #debtsView > .summary-grid, #shoppingView > .summary-grid, #incomeView > .summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    #debtsView > .summary-grid, #shoppingView > .summary-grid, #incomeView > .summary-grid, #creditsView > .summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .summary-card { padding: 10px 8px; }
     .summary-card .label { font-size: 12px; margin-bottom: 4px; }
     .summary-card .value { font-size: clamp(16px, 4.6vw, 20px); }
@@ -1816,6 +1898,7 @@
     <button type="button" class="page-tab-btn active" id="tabBudgetBtn">Главная</button>
     <button type="button" class="page-tab-btn" id="tabAnalyticsBtn">Аналитика</button>
     <button type="button" class="page-tab-btn" id="tabDebtsBtn">Долги</button>
+    <button type="button" class="page-tab-btn" id="tabCreditsBtn">Кредиты</button>
     <button type="button" class="page-tab-btn" id="tabShoppingBtn">Покупки</button>
     <button type="button" class="page-tab-btn" id="tabIncomeBtn">Доходы</button>
   </div>
@@ -1959,6 +2042,16 @@
     </h2>
     <div id="homeSubscriptionsBody"></div>
     <button type="button" class="btn-ghost compact-detail-btn" id="homeSubscriptionsDetailBtn">Подробнее</button>
+  </div>
+
+  <!-- Кредиты (2026-07-25, этап 1): компактная сводка — не смешивается с блоком «Долги» выше. -->
+  <div class="panel compact-feature-panel" id="homeCreditsPanel">
+    <h2 style="justify-content:space-between;">
+      <span>Кредиты</span>
+      <span class="badge-info badge-normalcase" id="homeCreditsBadge"></span>
+    </h2>
+    <div id="homeCreditsBody"></div>
+    <button type="button" class="btn-ghost compact-detail-btn" id="homeCreditsDetailBtn">Подробнее</button>
   </div>
 
   <!-- Сверка операций (ТЗ §14): справочное расхождение, не главное предупреждение страницы. -->
@@ -2390,6 +2483,136 @@
     </div>
   </div>
 
+  <!-- Кредиты (2026-07-25, этап 1): банковские кредиты — отдельно от личных «Долгов»
+       (ипотека/потребительские/автокредиты/рассрочки/кредитные карты). Не в нижней навигации
+       (см. «Аналитика» — тот же паттерн входа), только верхняя вкладка на десктопе + карточка
+       на главной. Один DOM для мобильного и десктопного — detail открывается модальным листом. -->
+  <div id="creditsView" style="display:none;">
+    <div class="summary-grid credits-kpi-grid">
+      <div class="summary-card credits-kpi">
+        <div class="metric-icon icon-debts"><img src="icons/debts.png" alt=""></div>
+        <div class="label">Осталось выплатить</div>
+        <div class="value" id="creditsKpiRemaining">—</div>
+      </div>
+      <div class="summary-card credits-kpi">
+        <div class="metric-icon icon-expense"><img src="icons/expense.png" alt=""></div>
+        <div class="label">Платежи в месяц</div>
+        <div class="value" id="creditsKpiMonthly">—</div>
+      </div>
+      <div class="summary-card credits-kpi">
+        <div class="metric-icon icon-primary"><img src="icons/balance.png" alt=""></div>
+        <div class="label">Ближайший платёж</div>
+        <div class="value" id="creditsKpiNearest">—</div>
+      </div>
+      <div class="summary-card credits-kpi">
+        <div class="metric-icon icon-debts"><img src="icons/debts.png" alt=""></div>
+        <div class="label">Активных кредитов</div>
+        <div class="value" id="creditsKpiCount">—</div>
+      </div>
+    </div>
+
+    <div class="main-grid">
+      <!-- CREDIT FORM — используется и для добавления, и для редактирования (state.editingCreditId). -->
+      <div class="panel add-form-panel">
+        <button type="button" class="btn-primary add-form-toggle" data-open-label="+ Добавить кредит" data-close-label="Свернуть" id="creditFormToggleBtn" onclick="toggleAddForm('creditFormBody', this)">+ Добавить кредит</button>
+        <div id="creditFormBody" class="add-form-body" style="display:none;">
+          <div class="form-row">
+            <label>Название кредита</label>
+            <input type="text" id="creditNameInput" placeholder="Например: Ипотека">
+          </div>
+          <div class="form-row">
+            <label>Тип кредита</label>
+            <select id="creditTypeInput">
+              <option value="mortgage">Ипотека</option>
+              <option value="consumer" selected>Потребительский кредит</option>
+              <option value="auto">Автокредит</option>
+              <option value="installment">Рассрочка</option>
+              <option value="credit_card">Кредитная карта</option>
+              <option value="other">Другое</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label id="creditRemainingLabel">Остаток долга, ₽</label>
+            <input type="text" inputmode="numeric" id="creditRemainingInput" placeholder="0">
+          </div>
+          <div class="form-row">
+            <label id="creditMonthlyLabel">Ежемесячный платёж, ₽</label>
+            <input type="text" inputmode="numeric" id="creditMonthlyInput" placeholder="0">
+          </div>
+          <div class="form-row">
+            <label>Банк или кредитор (необязательно)</label>
+            <input type="text" id="creditLenderInput" placeholder="Например: Сбербанк">
+          </div>
+          <div class="form-row">
+            <label id="creditOriginalLabel">Первоначальная сумма, ₽ (необязательно)</label>
+            <input type="text" inputmode="numeric" id="creditOriginalInput" placeholder="0">
+          </div>
+          <div class="form-row">
+            <label>Процентная ставка, % годовых (необязательно)</label>
+            <input type="text" inputmode="decimal" id="creditRateInput" placeholder="Например: 12,9">
+          </div>
+          <div class="form-row">
+            <label>Дата начала (необязательно)</label>
+            <input type="date" id="creditStartDateInput" min="2000-01-01" max="2099-12-31">
+          </div>
+          <div class="form-row">
+            <label>Дата следующего платежа (необязательно)</label>
+            <input type="date" id="creditNextPaymentInput" min="2000-01-01" max="2099-12-31">
+          </div>
+          <div class="form-row">
+            <label>День ежемесячного платежа, 1–31 (необязательно)</label>
+            <input type="number" id="creditPaymentDayInput" min="1" max="31" step="1" placeholder="Например: 15">
+          </div>
+          <div class="form-row">
+            <label>Плановая дата окончания (необязательно)</label>
+            <input type="date" id="creditEndDateInput" min="2000-01-01" max="2099-12-31">
+          </div>
+          <div class="form-row">
+            <label>Примечание (необязательно)</label>
+            <input type="text" id="creditNotesInput" placeholder="Например: рефинансирован в 2025">
+          </div>
+          <div class="form-row">
+            <label class="recurring-check-label">
+              <input type="checkbox" id="creditCountedInMandatoryInput">
+              Платёж уже учтён в обязательных расходах
+            </label>
+            <div class="credit-form-hint">Включите, если этот платёж уже добавлен в раздел обязательных расходов.</div>
+          </div>
+          <div class="form-row">
+            <label class="recurring-check-label">
+              <input type="checkbox" id="creditIncludeInGoalInput" checked>
+              Учитывать кредит при расчёте финансовых целей
+            </label>
+          </div>
+          <button class="btn-primary" id="creditSubmitBtn">Добавить кредит</button>
+        </div>
+      </div>
+
+      <div>
+        <div class="panel">
+          <h2 style="justify-content:space-between; flex-wrap:wrap; gap:6px;">
+            <span>Кредиты</span>
+            <div class="credits-filter-chips" id="creditsFilterChips">
+              <button type="button" class="cat-badge credits-filter-chip active" data-filter="active">Активные</button>
+              <button type="button" class="cat-badge credits-filter-chip" data-filter="paid">Погашенные</button>
+              <button type="button" class="cat-badge credits-filter-chip" data-filter="all">Все</button>
+            </div>
+          </h2>
+          <div id="creditsListBody"></div>
+          <div class="empty-note" id="creditsEmptyNote" style="display:none;">
+            <div class="credits-empty-title">Кредиты не добавлены</div>
+            <div>Добавьте кредиты, чтобы видеть общий остаток долга, ежемесячные платежи и учитывать их при планировании целей.</div>
+            <button type="button" class="btn-primary" id="creditsEmptyAddBtn" style="margin-top:12px;">Добавить кредит</button>
+          </div>
+          <div class="credits-error" id="creditsErrorNote" style="display:none;">
+            <span>Не удалось загрузить кредиты</span>
+            <button type="button" class="btn-ghost" id="creditsRetryBtn">Повторить</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div id="shoppingView" style="display:none;">
     <div class="summary-grid">
       <div class="summary-card expense">
@@ -2796,6 +3019,37 @@
   </div>
 </div>
 
+<!-- Кредиты: detail-screen конкретного кредита (модальный лист — единый DOM для мобильного и
+     десктопного, §34). Содержимое рендерится JS (renderCreditDetail). -->
+<div class="bottom-sheet-overlay bottom-sheet-modal" id="creditDetailOverlay">
+  <div class="bottom-sheet credit-detail-sheet">
+    <div class="bottom-sheet-handle"></div>
+    <button type="button" class="bottom-sheet-close" id="creditDetailCloseBtn" aria-label="Закрыть"><i data-lucide="x"></i></button>
+    <div class="panel" id="creditDetailBody"></div>
+  </div>
+</div>
+
+<!-- Кредиты: «Отметить платёж» (§20-22) — не создаёт расход автоматически. -->
+<div class="bottom-sheet-overlay bottom-sheet-modal" id="creditPaymentOverlay">
+  <div class="bottom-sheet">
+    <div class="bottom-sheet-handle"></div>
+    <button type="button" class="bottom-sheet-close" id="creditPaymentCloseBtn" aria-label="Закрыть"><i data-lucide="x"></i></button>
+    <div class="panel">
+      <h3 style="margin:0 0 14px;">Отметить платёж</h3>
+      <div class="form-row"><label>Дата платежа</label><input type="date" id="creditPaymentDateInput" min="2000-01-01" max="2099-12-31"></div>
+      <div class="form-row"><label>Сумма платежа, ₽</label><input type="text" inputmode="numeric" id="creditPaymentAmountInput"></div>
+      <div class="form-row">
+        <label>Новый остаток долга, ₽ (необязательно)</label>
+        <input type="text" inputmode="numeric" id="creditPaymentRemainingInput" placeholder="Оставьте пустым, если не знаете">
+        <div class="credit-form-hint">Укажите остаток из банковского приложения после списания платежа.</div>
+      </div>
+      <div class="form-row"><label>Комментарий (необязательно)</label><input type="text" id="creditPaymentCommentInput"></div>
+      <div class="credit-form-hint" style="margin-bottom:10px;">Платёж в разделе кредитов не создаёт расход автоматически. При необходимости внесите его в операции отдельно.</div>
+      <button class="btn-primary" id="creditPaymentSubmitBtn">Сохранить платёж</button>
+    </div>
+  </div>
+</div>
+
 <div class="bottom-sheet-overlay bottom-sheet-modal" id="txFilterOverlay">
   <div class="bottom-sheet">
     <div class="bottom-sheet-handle"></div>
@@ -2965,6 +3219,15 @@ let state = {
   calendarSelectedDate: null, // выбранный день внутри календаря
   calendarMobileView: 'grid', // 'grid' | 'day' — на мобильном день заменяет сетку, а не накладывается
   calendarReturnDate: null,   // если задано — форма добавления/редактирования операции при закрытии вернёт панель этого дня
+  // Раздел «Кредиты» (2026-07-25, этап 1): банковские кредиты — отдельно от личных «Долгов».
+  credits: [],
+  creditPayments: [],
+  creditsLoaded: false,
+  creditsLoadError: false,
+  creditsFilter: 'active',    // 'active' | 'paid' | 'all'
+  selectedCreditId: null,
+  editingCreditId: null,      // задан во время редактирования — creditFormBody переиспользуется и для добавления, и для правки
+  markingPaymentCreditId: null,
 };
 
 // Порог показа справочного расхождения между операциями и остатками (ТЗ §8). Меньше — не показываем.
@@ -3751,6 +4014,10 @@ async function loadAll() {
     // пользователю — анонимный/демо-режим не пишет и не читает их (пустой список, календарь всё
     // равно показывает операции, просто без сохранённых отметок).
     const dayChecksQuery = supabaseClient.from('expense_day_checks').select('*');
+    // Кредиты (2026-07-25, этап 1): банковские кредиты — как и сверки/отметки, принадлежат
+    // только реальному пользователю (RLS), анонимный/демо-режим видит пустой список.
+    const creditsQuery = supabaseClient.from('credits').select('*').order('created_at', { ascending: true });
+    const creditPaymentsQuery = supabaseClient.from('credit_payments').select('*').order('payment_date', { ascending: false });
     if (currentUser) {
       txQuery.eq('user_id', currentUser.id);
       debtQuery.eq('user_id', currentUser.id);
@@ -3762,6 +4029,8 @@ async function loadAll() {
       debtPayQuery.eq('user_id', currentUser.id);
       snapQuery.eq('user_id', currentUser.id);
       dayChecksQuery.eq('user_id', currentUser.id);
+      creditsQuery.eq('user_id', currentUser.id);
+      creditPaymentsQuery.eq('user_id', currentUser.id);
     } else {
       txQuery.is('user_id', null);
       debtQuery.is('user_id', null);
@@ -3773,9 +4042,11 @@ async function loadAll() {
       debtPayQuery.is('user_id', null);
       snapQuery.is('user_id', null);
       dayChecksQuery.is('user_id', null);
+      creditsQuery.is('user_id', null);
+      creditPaymentsQuery.is('user_id', null);
     }
 
-    const [{ data: cats, error: catErr }, { data: txs, error: txErr }, { data: debts, error: debtErr }, { data: shopping, error: shoppingErr }, { data: income, error: incomeErr }, { data: notes, error: notesErr }, { data: rules, error: rulesErr }, { data: subs, error: subsErr }, { data: dpays, error: dpErr }, { data: snaps, error: snapErr }, { data: dayChecks, error: dayChecksErr }] = await withTimeout(Promise.all([
+    const [{ data: cats, error: catErr }, { data: txs, error: txErr }, { data: debts, error: debtErr }, { data: shopping, error: shoppingErr }, { data: income, error: incomeErr }, { data: notes, error: notesErr }, { data: rules, error: rulesErr }, { data: subs, error: subsErr }, { data: dpays, error: dpErr }, { data: snaps, error: snapErr }, { data: dayChecks, error: dayChecksErr }, { data: credits, error: creditsErr }, { data: creditPays, error: creditPaysErr }] = await withTimeout(Promise.all([
       supabaseClient.from('categories').select('*').order('created_at'),
       txQuery,
       debtQuery,
@@ -3787,6 +4058,8 @@ async function loadAll() {
       debtPayQuery,
       snapQuery,
       dayChecksQuery,
+      creditsQuery,
+      creditPaymentsQuery,
     ]), 15000, 'Сервер не отвечает — проверьте интернет-соединение');
     const loadErrors = [
       [catErr, 'категорий'], [txErr, 'операций'], [debtErr, 'долгов'],
@@ -3817,6 +4090,14 @@ async function loadAll() {
     // приложение, календарь операций остаётся доступным, только без сохранённых статусов.
     state.dayChecksLoadError = !!dayChecksErr;
     if (!dayChecksErr) { state.expenseDayChecks = dayChecks || []; state.dayChecksLoaded = true; }
+    // Кредиты: та же схема graceful-деградации — ошибка загрузки не блокирует остальное
+    // приложение (§37), раздел «Кредиты» сам покажет состояние ошибки с кнопкой «Повторить».
+    state.creditsLoadError = !!(creditsErr || creditPaysErr);
+    if (!creditsErr && !creditPaysErr) {
+      state.credits = credits || [];
+      state.creditPayments = creditPays || [];
+      state.creditsLoaded = true;
+    }
 
     if (!state.selectedMonth) {
       const now = new Date();
@@ -3854,6 +4135,7 @@ document.getElementById('btnKindExpense').addEventListener('click', () => setKin
 document.getElementById('tabBudgetBtn').addEventListener('click', () => switchPageTab('budget'));
 document.getElementById('tabAnalyticsBtn').addEventListener('click', () => switchPageTab('analytics'));
 document.getElementById('tabDebtsBtn').addEventListener('click', () => switchPageTab('debts'));
+document.getElementById('tabCreditsBtn').addEventListener('click', () => switchPageTab('credits'));
 document.getElementById('tabShoppingBtn').addEventListener('click', () => switchPageTab('shopping'));
 document.getElementById('tabIncomeBtn').addEventListener('click', () => switchPageTab('income'));
 
@@ -3925,6 +4207,10 @@ function switchPageTab(tab) {
   document.getElementById('debtsView').style.display = tab === 'debts' ? '' : 'none';
   document.getElementById('shoppingView').style.display = tab === 'shopping' ? '' : 'none';
   document.getElementById('incomeView').style.display = tab === 'income' ? '' : 'none';
+  // Кредиты (2026-07-25, этап 1): та же схема, что «Аналитика» — нет кнопки в нижней навигации,
+  // только верхняя вкладка (десктоп) + вход с главной.
+  document.getElementById('creditsView').style.display = tab === 'credits' ? '' : 'none';
+  document.getElementById('tabCreditsBtn').classList.toggle('active', tab === 'credits');
   const av = document.getElementById('analyticsView');
   if (av) av.style.display = tab === 'analytics' ? '' : 'none';
   const tb = document.getElementById('tabAnalyticsBtn');
@@ -6603,6 +6889,538 @@ function renderRecurringBreakdown() {
     }).join('');
 }
 
+/* ---------------- КРЕДИТЫ (банковские кредиты, отдельно от «Долгов», 2026-07-25 этап 1) ---------------- */
+
+const CREDIT_TYPE_LABELS = {
+  mortgage: 'Ипотека', consumer: 'Потребительский кредит', auto: 'Автокредит',
+  installment: 'Рассрочка', credit_card: 'Кредитная карта', other: 'Другое',
+};
+function creditTypeLabel(type) { return CREDIT_TYPE_LABELS[type] || 'Другое'; }
+function creditTypeClass(type) { return `credit-type-${CREDIT_TYPE_LABELS[type] ? type : 'other'}`; }
+function creditStatusLabel(status) {
+  if (status === 'paid') return 'Погашен';
+  if (status === 'paused') return 'Приостановлен';
+  return 'Активен';
+}
+// §10: для кредитной карты подписи полей меняются визуально — схема таблицы не меняется.
+function creditFieldLabels(type) {
+  if (type === 'credit_card') {
+    return { original: 'Кредитный лимит, ₽ (необязательно)', remaining: 'Текущая задолженность, ₽', monthly: 'Минимальный платёж, ₽' };
+  }
+  return { original: 'Первоначальная сумма, ₽ (необязательно)', remaining: 'Остаток долга, ₽', monthly: 'Ежемесячный платёж, ₽' };
+}
+function applyCreditFieldLabels() {
+  const type = document.getElementById('creditTypeInput').value;
+  const labels = creditFieldLabels(type);
+  document.getElementById('creditOriginalLabel').textContent = labels.original;
+  document.getElementById('creditRemainingLabel').textContent = labels.remaining;
+  document.getElementById('creditMonthlyLabel').textContent = labels.monthly;
+}
+document.getElementById('creditTypeInput').addEventListener('change', applyCreditFieldLabels);
+
+// Пустое необязательное поле → null, а не 0 (§11: «корректно обрабатывать пустые необязательные поля»).
+function parseOptionalMoneyInput(str) {
+  if (str == null || String(str).trim() === '') return null;
+  return parseMoneyInput(str);
+}
+// Ставка допускает запятую или точку как десятичный разделитель («12,9», «12.9»); пусто → null,
+// автоматически ничего не подставляем (§12).
+function parsePercentInput(str) {
+  if (str == null) return null;
+  const s = String(str).trim().replace(',', '.').replace(/[^\d.]/g, '');
+  if (s === '') return null;
+  const n = parseFloat(s);
+  return isNaN(n) ? null : n;
+}
+function formatPercent(n) {
+  if (n == null) return null;
+  const rounded = Math.round(n * 10) / 10;
+  return `${String(rounded).replace('.', ',')}%`;
+}
+
+// Переносит дату на месяц вперёд, сохраняя день (с зажимом по длине месяца) — та же безопасная
+// схема, что и в updateRecurringGroupDate/generateMonthlyDates, не через +30 дней (§21).
+// 31 января → 28 февраля; 31 марта → 30 апреля.
+function addOneMonthClamped(dateStr) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const targetMonthIdx = m; // 0-based следующий месяц (m уже 1-based текущий)
+  const lastDay = new Date(y, targetMonthIdx + 1, 0).getDate();
+  const dt = new Date(y, targetMonthIdx, Math.min(d, lastDay));
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+}
+// Разница в календарных ДНЯХ по Москве между двумя строками YYYY-MM-DD (toStr − fromStr).
+function daysDiffDateStr(fromStr, toStr) {
+  const [fy, fm, fd] = fromStr.split('-').map(Number);
+  const [ty, tm, td] = toStr.split('-').map(Number);
+  return Math.round((Date.UTC(ty, tm - 1, td) - Date.UTC(fy, fm - 1, fd)) / 86400000);
+}
+// §18: статус ближайшего платежа — по московскому дню (appTodayStr), не UTC.
+function creditPaymentDueStatus(dateStr) {
+  if (!dateStr) return null;
+  const diff = daysDiffDateStr(appTodayStr(), dateStr);
+  if (diff < 0) return { cls: 'overdue', text: `Платёж просрочен на ${Math.abs(diff)} ${pluralDays(Math.abs(diff))}` };
+  if (diff === 0) return { cls: 'today', text: 'Платёж сегодня' };
+  if (diff <= 7) return { cls: 'soon', text: `Платёж через ${diff} ${pluralDays(diff)}` };
+  return null;
+}
+// §16: прогресс погашения — только если первоначальная сумма известна, не нулевая и не меньше остатка.
+function creditProgressPercent(c) {
+  const original = Number(c.original_amount);
+  const remaining = Number(c.remaining_amount);
+  if (!c.original_amount || original <= 0 || remaining > original) return null;
+  return Math.round((original - remaining) / original * 100);
+}
+
+// §32: единственная функция расчёта сводки по кредитам — используется и главной карточкой, и
+// KPI полного раздела, вычисления не дублируются.
+function calculateCreditSummary() {
+  const activeCredits = state.credits.filter(c => c.status === 'active');
+  const totalRemainingCreditDebt = activeCredits.reduce((s, c) => s + Number(c.remaining_amount || 0), 0);
+  const totalMonthlyCreditPayments = activeCredits.reduce((s, c) => s + Number(c.monthly_payment || 0), 0);
+  // §31: платёж, уже учтённый в обязательных расходах, не должен войти сюда второй раз —
+  // этот срез предназначен для будущего этапа расчёта цели, а не для KPI «Платежи в месяц».
+  const monthlyPaymentsNotAlreadyCounted = activeCredits
+    .filter(c => !c.payment_already_counted_in_mandatory)
+    .reduce((s, c) => s + Number(c.monthly_payment || 0), 0);
+  const withDate = activeCredits.filter(c => c.next_payment_date).sort((a, b) => a.next_payment_date.localeCompare(b.next_payment_date));
+  const nearestPayment = withDate[0] || null;
+  const includedInGoalForecast = activeCredits.filter(c => c.include_in_goal_forecast);
+  return { totalRemainingCreditDebt, totalMonthlyCreditPayments, monthlyPaymentsNotAlreadyCounted, activeCredits, nearestPayment, includedInGoalForecast };
+}
+
+function renderCreditsKpis() {
+  const s = calculateCreditSummary();
+  document.getElementById('creditsKpiRemaining').textContent = fmt.format(s.totalRemainingCreditDebt);
+  document.getElementById('creditsKpiMonthly').textContent = fmt.format(s.totalMonthlyCreditPayments);
+  document.getElementById('creditsKpiNearest').textContent = s.nearestPayment
+    ? `${formatDateHuman(s.nearestPayment.next_payment_date)} · ${fmt.format(Number(s.nearestPayment.monthly_payment))}`
+    : 'Нет';
+  document.getElementById('creditsKpiCount').textContent = String(s.activeCredits.length);
+}
+
+// §27: сортировка активных — просроченные, затем ближайшая дата, затем без даты; при равенстве
+// дат — по убыванию ежемесячного платежа. Непросроченные/непогашенные статусы сортируются по имени.
+function creditsSortKey(c) {
+  if (c.status !== 'active') return null;
+  if (!c.next_payment_date) return { bucket: 2, date: '9999-99-99' };
+  const diff = daysDiffDateStr(appTodayStr(), c.next_payment_date);
+  return { bucket: diff < 0 ? 0 : 1, date: c.next_payment_date };
+}
+function creditsFilteredSorted() {
+  const filter = state.creditsFilter;
+  let list = state.credits.filter(c => {
+    if (filter === 'active') return c.status === 'active';
+    if (filter === 'paid') return c.status === 'paid';
+    return true;
+  });
+  list = list.slice().sort((a, b) => {
+    const ka = creditsSortKey(a), kb = creditsSortKey(b);
+    if (ka && kb) {
+      if (ka.bucket !== kb.bucket) return ka.bucket - kb.bucket;
+      if (ka.date !== kb.date) return ka.date.localeCompare(kb.date);
+      return Number(b.monthly_payment || 0) - Number(a.monthly_payment || 0);
+    }
+    if (ka && !kb) return -1;
+    if (!ka && kb) return 1;
+    return (a.name || '').localeCompare(b.name || '');
+  });
+  return list;
+}
+
+function creditCardHtml(c) {
+  const typeCls = creditTypeClass(c.credit_type);
+  const due = c.status === 'active' ? creditPaymentDueStatus(c.next_payment_date) : null;
+  const progress = creditProgressPercent(c);
+  const labels = creditFieldLabels(c.credit_type);
+  const statusBadge = c.status === 'paid'
+    ? `<span class="credit-card-status-badge credit-card-status-paid">Погашен</span>`
+    : (due ? `<span class="credit-card-status-badge credit-card-status-${due.cls}">${due.text}</span>` : '');
+  const ariaParts = [
+    creditTypeLabel(c.credit_type), c.name, `остаток ${fmt.format(Number(c.remaining_amount))} рублей`,
+    c.next_payment_date ? `следующий платёж ${formatDateHuman(c.next_payment_date)}` : 'дата следующего платежа не указана',
+    c.status === 'paid' ? 'кредит погашен' : (due ? due.text : ''),
+  ].filter(Boolean);
+  return `
+    <div class="credit-card" data-id="${c.id}" role="button" tabindex="0" aria-label="${escapeHtml(ariaParts.join(', '))}">
+      <div class="credit-card-head">
+        <span class="credit-type-dot ${typeCls}"></span>
+        <div class="credit-card-titles">
+          <div class="credit-card-type ${typeCls}">${escapeHtml(creditTypeLabel(c.credit_type))}</div>
+          <div class="credit-card-name">${escapeHtml(c.name)}</div>
+          ${c.lender ? `<div class="credit-card-lender">${escapeHtml(c.lender)}</div>` : ''}
+        </div>
+        ${statusBadge}
+      </div>
+      <div class="credit-card-facts">
+        <div><div class="credit-card-fact-label">${labels.remaining}</div><div class="credit-card-fact-value">${fmt.format(Number(c.remaining_amount))}</div></div>
+        <div><div class="credit-card-fact-label">${labels.monthly}</div><div class="credit-card-fact-value">${fmt.format(Number(c.monthly_payment))} в месяц</div></div>
+        ${c.interest_rate != null ? `<div><div class="credit-card-fact-label">Ставка</div><div class="credit-card-fact-value">${formatPercent(Number(c.interest_rate))}</div></div>` : ''}
+        ${c.next_payment_date ? `<div><div class="credit-card-fact-label">Следующий платёж</div><div class="credit-card-fact-value">${formatDateHuman(c.next_payment_date)}</div></div>` : ''}
+        ${c.planned_end_date ? `<div><div class="credit-card-fact-label">До</div><div class="credit-card-fact-value">${capFirst(monthLabel(c.planned_end_date.slice(0, 7)))}</div></div>` : ''}
+      </div>
+      ${progress != null ? `
+        <div>
+          <div class="credit-card-progress-track"><div class="credit-card-progress-fill ${typeCls}" style="width:${progress}%; background:currentColor;"></div></div>
+          <div class="credit-card-progress-label">Погашено ${progress}%</div>
+        </div>` : ''}
+    </div>`;
+}
+
+function renderCreditsList() {
+  const body = document.getElementById('creditsListBody');
+  const emptyNote = document.getElementById('creditsEmptyNote');
+  const errorNote = document.getElementById('creditsErrorNote');
+  if (!body) return;
+  if (state.creditsLoadError) {
+    body.innerHTML = ''; emptyNote.style.display = 'none'; errorNote.style.display = 'flex';
+    return;
+  }
+  errorNote.style.display = 'none';
+  if (!state.credits.length) {
+    body.innerHTML = ''; emptyNote.style.display = 'block';
+    return;
+  }
+  const list = creditsFilteredSorted();
+  emptyNote.style.display = 'none';
+  if (!list.length) {
+    body.innerHTML = '<div class="empty-note">Нет кредитов с этим статусом</div>';
+    return;
+  }
+  body.innerHTML = list.map(creditCardHtml).join('');
+  if (window.lucide) lucide.createIcons();
+}
+
+// «Кредиты» на главной (§29) — компактная сводка, не смешивается с блоком «Долги».
+function renderHomeCreditsWidget() {
+  const badge = document.getElementById('homeCreditsBadge');
+  const body = document.getElementById('homeCreditsBody');
+  if (!body) return;
+  const s = calculateCreditSummary();
+  if (badge) badge.textContent = s.activeCredits.length ? `${s.activeCredits.length} ${pluralCredit(s.activeCredits.length)}` : '';
+  if (!s.activeCredits.length) { body.innerHTML = '<div class="empty-note">Кредиты не добавлены</div>'; return; }
+  body.innerHTML = `
+    <div class="cfp-row"><span class="cfp-label">Осталось</span><span class="cfp-value">${fmt.format(s.totalRemainingCreditDebt)}</span></div>
+    <div class="cfp-row"><span class="cfp-label">В месяц</span><span class="cfp-value">${fmt.format(s.totalMonthlyCreditPayments)}</span></div>
+    ${s.nearestPayment ? `<div class="cfp-row"><span class="cfp-label">Ближайший платёж</span><span class="cfp-value">${formatDateHuman(s.nearestPayment.next_payment_date)}</span></div>` : ''}`;
+}
+function pluralCredit(n) {
+  const a = Math.abs(n) % 100, b = a % 10;
+  if (a > 10 && a < 20) return 'кредитов';
+  if (b === 1) return 'кредит';
+  if (b >= 2 && b <= 4) return 'кредита';
+  return 'кредитов';
+}
+
+document.getElementById('homeCreditsDetailBtn').addEventListener('click', () => switchPageTab('credits'));
+document.getElementById('creditsEmptyAddBtn').addEventListener('click', () => {
+  const btn = document.getElementById('creditFormToggleBtn');
+  if (getComputedStyle(document.getElementById('creditFormBody')).display === 'none') toggleAddForm('creditFormBody', btn);
+});
+document.getElementById('creditsFilterChips').addEventListener('click', (e) => {
+  const btn = e.target.closest('.credits-filter-chip');
+  if (!btn) return;
+  state.creditsFilter = btn.dataset.filter;
+  document.querySelectorAll('.credits-filter-chip').forEach(b => b.classList.toggle('active', b === btn));
+  renderCreditsList();
+});
+document.getElementById('creditsRetryBtn').addEventListener('click', () => loadAll());
+
+/* ---- Форма добавления/редактирования кредита ---- */
+let creditFormInFlight = false;
+function resetCreditForm() {
+  state.editingCreditId = null;
+  document.getElementById('creditNameInput').value = '';
+  document.getElementById('creditTypeInput').value = 'consumer';
+  document.getElementById('creditRemainingInput').value = '';
+  document.getElementById('creditMonthlyInput').value = '';
+  document.getElementById('creditLenderInput').value = '';
+  document.getElementById('creditOriginalInput').value = '';
+  document.getElementById('creditRateInput').value = '';
+  document.getElementById('creditStartDateInput').value = '';
+  document.getElementById('creditNextPaymentInput').value = '';
+  document.getElementById('creditPaymentDayInput').value = '';
+  document.getElementById('creditEndDateInput').value = '';
+  document.getElementById('creditNotesInput').value = '';
+  document.getElementById('creditCountedInMandatoryInput').checked = false;
+  document.getElementById('creditIncludeInGoalInput').checked = true;
+  applyCreditFieldLabels();
+  document.getElementById('creditSubmitBtn').textContent = 'Добавить кредит';
+}
+function openCreditEditForm(id) {
+  const c = state.credits.find(x => x.id === id);
+  if (!c) return;
+  closeCreditDetailOverlay();
+  switchPageTab('credits');
+  state.editingCreditId = id;
+  document.getElementById('creditNameInput').value = c.name || '';
+  document.getElementById('creditTypeInput').value = c.credit_type || 'consumer';
+  document.getElementById('creditRemainingInput').value = c.remaining_amount != null ? Math.round(Number(c.remaining_amount)) : '';
+  document.getElementById('creditMonthlyInput').value = c.monthly_payment != null ? Math.round(Number(c.monthly_payment)) : '';
+  document.getElementById('creditLenderInput').value = c.lender || '';
+  document.getElementById('creditOriginalInput').value = c.original_amount != null ? Math.round(Number(c.original_amount)) : '';
+  document.getElementById('creditRateInput').value = c.interest_rate != null ? String(c.interest_rate).replace('.', ',') : '';
+  document.getElementById('creditStartDateInput').value = c.start_date || '';
+  document.getElementById('creditNextPaymentInput').value = c.next_payment_date || '';
+  document.getElementById('creditPaymentDayInput').value = c.payment_day || '';
+  document.getElementById('creditEndDateInput').value = c.planned_end_date || '';
+  document.getElementById('creditNotesInput').value = c.notes || '';
+  document.getElementById('creditCountedInMandatoryInput').checked = !!c.payment_already_counted_in_mandatory;
+  document.getElementById('creditIncludeInGoalInput').checked = c.include_in_goal_forecast !== false;
+  applyCreditFieldLabels();
+  document.getElementById('creditSubmitBtn').textContent = 'Сохранить изменения';
+  const body = document.getElementById('creditFormBody');
+  const toggleBtn = document.getElementById('creditFormToggleBtn');
+  if (getComputedStyle(body).display === 'none') { body.style.display = 'block'; toggleBtn.textContent = toggleBtn.dataset.closeLabel; toggleBtn.classList.add('is-open'); }
+  body.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+document.getElementById('creditSubmitBtn').addEventListener('click', async () => {
+  if (creditFormInFlight) return;
+  if (!isConfigured) { toast('Сначала подключите базу данных'); return; }
+  const name = document.getElementById('creditNameInput').value.trim();
+  if (!name) { toast('Введите название кредита'); return; }
+  const creditType = document.getElementById('creditTypeInput').value;
+  const remainingRaw = document.getElementById('creditRemainingInput').value;
+  if (remainingRaw.trim() === '') { toast('Укажите остаток долга'); return; }
+  const remainingAmount = parseMoneyInput(remainingRaw);
+  const monthlyRaw = document.getElementById('creditMonthlyInput').value;
+  if (monthlyRaw.trim() === '') { toast('Укажите ежемесячный платёж'); return; }
+  const monthlyPayment = parseMoneyInput(monthlyRaw);
+  const paymentDayRaw = document.getElementById('creditPaymentDayInput').value;
+  const paymentDay = paymentDayRaw.trim() === '' ? null : parseInt(paymentDayRaw, 10);
+  if (paymentDay != null && (paymentDay < 1 || paymentDay > 31)) { toast('День платежа должен быть от 1 до 31'); return; }
+  const startDate = document.getElementById('creditStartDateInput').value || null;
+  const plannedEndDate = document.getElementById('creditEndDateInput').value || null;
+  if (startDate && plannedEndDate && plannedEndDate < startDate) { toast('Плановая дата окончания раньше даты начала'); return; }
+
+  const payload = {
+    name, credit_type: creditType,
+    lender: document.getElementById('creditLenderInput').value.trim() || null,
+    original_amount: parseOptionalMoneyInput(document.getElementById('creditOriginalInput').value),
+    remaining_amount: remainingAmount,
+    interest_rate: parsePercentInput(document.getElementById('creditRateInput').value),
+    monthly_payment: monthlyPayment,
+    start_date: startDate,
+    next_payment_date: document.getElementById('creditNextPaymentInput').value || null,
+    payment_day: paymentDay,
+    planned_end_date: plannedEndDate,
+    payment_already_counted_in_mandatory: document.getElementById('creditCountedInMandatoryInput').checked,
+    include_in_goal_forecast: document.getElementById('creditIncludeInGoalInput').checked,
+    notes: document.getElementById('creditNotesInput').value.trim() || null,
+  };
+  const btn = document.getElementById('creditSubmitBtn');
+  creditFormInFlight = true; btn.disabled = true;
+  try {
+    let error;
+    if (state.editingCreditId) {
+      ({ error } = await supabaseClient.from('credits').update({ ...payload, updated_at: new Date().toISOString() }).eq('id', state.editingCreditId));
+    } else {
+      payload.user_id = currentUser ? currentUser.id : null;
+      ({ error } = await insertWithRetry('credits', [payload]));
+    }
+    if (error) { toast('Не удалось сохранить кредит'); return; } // §37: форма не закрывается, значения остаются
+    toast(state.editingCreditId ? 'Кредит обновлён' : 'Кредит добавлен');
+    resetCreditForm();
+    document.getElementById('creditFormBody').style.display = 'none';
+    document.getElementById('creditFormToggleBtn').textContent = document.getElementById('creditFormToggleBtn').dataset.openLabel;
+    document.getElementById('creditFormToggleBtn').classList.remove('is-open');
+    await loadAll();
+  } finally {
+    creditFormInFlight = false; btn.disabled = false;
+  }
+});
+
+/* ---- Detail screen ---- */
+function closeCreditDetailOverlay() {
+  document.getElementById('creditDetailOverlay').classList.remove('visible');
+  state.selectedCreditId = null;
+}
+document.getElementById('creditDetailCloseBtn').addEventListener('click', closeCreditDetailOverlay);
+document.getElementById('creditDetailOverlay').addEventListener('click', (e) => {
+  if (e.target.id === 'creditDetailOverlay') closeCreditDetailOverlay();
+});
+document.getElementById('creditsListBody').addEventListener('click', (e) => {
+  const card = e.target.closest('.credit-card');
+  if (!card) return;
+  openCreditDetail(card.dataset.id);
+});
+document.getElementById('creditsListBody').addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const card = e.target.closest('.credit-card');
+  if (!card) return;
+  e.preventDefault();
+  openCreditDetail(card.dataset.id);
+});
+
+function creditPaymentHistory(creditId) {
+  return state.creditPayments
+    .filter(p => p.credit_id === creditId)
+    .sort((a, b) => (b.payment_date || '').localeCompare(a.payment_date || '') || (b.created_at || '').localeCompare(a.created_at || ''));
+}
+function openCreditDetail(id) {
+  state.selectedCreditId = id;
+  renderCreditDetail(id);
+  document.getElementById('creditDetailOverlay').classList.add('visible');
+}
+function renderCreditDetail(id) {
+  const c = state.credits.find(x => x.id === id);
+  const body = document.getElementById('creditDetailBody');
+  if (!c || !body) return;
+  const typeCls = creditTypeClass(c.credit_type);
+  const labels = creditFieldLabels(c.credit_type);
+  const due = c.status === 'active' ? creditPaymentDueStatus(c.next_payment_date) : null;
+  const history = creditPaymentHistory(id);
+  const historyHtml = history.length
+    ? history.slice(0, 20).map(p => `
+      <div class="credit-history-item">
+        <div>
+          <div class="credit-history-date">${formatDateHuman(p.payment_date)}</div>
+          ${p.notes ? `<div class="credit-history-remaining">${escapeHtml(p.notes)}</div>` : ''}
+        </div>
+        <div style="text-align:right;">
+          <div class="credit-history-amount">${fmt.format(Number(p.amount))}</div>
+          ${p.remaining_amount_after != null ? `<div class="credit-history-remaining">Остаток: ${fmt.format(Number(p.remaining_amount_after))}</div>` : ''}
+        </div>
+      </div>`).join('')
+    : '<div class="empty-note">Платежи пока не отмечены</div>';
+  body.innerHTML = `
+    <div class="credit-detail-head">
+      <div>
+        <div class="credit-card-type ${typeCls}">${escapeHtml(creditTypeLabel(c.credit_type))}</div>
+        <div class="credit-card-name" style="font-size:19px;">${escapeHtml(c.name)}</div>
+        ${c.lender ? `<div class="credit-card-lender">${escapeHtml(c.lender)}</div>` : ''}
+      </div>
+      <span class="credit-card-status-badge ${c.status === 'paid' ? 'credit-card-status-paid' : (due ? 'credit-card-status-' + due.cls : '')}">${c.status === 'paid' ? 'Погашен' : (due ? due.text : creditStatusLabel(c.status))}</span>
+    </div>
+    <div class="credit-detail-facts">
+      <div><div class="credit-detail-fact-label">${labels.remaining}</div><div class="credit-detail-fact-value">${fmt.format(Number(c.remaining_amount))}</div></div>
+      ${c.original_amount != null ? `<div><div class="credit-detail-fact-label">${labels.original.replace(' (необязательно)', '')}</div><div class="credit-detail-fact-value">${fmt.format(Number(c.original_amount))}</div></div>` : ''}
+      <div><div class="credit-detail-fact-label">${labels.monthly}</div><div class="credit-detail-fact-value">${fmt.format(Number(c.monthly_payment))}</div></div>
+      ${c.interest_rate != null ? `<div><div class="credit-detail-fact-label">Ставка</div><div class="credit-detail-fact-value">${formatPercent(Number(c.interest_rate))}</div></div>` : ''}
+      ${c.next_payment_date ? `<div><div class="credit-detail-fact-label">Следующий платёж</div><div class="credit-detail-fact-value">${formatDateHuman(c.next_payment_date)}</div></div>` : ''}
+      ${c.planned_end_date ? `<div><div class="credit-detail-fact-label">Плановое окончание</div><div class="credit-detail-fact-value">${formatDateHuman(c.planned_end_date)}</div></div>` : ''}
+    </div>
+    ${c.notes ? `<div class="form-row"><label>Примечание</label><div>${escapeHtml(c.notes)}</div></div>` : ''}
+    <div class="form-row">
+      <label class="recurring-check-label" style="cursor:default;">
+        <input type="checkbox" ${c.include_in_goal_forecast ? 'checked' : ''} onchange="toggleCreditGoalForecast('${c.id}', this.checked)">
+        Учитывать кредит при расчёте финансовых целей
+      </label>
+    </div>
+    <div class="credit-detail-actions">
+      ${c.status === 'active' ? `<button type="button" class="btn-primary" id="creditDetailMarkPaymentBtn">Отметить платёж</button>` : ''}
+      <button type="button" class="btn-secondary" id="creditDetailEditBtn">Редактировать</button>
+      ${c.status === 'active' ? `<button type="button" class="btn-secondary" id="creditDetailCloseCreditBtn">Закрыть кредит</button>` : ''}
+      <button type="button" class="btn-ghost tx-detail-delete" id="creditDetailDeleteBtn">Удалить</button>
+    </div>
+    <h3 style="margin:0 0 6px;">История платежей</h3>
+    <div id="creditDetailHistory">${historyHtml}</div>
+  `;
+  const markBtn = document.getElementById('creditDetailMarkPaymentBtn');
+  if (markBtn) markBtn.addEventListener('click', () => openCreditPaymentForm(c.id));
+  document.getElementById('creditDetailEditBtn').addEventListener('click', () => openCreditEditForm(c.id));
+  const closeBtn = document.getElementById('creditDetailCloseCreditBtn');
+  if (closeBtn) closeBtn.addEventListener('click', () => closeCreditAction(c.id));
+  document.getElementById('creditDetailDeleteBtn').addEventListener('click', () => deleteCreditAction(c.id));
+  if (window.lucide) lucide.createIcons();
+}
+async function toggleCreditGoalForecast(id, checked) {
+  const c = state.credits.find(x => x.id === id);
+  if (c) c.include_in_goal_forecast = checked; // оптимистично — без перезагрузки формы
+  const { error } = await supabaseClient.from('credits').update({ include_in_goal_forecast: checked, updated_at: new Date().toISOString() }).eq('id', id);
+  if (error) toast('Не удалось сохранить кредит');
+  renderHomeCreditsWidget(); renderCreditsKpis();
+}
+
+/* ---- Отметить платёж (§20-22): НЕ создаёт расход автоматически ---- */
+let creditPaymentInFlight = false;
+function openCreditPaymentForm(creditId) {
+  const c = state.credits.find(x => x.id === creditId);
+  if (!c) return;
+  state.markingPaymentCreditId = creditId;
+  document.getElementById('creditPaymentDateInput').value = appTodayStr();
+  document.getElementById('creditPaymentAmountInput').value = Math.round(Number(c.monthly_payment));
+  document.getElementById('creditPaymentRemainingInput').value = '';
+  document.getElementById('creditPaymentCommentInput').value = '';
+  document.getElementById('creditDetailOverlay').classList.remove('visible');
+  document.getElementById('creditPaymentOverlay').classList.add('visible');
+}
+document.getElementById('creditPaymentCloseBtn').addEventListener('click', () => {
+  document.getElementById('creditPaymentOverlay').classList.remove('visible');
+  if (state.selectedCreditId) openCreditDetail(state.selectedCreditId);
+});
+document.getElementById('creditPaymentOverlay').addEventListener('click', (e) => {
+  if (e.target.id !== 'creditPaymentOverlay') return;
+  document.getElementById('creditPaymentOverlay').classList.remove('visible');
+  if (state.selectedCreditId) openCreditDetail(state.selectedCreditId);
+});
+document.getElementById('creditPaymentSubmitBtn').addEventListener('click', async () => {
+  if (creditPaymentInFlight) return;
+  const creditId = state.markingPaymentCreditId;
+  const c = state.credits.find(x => x.id === creditId);
+  if (!c) return;
+  const paymentDate = document.getElementById('creditPaymentDateInput').value;
+  if (!paymentDate) { toast('Укажите дату платежа'); return; }
+  const amountRaw = document.getElementById('creditPaymentAmountInput').value;
+  const amount = parseMoneyInput(amountRaw);
+  if (!amount || amount <= 0) { toast('Сумма платежа должна быть больше нуля'); return; }
+  const remainingAfter = parseOptionalMoneyInput(document.getElementById('creditPaymentRemainingInput').value);
+  const comment = document.getElementById('creditPaymentCommentInput').value.trim();
+
+  const btn = document.getElementById('creditPaymentSubmitBtn');
+  creditPaymentInFlight = true; btn.disabled = true;
+  try {
+    const payload = {
+      credit_id: creditId, user_id: currentUser ? currentUser.id : null,
+      payment_date: paymentDate, amount, remaining_amount_after: remainingAfter, notes: comment || null,
+    };
+    const { error } = await insertWithRetry('credit_payments', [payload]);
+    if (error) { toast('Не удалось сохранить платёж'); return; } // §37: значения не очищаем
+    // §21: обновляем остаток (если указан), переносим следующую дату на месяц вперёд, updated_at.
+    const patch = { updated_at: new Date().toISOString() };
+    if (remainingAfter != null) patch.remaining_amount = remainingAfter;
+    if (c.next_payment_date) patch.next_payment_date = addOneMonthClamped(c.next_payment_date);
+    const { error: updErr } = await supabaseClient.from('credits').update(patch).eq('id', creditId);
+    if (updErr) toast('Платёж сохранён, но не удалось обновить данные кредита');
+    else toast('Платёж отмечен');
+    document.getElementById('creditPaymentOverlay').classList.remove('visible');
+    await loadAll();
+    if (state.credits.find(x => x.id === creditId)) openCreditDetail(creditId);
+  } finally {
+    creditPaymentInFlight = false; btn.disabled = false;
+  }
+});
+
+/* ---- Закрыть / удалить кредит ---- */
+let creditActionInFlight = false;
+async function closeCreditAction(id) {
+  if (creditActionInFlight) return;
+  if (!(await confirmDialog('Отметить кредит полностью погашенным?', { submessage: 'Кредит перейдёт в раздел «Погашенные», история платежей сохранится.', confirmLabel: 'Отметить погашенным' }))) return;
+  creditActionInFlight = true;
+  try {
+    const { error } = await supabaseClient.from('credits').update({ status: 'paid', remaining_amount: 0, updated_at: new Date().toISOString() }).eq('id', id);
+    if (error) { toast('Не удалось сохранить кредит'); return; }
+    toast('Кредит отмечен погашенным');
+    closeCreditDetailOverlay();
+    await loadAll();
+  } finally {
+    creditActionInFlight = false;
+  }
+}
+async function deleteCreditAction(id) {
+  if (creditActionInFlight) return;
+  if (!(await confirmDialog('Удалить кредит и всю историю его платежей?', { confirmLabel: 'Удалить' }))) return;
+  creditActionInFlight = true;
+  try {
+    const { error } = await supabaseClient.from('credits').delete().eq('id', id);
+    if (error) { toast('Ошибка: ' + error.message); return; }
+    toast('Кредит удалён');
+    closeCreditDetailOverlay();
+    await loadAll();
+  } finally {
+    creditActionInFlight = false;
+  }
+}
+
 /* ---------------- EXPENSE DAY CHECKS (календарь проверки расходов, ТЗ №3 2026-07-24) ---------------- */
 // Срочная доработка (2026-07-24) «единая часовая зона»: только APP_TIMEZONE (Europe/Moscow) —
 // имя сохранено для существующих вызовов по календарю.
@@ -8640,6 +9458,10 @@ function renderEverything() {
   renderShoppingNotes();
   renderExpenseCheckWidget();       // ТЗ №3 §6
   renderExpenseCalendarIfOpen();    // ТЗ №3 §30.18: календарь/панель дня обновляются без перезагрузки
+  renderCreditsKpis();               // Кредиты (2026-07-25, этап 1)
+  renderCreditsList();
+  renderHomeCreditsWidget();
+  if (state.selectedCreditId && document.getElementById('creditDetailOverlay').classList.contains('visible')) renderCreditDetail(state.selectedCreditId);
   lucide.createIcons();
   applyAmountMasking();
 }
