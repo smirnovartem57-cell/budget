@@ -1039,6 +1039,7 @@
   .goal-scenario-stage-row { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--text-secondary); }
   .goal-scenario-final-row { font-weight: 700; color: var(--text-primary); font-size: 13px; padding-top: 4px; border-top: 1px dashed var(--border); margin-top: 2px; }
   .goal-scenario-underfunded { font-size: 11px; color: var(--warning); margin-top: 2px; }
+  .goal-scenario-basis-caption { font-size: 10.5px; color: var(--text-secondary); font-style: italic; }
   @media (max-width: 640px) {
     .goal-scenarios-grid { grid-template-columns: 1fr; }
     .goal-hero-facts { grid-template-columns: 1fr 1fr; }
@@ -1082,6 +1083,13 @@
   .goal-load-growth-row.is-total { font-weight: 700; color: var(--text-primary); border-top: 1px solid var(--border); margin-top: 4px; padding-top: 8px; }
   .goal-load-growth-row.is-remaining { font-weight: 700; color: var(--income-accent); }
   .goal-load-underfunded-warning { font-size: 12.5px; color: var(--warning); background: var(--warning-bg); padding: 8px 10px; border-radius: var(--radius-sm); margin-top: 8px; }
+  .goal-override-reset-btn { font-size: 11.5px; padding: 4px 8px; min-height: 30px; margin-top: 4px; }
+  /* Доп.: расчёт по актуальному месяцу. */
+  .goal-basis-subrow { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--text-secondary); padding: 2px 0 2px 10px; }
+  .goal-basis-completeness { font-size: 12px; font-weight: 600; margin-top: 8px; }
+  .goal-basis-completeness-high { color: var(--income-accent); }
+  .goal-basis-completeness-medium { color: var(--warning); }
+  .goal-basis-completeness-low { color: var(--warning); }
   @media (max-width: 640px) {
     .goal-queue-item { flex-wrap: wrap; }
     .goal-queue-item-actions { flex-direction: row; }
@@ -2759,6 +2767,15 @@
         <div id="goalStagesBody" class="goal-stages-body"></div>
       </div>
 
+      <!-- Доп. к ТЗ 2026-07-25: расчёт по актуальному месяцу вместо усреднения старой истории. -->
+      <div class="panel" id="goalCalculationBasisPanel">
+        <h2 style="justify-content:space-between;">
+          <span>Основа расчёта</span>
+          <span class="badge-info badge-normalcase" id="goalCalculationBasisBadge"></span>
+        </h2>
+        <div id="goalCalculationBasisBody"></div>
+      </div>
+
       <div class="panel">
         <h2>Сценарии накопления</h2>
         <div class="goal-scenarios-grid" id="goalScenariosGrid"></div>
@@ -2831,6 +2848,19 @@
           <input type="date" id="goalDesiredDateInput" min="2020-01-01" max="2099-12-31">
         </div>
         <div class="form-row">
+          <label>На основе каких данных считать</label>
+          <select id="goalCalculationBasisInput">
+            <option value="reference_month_projection">Выбранный актуальный месяц</option>
+            <option value="completed_months_average">Среднее за завершённые месяцы</option>
+            <option value="manual">Указать значения вручную</option>
+          </select>
+        </div>
+        <div class="form-row" id="goalReferenceMonthRow">
+          <label>Расчётный месяц</label>
+          <select id="goalReferenceMonthInput"></select>
+          <div class="credit-form-hint" id="goalReferenceMonthHint"></div>
+        </div>
+        <div class="form-row" id="goalAnalysisPeriodRow">
           <label>Период анализа доходов/расходов</label>
           <select id="goalAnalysisPeriodInput">
             <option value="3">3 месяца</option>
@@ -2887,16 +2917,19 @@
           <input type="number" id="goalAcceleratedPercentInput" min="0" max="100" step="1" placeholder="90">
         </div>
         <div class="form-row">
-          <label>Свой месячный доход, ₽ (необязательно)</label>
-          <input type="text" inputmode="numeric" id="goalIncomeOverrideInput" placeholder="Оставьте пустым для среднего по истории">
+          <label id="goalIncomeOverrideLabel">Свой месячный доход, ₽ (необязательно)</label>
+          <input type="text" inputmode="numeric" id="goalIncomeOverrideInput" placeholder="Оставьте пустым для автоматического расчёта">
+          <button type="button" class="btn-ghost goal-override-reset-btn" id="goalIncomeOverrideResetBtn">Вернуть автоматический расчёт</button>
         </div>
         <div class="form-row">
-          <label>Свои переменные расходы в месяц, ₽ (необязательно)</label>
-          <input type="text" inputmode="numeric" id="goalVariableOverrideInput" placeholder="Оставьте пустым для среднего по истории">
+          <label id="goalVariableOverrideLabel">Свои переменные расходы в месяц, ₽ (необязательно)</label>
+          <input type="text" inputmode="numeric" id="goalVariableOverrideInput" placeholder="Оставьте пустым для автоматического расчёта">
+          <button type="button" class="btn-ghost goal-override-reset-btn" id="goalVariableOverrideResetBtn">Вернуть автоматический расчёт</button>
         </div>
         <div class="form-row">
           <label>Свои обязательные расходы в месяц, ₽ (необязательно)</label>
           <input type="text" inputmode="numeric" id="goalMandatoryOverrideInput" placeholder="Оставьте пустым для суммы регулярных расходов и подписок">
+          <button type="button" class="btn-ghost goal-override-reset-btn" id="goalMandatoryOverrideResetBtn">Вернуть автоматический расчёт</button>
         </div>
         <div class="form-row">
           <label>Статус</label>
@@ -3920,6 +3953,12 @@ function txInMonthUpToDay(mKey, dayN, kind) {
   return state.transactions.filter(t => t.kind === kind && monthKey(t.date) === mKey && t.date <= end && hasHappened(t));
 }
 const GENITIVE_MONTHS = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+const DATIVE_MONTHS = ['январю','февралю','марту','апрелю','маю','июню','июлю','августу','сентябрю','октябрю','ноябрю','декабрю'];
+// «Расчёт по июлю 2026» — предлог «по» требует дательного падежа, не именительного/творительного.
+function monthLabelDative(key) {
+  const [y, m] = key.split('-');
+  return `${DATIVE_MONTHS[parseInt(m) - 1]} ${y}`;
+}
 function dayRangeLabel(mKey, fromDay, toDay) {
   return `${fromDay}–${toDay} ${GENITIVE_MONTHS[parseInt(mKey.slice(5, 7)) - 1]}`;
 }
@@ -7414,6 +7453,119 @@ function goalHistoricalMonthlyAverages(months) {
   const n = monthKeys.length || 1;
   return { avgMonthlyIncome: income / n, avgMonthlyVariableExpense: variableExpense / n };
 }
+
+/* ====== Расчёт цели по актуальному месяцу (доп. к ТЗ 2026-07-25) ======
+   Старое усреднение по 3/6/12 завершённым месяцам искажает прогноз, пока старые данные внесены
+   неполно — теперь основной режим считает по ОДНОМУ выбранному месяцу (reference_month), не по
+   истории. Доход никогда не экстраполируется линейно по дням (§6) — только сумма уже внесённых
+   операций. Переменные расходы прошедших дней берутся по факту, оставшиеся дни — по среднему
+   подтверждённых дней календаря проверки расходов (expense_day_checks), с fallback на простое
+   среднее по факту, если подтверждённых дней меньше 7 (§12). */
+const GOAL_CALCULATION_BASES = ['reference_month_projection', 'reference_month_actual', 'completed_months_average', 'manual'];
+function normalizeGoalCalculationBasis(basis) {
+  return GOAL_CALCULATION_BASES.includes(basis) ? basis : 'reference_month_projection';
+}
+// Список месяцев (YYYY-MM), где есть хоть одна операция или отметка календаря — только из них
+// пользователь выбирает расчётный месяц (§24: «показывать только месяцы, где существуют операции
+// или календарные отметки»).
+function getAvailableReferenceMonths() {
+  const keys = new Set();
+  state.transactions.forEach(t => keys.add(monthKey(t.date)));
+  state.expenseDayChecks.forEach(c => keys.add(c.check_date.slice(0, 7)));
+  return Array.from(keys).sort();
+}
+// Помесячные данные выбранного расчётного месяца — доход, факт/прогноз переменных расходов,
+// подтверждённые дни, полнота данных. Не трогает calculateCurrentFamilyBalance() и историю
+// операций — только читает уже загруженный state (§19, §29).
+function calculateReferenceMonthData(goal, basis) {
+  const monthKeyStr = (goal.reference_month || todayStr()).slice(0, 7);
+  const today = appTodayStr();
+  const daysCount = daysInMonthKey(monthKeyStr);
+  const monthStart = `${monthKeyStr}-01`;
+  const monthEnd = `${monthKeyStr}-${String(daysCount).padStart(2, '0')}`;
+  const isCompletedMonth = monthEnd < today;
+  const isFutureMonth = monthStart > today;
+  const elapsedDaysInMonth = isFutureMonth ? 0 : (isCompletedMonth ? daysCount : Number(today.slice(8, 10)));
+  const remainingDaysInMonth = Math.max(0, daysCount - elapsedDaysInMonth);
+
+  // §6: доход — только сумма уже внесённых операций, без линейной экстраполяции по дням.
+  const incomeTx = state.transactions.filter(t => t.kind === 'income' && monthKey(t.date) === monthKeyStr);
+  const referenceMonthIncomeReceived = incomeTx.filter(hasHappened).reduce((s, t) => s + Number(t.amount || 0), 0);
+  const referenceMonthIncomeFutureEntered = incomeTx.filter(t => !hasHappened(t)).reduce((s, t) => s + Number(t.amount || 0), 0);
+  const referenceMonthIncome = referenceMonthIncomeReceived + referenceMonthIncomeFutureEntered;
+
+  // §7/§8: только нерегулярные расходы выбранного месяца, факт — до сегодняшнего дня включительно.
+  const variableTx = state.transactions.filter(t => t.kind === 'expense' && !t.is_recurring && monthKey(t.date) === monthKeyStr);
+  const actualVariableExpensesToDate = variableTx.filter(t => t.date <= today).reduce((s, t) => s + Number(t.amount || 0), 0);
+
+  // §10/§13: подтверждённый день — статус 'checked' (строка есть и не invalidated), включая
+  // подтверждённые нулевые дни без операций — они законно входят в среднее.
+  const daysUpToToday = daysInMonthArray(monthKeyStr).filter(d => d <= today);
+  const confirmedDays = daysUpToToday.filter(d => getDayStatus(d) === 'checked');
+  const confirmedDaysExpenseTotal = confirmedDays.reduce((s, d) =>
+    s + expenseTxForDay(d).filter(t => !t.is_recurring).reduce((s2, t) => s2 + Number(t.amount || 0), 0), 0);
+  const confirmedDaysCount = confirmedDays.length;
+  const averageExpensePerConfirmedDay = confirmedDaysCount ? confirmedDaysExpenseTotal / confirmedDaysCount : 0;
+
+  // §12: меньше 7 подтверждённых дней — среднее по ним ненадёжно, используем простой fallback.
+  const usedFallbackDailyAverage = confirmedDaysCount < 7;
+  const fallbackDailyAverage = elapsedDaysInMonth ? actualVariableExpensesToDate / elapsedDaysInMonth : 0;
+  const dailyAverageForProjection = usedFallbackDailyAverage ? fallbackDailyAverage : averageExpensePerConfirmedDay;
+
+  // §25: завершённый месяц (или режим «только факт») не прогнозируется — берём чистый факт.
+  const skipProjection = basis === 'reference_month_actual' || isCompletedMonth;
+  const projectedRemainingVariableExpenses = skipProjection ? 0 : dailyAverageForProjection * remainingDaysInMonth;
+  const projectedVariableExpenses = actualVariableExpensesToDate + projectedRemainingVariableExpenses;
+
+  // §14: полнота данных — доля подтверждённых дней среди уже прошедших дней месяца.
+  const completionPercent = elapsedDaysInMonth > 0 ? Math.round(confirmedDaysCount / elapsedDaysInMonth * 100) : 0;
+  const completenessLevel = completionPercent >= 80 ? 'high' : completionPercent >= 50 ? 'medium' : 'low';
+
+  return {
+    monthKeyStr, isCompletedMonth, isFutureMonth, elapsedDaysInMonth, remainingDaysInMonth, daysCount,
+    referenceMonthIncomeReceived, referenceMonthIncomeFutureEntered, referenceMonthIncome,
+    projectedMonthlyIncome: referenceMonthIncome,
+    actualVariableExpensesToDate, confirmedDaysCount, confirmedDaysExpenseTotal, averageExpensePerConfirmedDay,
+    usedFallbackDailyAverage, skipProjection, projectedRemainingVariableExpenses, projectedVariableExpenses,
+    completionPercent, completenessLevel,
+  };
+}
+// Единая точка выбора источника дохода/переменных/обязательных расходов для прогноза — решает,
+// какая из четырёх основ расчёта (calculation_basis) активна, и применяет ручные override поля
+// поверх неё (override побеждает независимо от основы — это осознанный выбор: пользователь может
+// точечно поправить одно число, не отказываясь от автоматики целиком).
+function resolveGoalIncomeAndExpenses(goal) {
+  const basis = normalizeGoalCalculationBasis(goal.calculation_basis);
+  const usingIncomeOverride = goal.monthly_income_override != null;
+  const usingVariableOverride = goal.monthly_variable_expense_override != null;
+  const usingMandatoryOverride = goal.monthly_mandatory_expense_override != null;
+  // §15: обязательные расходы не зависят от calculation_basis — всегда текущие активные
+  // регулярные группы + подписки, один раз каждая (никогда не прогнозируются по прошедшим дням).
+  const mandatoryExpense = usingMandatoryOverride ? Number(goal.monthly_mandatory_expense_override) : goalMonthlyMandatoryTemplate();
+
+  let referenceMonthData = null, historicalAverages = null, monthlyIncome, monthlyVariableExpense;
+  if (basis === 'completed_months_average') {
+    const months = Number(goal.analysis_period_months) || 3;
+    historicalAverages = goalHistoricalMonthlyAverages(months);
+    monthlyIncome = usingIncomeOverride ? Number(goal.monthly_income_override) : historicalAverages.avgMonthlyIncome;
+    monthlyVariableExpense = usingVariableOverride ? Number(goal.monthly_variable_expense_override) : historicalAverages.avgMonthlyVariableExpense;
+  } else if (basis === 'manual') {
+    // Пустое ручное поле в режиме «указать вручную» — 0, а не молчаливый откат к автоматике.
+    monthlyIncome = usingIncomeOverride ? Number(goal.monthly_income_override) : 0;
+    monthlyVariableExpense = usingVariableOverride ? Number(goal.monthly_variable_expense_override) : 0;
+  } else {
+    referenceMonthData = calculateReferenceMonthData(goal, basis);
+    monthlyIncome = usingIncomeOverride ? Number(goal.monthly_income_override) : referenceMonthData.projectedMonthlyIncome;
+    monthlyVariableExpense = usingVariableOverride ? Number(goal.monthly_variable_expense_override) : referenceMonthData.projectedVariableExpenses;
+  }
+
+  return {
+    basis, mandatoryExpense, monthlyIncome, monthlyVariableExpense,
+    referenceMonthData, historicalAverages,
+    usingIncomeOverride, usingVariableOverride, usingMandatoryOverride,
+  };
+}
+
 // Ежемесячная нагрузка по кредитам, которую нужно вычесть из свободного остатка при расчёте
 // цели: только активные, явно включённые пользователем (include_in_goal_forecast) и ещё не
 // учтённые в обязательных расходах (иначе платёж посчитается дважды). Не зависит от стратегии —
@@ -7659,11 +7811,10 @@ function simulateGoalPayoffMonths(params) {
 // первый месяц симуляции как «текущее состояние» — минимальные платежи по кредитам ещё не
 // изменились закрытиями.
 function calculatePlannedMonthlyLoad(goal) {
-  const months = Number(goal.analysis_period_months) || 3;
-  const { avgMonthlyIncome, avgMonthlyVariableExpense } = goalHistoricalMonthlyAverages(months);
-  const monthlyIncome = goal.monthly_income_override != null ? Number(goal.monthly_income_override) : avgMonthlyIncome;
-  const currentVariableExpenses = goal.monthly_variable_expense_override != null ? Number(goal.monthly_variable_expense_override) : avgMonthlyVariableExpense;
-  const currentMandatoryExpenses = goal.monthly_mandatory_expense_override != null ? Number(goal.monthly_mandatory_expense_override) : goalMonthlyMandatoryTemplate();
+  const resolved = resolveGoalIncomeAndExpenses(goal);
+  const monthlyIncome = resolved.monthlyIncome;
+  const currentVariableExpenses = resolved.monthlyVariableExpense;
+  const currentMandatoryExpenses = resolved.mandatoryExpense;
   const currentCreditMinimumPayments = goal.include_credits ? goalMonthlyCreditPayments() : 0;
   const availableAfterMinimums = Math.max(0, monthlyIncome - currentMandatoryExpenses - currentVariableExpenses - currentCreditMinimumPayments);
 
@@ -7680,6 +7831,7 @@ function calculatePlannedMonthlyLoad(goal) {
     totalPlannedExpenses, remainingAfterPlan,
     currentCreditTotal: currentCreditMinimumPayments,
     plannedCreditTotal: currentCreditMinimumPayments + plannedExtraDebtPayment,
+    resolved,
   };
 }
 
@@ -7688,15 +7840,14 @@ function calculatePlannedMonthlyLoad(goal) {
 // БД). Каждый из трёх сценариев (comfortable/base/accelerated) — своя доля свободного остатка,
 // направляемая на приоритетные кредиты и цель ежемесячно (см. simulateGoalPayoffMonths).
 function calculateGoalForecast(goal) {
-  const months = Number(goal.analysis_period_months) || 3;
-  const { avgMonthlyIncome, avgMonthlyVariableExpense } = goalHistoricalMonthlyAverages(months);
-  const usingIncomeOverride = goal.monthly_income_override != null;
-  const usingVariableOverride = goal.monthly_variable_expense_override != null;
-  const usingMandatoryOverride = goal.monthly_mandatory_expense_override != null;
+  const resolved = resolveGoalIncomeAndExpenses(goal);
+  const usingIncomeOverride = resolved.usingIncomeOverride;
+  const usingVariableOverride = resolved.usingVariableOverride;
+  const usingMandatoryOverride = resolved.usingMandatoryOverride;
 
-  const monthlyIncome = usingIncomeOverride ? Number(goal.monthly_income_override) : avgMonthlyIncome;
-  const monthlyVariableExpense = usingVariableOverride ? Number(goal.monthly_variable_expense_override) : avgMonthlyVariableExpense;
-  const monthlyMandatoryExpense = usingMandatoryOverride ? Number(goal.monthly_mandatory_expense_override) : goalMonthlyMandatoryTemplate();
+  const monthlyIncome = resolved.monthlyIncome;
+  const monthlyVariableExpense = resolved.monthlyVariableExpense;
+  const monthlyMandatoryExpense = resolved.mandatoryExpense;
   const monthlyCreditPayments = goal.include_credits ? goalMonthlyCreditPayments() : 0;
 
   const queueCredits = goal.include_credits ? getGoalPayoffQueue(state.credits) : [];
@@ -7759,6 +7910,7 @@ function calculateGoalForecast(goal) {
     usingOverrides: { income: usingIncomeOverride, variable: usingVariableOverride, mandatory: usingMandatoryOverride },
     queueCredits, parallelCredits,
     debtAccelerationMode, extraMonthlyDebtPayment, redirectExtraDebtPaymentToGoal, plannedMonthlyLoad,
+    calculationBasis: resolved.basis, referenceMonthData: resolved.referenceMonthData, historicalAverages: resolved.historicalAverages,
   };
 }
 // «Что если»: пересчитывает прогноз с временно подменёнными полями цели, не затрагивая
@@ -7844,7 +7996,8 @@ function renderGoalsView() {
   const forecast = calculateGoalForecast(goal);
   renderGoalHero(goal, forecast);
   renderGoalStages(goal, forecast);
-  renderGoalScenarios(forecast);
+  renderGoalCalculationBasis(goal, forecast);
+  renderGoalScenarios(goal, forecast);
   renderGoalBreakdown(forecast);
   renderGoalLoadGrowth(goal, forecast);
   renderGoalPayoffQueue(goal, forecast);
@@ -7951,12 +8104,18 @@ function renderGoalStages(goal, forecast) {
   box.innerHTML = html;
 }
 
-function renderGoalScenarios(forecast) {
+function renderGoalScenarios(goal, forecast) {
   const grid = document.getElementById('goalScenariosGrid');
   if (!grid) return;
   const hasQueue = !!forecast.queueCredits.length;
   const isFixed = forecast.debtAccelerationMode === 'fixed_monthly';
   const load = forecast.plannedMonthlyLoad;
+  // §27: подпись, по каким данным построен срок — не скрывать причину результата.
+  const captionText = forecast.calculationBasis === 'manual'
+    ? 'Расчёт по указанным вручную значениям'
+    : forecast.calculationBasis === 'completed_months_average'
+      ? `Расчёт по среднему за ${Number(goal.analysis_period_months) || 3} мес.`
+      : forecast.referenceMonthData ? `Расчёт по ${monthLabelDative(forecast.referenceMonthData.monthKeyStr)}` : '';
   grid.innerHTML = Object.values(GOAL_SCENARIO_META).map(meta => {
     const sc = forecast.scenarios[meta.key];
     const monthsText = !forecast.remainingAmount ? 'Цель достигнута'
@@ -7991,6 +8150,7 @@ function renderGoalScenarios(forecast) {
       <div class="goal-scenario-card ${meta.key === 'base' ? 'is-base' : ''} ${!sc.reachable && forecast.remainingAmount ? 'unreachable' : ''}">
         <div class="goal-scenario-label">${meta.label}${meta.key === 'base' ? ' <span class="goal-scenario-base-badge">рекомендуемый</span>' : ''}</div>
         <div class="goal-scenario-percent">${sc.percent}% свободного остатка · ${fmt.format(sc.monthlyAllocation)}/мес.</div>
+        ${captionText ? `<div class="goal-scenario-basis-caption">${escapeHtml(captionText)}</div>` : ''}
         ${fixedRows}
         ${debtsRow}
         <div class="goal-scenario-stage-row goal-scenario-final-row">
@@ -8039,6 +8199,81 @@ function renderGoalScenariosChart(forecast) {
   milestonesEl.innerHTML = points.length
     ? points.map(p => `<div class="goal-milestone-item">${escapeHtml(p)}</div>`).join('')
     : '';
+}
+
+// Доп. к ТЗ 2026-07-25: «Основа расчёта» — явно показывает, на каких данных построен прогноз
+// (выбранный месяц / среднее за период / ручной ввод), с разделением факта и прогноза (§21) и
+// уровнем полноты данных (§14). Не переименовывать «прогноз» в «фактические расходы» — реальные
+// операции создаёт только сам пользователь.
+function renderGoalCalculationBasis(goal, forecast) {
+  const badge = document.getElementById('goalCalculationBasisBadge');
+  const body = document.getElementById('goalCalculationBasisBody');
+  if (!body) return;
+  const o = forecast.usingOverrides;
+  const row = (label, value, overridden) => `
+    <div class="cfp-row"><span class="cfp-label">${label}${overridden ? ' <span class="badge-info badge-normalcase" style="padding:1px 6px;font-size:10.5px;">указано вручную</span>' : ''}</span><span class="cfp-value">${fmt.format(value)}</span></div>`;
+
+  if (forecast.calculationBasis === 'manual') {
+    if (badge) badge.textContent = 'Вручную';
+    body.innerHTML = `
+      ${row('Доход за месяц', forecast.monthlyIncome, o.income)}
+      ${row('Обычные расходы', forecast.monthlyVariableExpense, o.variable)}
+      ${row('Обязательные расходы', forecast.monthlyMandatoryExpense, o.mandatory)}`;
+    return;
+  }
+
+  if (forecast.calculationBasis === 'completed_months_average') {
+    const months = Number(goal.analysis_period_months) || 3;
+    if (badge) badge.textContent = `Среднее за ${months} мес.`;
+    body.innerHTML = `
+      ${row('Средний доход в месяц', forecast.monthlyIncome, o.income)}
+      ${row('Средние обычные расходы', forecast.monthlyVariableExpense, o.variable)}
+      ${row('Обязательные расходы', forecast.monthlyMandatoryExpense, o.mandatory)}`;
+    return;
+  }
+
+  // reference_month_projection / reference_month_actual
+  const ref = forecast.referenceMonthData;
+  const monthName = capFirst(monthLabel(ref.monthKeyStr));
+  if (badge) badge.textContent = monthName;
+
+  const incomeRow = o.income
+    ? row('Доход за месяц', forecast.monthlyIncome, true)
+    : `<div class="cfp-row"><span class="cfp-label">Доход за месяц</span><span class="cfp-value">${fmt.format(ref.referenceMonthIncome)}</span></div>
+       <div class="goal-basis-subrow"><span>Получено</span><span>${fmt.format(ref.referenceMonthIncomeReceived)}</span></div>
+       ${ref.referenceMonthIncomeFutureEntered ? `<div class="goal-basis-subrow"><span>Запланировано до конца месяца</span><span>${fmt.format(ref.referenceMonthIncomeFutureEntered)}</span></div>` : ''}`;
+
+  const variableRows = o.variable ? row('Обычные расходы', forecast.monthlyVariableExpense, true) : `
+       <div class="cfp-row"><span class="cfp-label">Обычные расходы внесено</span><span class="cfp-value">${fmt.format(ref.actualVariableExpensesToDate)}</span></div>
+       ${!ref.skipProjection ? `
+       <div class="goal-basis-subrow"><span>Ожидается до конца месяца</span><span>ещё ${fmt.format(ref.projectedRemainingVariableExpenses)}</span></div>
+       <div class="cfp-row"><span class="cfp-label" style="font-weight:700;">Прогноз обычных расходов за ${monthName.toLowerCase()}</span><span class="cfp-value" style="font-weight:700;">${fmt.format(ref.projectedVariableExpenses)}</span></div>` : ''}`;
+
+  const completenessLabel = ref.completenessLevel === 'high'
+    ? `Данные подтверждены на ${ref.completionPercent}%`
+    : ref.completenessLevel === 'medium'
+      ? `Данные подтверждены на ${ref.completionPercent}%. Прогноз может измениться.`
+      : `Данные подтверждены только на ${ref.completionPercent}%. Проверьте расходы или укажите сумму вручную.`;
+
+  const warnings = [];
+  if (!ref.skipProjection && ref.usedFallbackDailyAverage) warnings.push('В месяце пока мало проверенных дней. Прогноз расходов предварительный.');
+  if (!ref.isCompletedMonth && ref.completenessLevel !== 'high') {
+    warnings.push(`${monthName} заполнен не полностью. Расчёт построен по внесённым операциям и подтверждённым дням. Вы можете скорректировать итоговые суммы вручную.`);
+  }
+
+  body.innerHTML = `
+    <div class="cfp-row"><span class="cfp-label">Расчётный месяц</span><span class="cfp-value">${monthName}</span></div>
+    ${incomeRow}
+    ${variableRows}
+    ${row('Обязательные расходы', forecast.monthlyMandatoryExpense, o.mandatory)}
+    ${forecast.monthlyCreditPayments ? row('Минимальные платежи по кредитам', forecast.monthlyCreditPayments, false) : ''}
+    ${forecast.debtAccelerationMode === 'fixed_monthly' && forecast.plannedMonthlyLoad.plannedExtraDebtPayment ? row('Дополнительно на кредиты', forecast.plannedMonthlyLoad.plannedExtraDebtPayment, false) : ''}
+    <div class="cfp-row" style="border-top:1px solid var(--border); margin-top:6px; padding-top:8px;">
+      <span class="cfp-label" style="font-weight:700; color:var(--text-primary);">Прогноз свободной суммы</span>
+      <span class="cfp-value" style="font-size:15px;">${fmt.format(forecast.freeCashFlow)}</span>
+    </div>
+    <div class="goal-basis-completeness goal-basis-completeness-${ref.completenessLevel}">${escapeHtml(completenessLabel)}</div>
+    ${warnings.map(w => `<div class="goal-load-underfunded-warning">${escapeHtml(w)}</div>`).join('')}`;
 }
 
 function renderGoalBreakdown(forecast) {
@@ -8186,9 +8421,15 @@ function renderHomeGoalsWidget() {
   // §19 доп.: компактно, без формул — доплата по кредитам только если задан fixed_monthly режим.
   const extraDebtRow = forecast.debtAccelerationMode === 'fixed_monthly' && forecast.plannedMonthlyLoad.plannedExtraDebtPayment
     ? `<div class="cfp-row"><span class="cfp-label">Доплата по кредитам</span><span class="cfp-value">${fmt.format(forecast.plannedMonthlyLoad.plannedExtraDebtPayment)} в месяц</span></div>` : '';
+  // §28: не перегружать карточку — только основа расчёта и, если данные неполные, короткая
+  // пометка «Предварительный прогноз» вместо процентов и формул.
+  const basisRow = forecast.referenceMonthData
+    ? `<div class="cfp-row"><span class="cfp-label">Основа</span><span class="cfp-value">${escapeHtml(capFirst(monthLabel(forecast.referenceMonthData.monthKeyStr)))}${forecast.referenceMonthData.completenessLevel !== 'high' ? ' · предварительный прогноз' : ''}</span></div>`
+    : '';
   body.innerHTML = `
     <div class="cfp-row"><span class="cfp-label">${escapeHtml(goal.name)}</span><span class="cfp-value">${goalProgressPercent(goal)}%</span></div>
     <div class="cfp-row"><span class="cfp-label">Осталось накопить</span><span class="cfp-value">${fmt.format(forecast.remainingAmount)}</span></div>
+    ${basisRow}
     ${extraDebtRow}
     ${debtRow}
     <div class="cfp-row"><span class="cfp-label">Автомобиль</span><span class="cfp-value">${monthsText}</span></div>`;
@@ -8202,6 +8443,8 @@ function resetGoalForm() {
   document.getElementById('goalTargetAmountInput').value = '';
   document.getElementById('goalReservedAmountInput').value = '';
   document.getElementById('goalDesiredDateInput').value = '';
+  document.getElementById('goalCalculationBasisInput').value = 'reference_month_projection';
+  populateGoalReferenceMonthSelect(null);
   document.getElementById('goalAnalysisPeriodInput').value = '3';
   document.getElementById('goalIncludeCreditsInput').checked = true;
   document.getElementById('goalDebtAccelerationModeInput').value = 'auto_scenario';
@@ -8218,6 +8461,7 @@ function resetGoalForm() {
   document.getElementById('goalNotesInput').value = '';
   document.getElementById('goalSubmitBtn').textContent = 'Добавить цель';
   applyGoalDebtAccelerationVisibility();
+  applyGoalCalculationBasisVisibility();
   renderGoalLoadPreview();
 }
 // Заполняет форму текущими значениями выбранной цели — вызывается при каждом рендере экрана
@@ -8230,6 +8474,8 @@ function populateGoalForm(goal) {
   document.getElementById('goalTargetAmountInput').value = goal.target_amount != null ? Math.round(Number(goal.target_amount)) : '';
   document.getElementById('goalReservedAmountInput').value = goal.reserved_amount != null ? Math.round(Number(goal.reserved_amount)) : '';
   document.getElementById('goalDesiredDateInput').value = goal.desired_date || '';
+  document.getElementById('goalCalculationBasisInput').value = normalizeGoalCalculationBasis(goal.calculation_basis);
+  populateGoalReferenceMonthSelect(goal.reference_month ? goal.reference_month.slice(0, 7) : null);
   document.getElementById('goalAnalysisPeriodInput').value = String(goal.analysis_period_months || 3);
   document.getElementById('goalIncludeCreditsInput').checked = goal.include_credits !== false;
   document.getElementById('goalDebtAccelerationModeInput').value = goal.debt_acceleration_mode === 'fixed_monthly' ? 'fixed_monthly' : 'auto_scenario';
@@ -8246,6 +8492,7 @@ function populateGoalForm(goal) {
   document.getElementById('goalNotesInput').value = goal.notes || '';
   document.getElementById('goalSubmitBtn').textContent = 'Сохранить изменения';
   applyGoalDebtAccelerationVisibility();
+  applyGoalCalculationBasisVisibility();
   renderGoalLoadPreview();
 }
 // §7 доп. («увеличение ежемесячных расходов на кредиты»): показать/скрыть поле фиксированной
@@ -8269,6 +8516,46 @@ function renderGoalLoadPreview() {
 }
 document.getElementById('goalDebtAccelerationModeInput').addEventListener('change', () => { applyGoalDebtAccelerationVisibility(); renderGoalLoadPreview(); });
 document.getElementById('goalExtraDebtPaymentInput').addEventListener('input', renderGoalLoadPreview);
+
+/* ---- Доп.: расчёт по актуальному месяцу — форма ---- */
+// §24: выбор месяца — только из тех, где есть операции или отметки календаря; текущее сохранённое
+// значение цели тоже всегда должно быть доступно для выбора, даже если по каким-то причинам не
+// попало в этот список (не теряем уже сохранённый выбор пользователя).
+function populateGoalReferenceMonthSelect(selectedMonthKey) {
+  const select = document.getElementById('goalReferenceMonthInput');
+  const months = getAvailableReferenceMonths();
+  const fallback = selectedMonthKey || todayStr().slice(0, 7);
+  if (!months.includes(fallback)) months.push(fallback);
+  months.sort();
+  select.innerHTML = months.map(k => `<option value="${k}">${escapeHtml(capFirst(monthLabel(k)))}</option>`).join('');
+  select.value = selectedMonthKey || months[months.length - 1];
+}
+// §4: подсказка — переключение месяца не автоматическое, только пользователь выбирает новый месяц,
+// когда данные текущего станут достаточно полными. §6/§22: подписи override-полей упоминают
+// выбранный месяц по имени, а не техническую дату «1 июля».
+function applyGoalCalculationBasisVisibility() {
+  const basis = document.getElementById('goalCalculationBasisInput').value;
+  const isReferenceMonth = basis === 'reference_month_projection' || basis === 'reference_month_actual';
+  document.getElementById('goalReferenceMonthRow').style.display = isReferenceMonth ? '' : 'none';
+  document.getElementById('goalAnalysisPeriodRow').style.display = basis === 'completed_months_average' ? '' : 'none';
+  const monthLabelText = isReferenceMonth
+    ? capFirst(monthLabel(document.getElementById('goalReferenceMonthInput').value || todayStr().slice(0, 7)))
+    : '';
+  document.getElementById('goalReferenceMonthHint').textContent = isReferenceMonth
+    ? `Сейчас выбран ${monthLabelText.toLowerCase()}. Переключите месяц, когда данные нового месяца станут достаточно полными.`
+    : '';
+  document.getElementById('goalIncomeOverrideLabel').textContent = isReferenceMonth
+    ? `Ожидаемый доход за ${monthLabelText.toLowerCase()} (необязательно)` : 'Свой месячный доход, ₽ (необязательно)';
+  document.getElementById('goalVariableOverrideLabel').textContent = isReferenceMonth
+    ? `Ожидаемые обычные расходы за ${monthLabelText.toLowerCase()} (необязательно)` : 'Свои переменные расходы в месяц, ₽ (необязательно)';
+}
+document.getElementById('goalCalculationBasisInput').addEventListener('change', applyGoalCalculationBasisVisibility);
+document.getElementById('goalReferenceMonthInput').addEventListener('change', applyGoalCalculationBasisVisibility);
+// §22: «Вернуть автоматический расчёт» — просто очищает поле; NULL сохраняется при submit
+// (parseOptionalMoneyInput('') === null), что и означает возврат к автоматике.
+document.getElementById('goalIncomeOverrideResetBtn').addEventListener('click', () => { document.getElementById('goalIncomeOverrideInput').value = ''; });
+document.getElementById('goalVariableOverrideResetBtn').addEventListener('click', () => { document.getElementById('goalVariableOverrideInput').value = ''; });
+document.getElementById('goalMandatoryOverrideResetBtn').addEventListener('click', () => { document.getElementById('goalMandatoryOverrideInput').value = ''; });
 document.getElementById('goalsEmptyAddBtn').addEventListener('click', () => {
   state.goalFormMode = 'create';
   resetGoalForm();
@@ -8316,6 +8603,10 @@ document.getElementById('goalSubmitBtn').addEventListener('click', async () => {
     reserved_amount: reservedAmount,
     desired_date: document.getElementById('goalDesiredDateInput').value || null,
     analysis_period_months: parseInt(document.getElementById('goalAnalysisPeriodInput').value, 10),
+    // §3 доп.: reference_month хранится как первое число месяца — техническая дата, подпись в
+    // интерфейсе всегда через monthLabel (например «Июль 2026»), не саму дату.
+    calculation_basis: normalizeGoalCalculationBasis(document.getElementById('goalCalculationBasisInput').value),
+    reference_month: `${document.getElementById('goalReferenceMonthInput').value}-01`,
     include_credits: document.getElementById('goalIncludeCreditsInput').checked,
     pre_debt_goal_allocation_percent: parseInt(document.getElementById('goalPreDebtAllocationInput').value, 10) || 0,
     debt_acceleration_mode: document.getElementById('goalDebtAccelerationModeInput').value === 'fixed_monthly' ? 'fixed_monthly' : 'auto_scenario',
