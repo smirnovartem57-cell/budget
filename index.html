@@ -1038,6 +1038,7 @@
   .goal-scenario-base-badge { font-size: 9.5px; font-weight: 700; text-transform: none; letter-spacing: 0; color: var(--btn-primary); background: var(--info-bg); padding: 1px 6px; border-radius: 999px; vertical-align: middle; }
   .goal-scenario-stage-row { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--text-secondary); }
   .goal-scenario-final-row { font-weight: 700; color: var(--text-primary); font-size: 13px; padding-top: 4px; border-top: 1px dashed var(--border); margin-top: 2px; }
+  .goal-scenario-underfunded { font-size: 11px; color: var(--warning); margin-top: 2px; }
   @media (max-width: 640px) {
     .goal-scenarios-grid { grid-template-columns: 1fr; }
     .goal-hero-facts { grid-template-columns: 1fr 1fr; }
@@ -1074,6 +1075,13 @@
   .goal-parallel-item-facts { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
   .goal-parallel-item-note { font-size: 11.5px; color: var(--income-accent); font-weight: 600; margin-top: 4px; }
   .credit-detail-goal-strategy { font-size: 12.5px; font-weight: 700; color: var(--btn-primary); background: var(--info-bg); padding: 7px 10px; border-radius: var(--radius-sm); margin-bottom: 10px; display: inline-block; }
+  /* Увеличение ежемесячных расходов на кредиты (доп. к ТЗ 2026-07-25). */
+  .goal-load-preview-line { font-size: 12.5px; font-weight: 600; color: var(--btn-primary); background: var(--info-bg); padding: 8px 10px; border-radius: var(--radius-sm); margin: -4px 0 4px; }
+  .goal-load-growth-row { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; padding: 5px 0; }
+  .goal-load-growth-row.is-extra { color: var(--warning); font-weight: 600; }
+  .goal-load-growth-row.is-total { font-weight: 700; color: var(--text-primary); border-top: 1px solid var(--border); margin-top: 4px; padding-top: 8px; }
+  .goal-load-growth-row.is-remaining { font-weight: 700; color: var(--income-accent); }
+  .goal-load-underfunded-warning { font-size: 12.5px; color: var(--warning); background: var(--warning-bg); padding: 8px 10px; border-radius: var(--radius-sm); margin-top: 8px; }
   @media (max-width: 640px) {
     .goal-queue-item { flex-wrap: wrap; }
     .goal-queue-item-actions { flex-direction: row; }
@@ -2763,6 +2771,12 @@
         <div id="goalBreakdownBody"></div>
       </div>
 
+      <!-- Доп. к ТЗ 2026-07-25: рост ежемесячной нагрузки при фиксированной доплате по кредитам. -->
+      <div class="panel" id="goalLoadGrowthPanel" style="display:none;">
+        <h2>Как изменится ежемесячная нагрузка</h2>
+        <div id="goalLoadGrowthBody"></div>
+      </div>
+
       <!-- §7: очередь кредитов, закрываемых до активного накопления, с ручной перестановкой. -->
       <div class="panel">
         <h2 style="justify-content:space-between;">
@@ -2831,6 +2845,25 @@
           </label>
           <div class="credit-form-hint">Учитываются кредиты из раздела «Кредиты» с выбранной стратегией «Закрыть до накопления» или «Выплачивать параллельно».</div>
         </div>
+        <div class="form-row">
+          <label>Как ускорять погашение кредитов</label>
+          <select id="goalDebtAccelerationModeInput">
+            <option value="auto_scenario">Автоматически из свободной суммы</option>
+            <option value="fixed_monthly">Указать фиксированную сумму</option>
+          </select>
+        </div>
+        <div class="form-row" id="goalExtraDebtPaymentRow">
+          <label>Дополнительно на кредиты ежемесячно, ₽</label>
+          <input type="text" inputmode="numeric" id="goalExtraDebtPaymentInput" placeholder="30 000">
+          <div class="credit-form-hint">Эта сумма добавится к текущим обязательным платежам по кредитам и уменьшит свободную сумму семьи до закрытия приоритетных кредитов.</div>
+        </div>
+        <div class="form-row" id="goalRedirectExtraDebtRow">
+          <label class="recurring-check-label">
+            <input type="checkbox" id="goalRedirectExtraDebtInput" checked>
+            После закрытия кредитов направлять эту сумму на автомобиль
+          </label>
+        </div>
+        <div class="goal-load-preview" id="goalLoadPreview"></div>
         <div class="form-row">
           <label>Доля ресурса на автомобиль до закрытия очереди кредитов</label>
           <select id="goalPreDebtAllocationInput">
@@ -7465,7 +7498,10 @@ function simulateGoalPayoffMonths(params) {
     allocationPercent, preDebtGoalAllocationPercent,
     queueCredits, parallelCredits,
     startDateStr, horizonMonths = GOAL_SIMULATION_HORIZON_MONTHS,
+    // Доп. к ТЗ 2026-07-25 «увеличение ежемесячных расходов на кредиты»: режим ускорения.
+    debtAccelerationMode = 'auto_scenario', extraMonthlyDebtPayment = 0, redirectExtraDebtPaymentToGoal = true,
   } = params;
+  const isFixedMode = debtAccelerationMode === 'fixed_monthly';
 
   if (remainingGoalAmountStart <= 0) {
     return {
@@ -7489,10 +7525,19 @@ function simulateGoalPayoffMonths(params) {
     monthlyPayment: Number(c.monthly_payment || 0),
     rate: c.interest_rate != null ? Number(c.interest_rate) : null,
     countedInMandatory: !!c.payment_already_counted_in_mandatory,
+    // §13: кредит с выключенным досрочным погашением получает только минимальный платёж —
+    // ни сценарный, ни фиксированный допплатёж на него не направляются.
+    allowExtra: c.allow_extra_payment_before_goal !== false,
     closed: false,
   });
   const queue = queueCredits.map(cloneCredit);
   const parallel = parallelCredits.map(cloneCredit);
+
+  // §13 (доп.): предупредить, если кредит в очереди блокирует этап, но для него выключено
+  // досрочное погашение — он закроется только по своему обычному графику минимальных платежей.
+  queue.filter(c => !c.allowExtra).forEach(c => {
+    warnings.push(`«${c.name}»: досрочное погашение отключено — закроется только по графику минимальных платежей`);
+  });
 
   // §13: проценты, если ставка задана; иначе interestPart = 0 (эквивалентно кредиту без ставки).
   function amortizeMinimum(credit) {
@@ -7513,6 +7558,7 @@ function simulateGoalPayoffMonths(params) {
   for (let month = 1; month <= horizonMonths; month++) {
     const activeQueue = queue.filter(c => !c.closed);
     const activeParallel = parallel.filter(c => !c.closed);
+    const queueNonEmpty = activeQueue.length > 0;
 
     // §9: платёж, уже учтённый в обязательных расходах, не вычитается второй раз здесь; после
     // закрытия кредита его платёж сам перестаёт входить в эту сумму на следующий месяц.
@@ -7520,26 +7566,57 @@ function simulateGoalPayoffMonths(params) {
       .filter(c => !c.countedInMandatory)
       .reduce((s, c) => s + c.monthlyPayment, 0);
     const availableAfterMinimums = Math.max(0, monthlyIncome - monthlyMandatoryExpense - monthlyVariableExpense - separateMonthlyCreditPayments);
-    const strategyAllocation = Math.max(0, availableAfterMinimums * allocationPercent / 100);
 
-    const head = activeQueue[0] || null;
-    // §11: пока очередь не пуста — доля ресурса идёт в цель, остальное на приоритетный кредит;
-    // после закрытия очереди весь ресурс сценария идёт в цель.
-    let goalContribution = head ? strategyAllocation * preDebtGoalAllocationPercent / 100 : strategyAllocation;
-    let extraDebtPayment = head ? strategyAllocation - goalContribution : 0;
+    let strategyAllocation, goalContribution, extraDebtPayment;
+    let fundedExtraDebtPayment = 0, unfundedExtraDebtPayment = 0;
+
+    if (!isFixedMode) {
+      // Режим 1 (§1 доп.): автоматически по сценарию — прежняя логика без изменений.
+      strategyAllocation = Math.max(0, availableAfterMinimums * allocationPercent / 100);
+      goalContribution = queueNonEmpty ? strategyAllocation * preDebtGoalAllocationPercent / 100 : strategyAllocation;
+      extraDebtPayment = queueNonEmpty ? strategyAllocation - goalContribution : 0;
+    } else {
+      // Режим 2 (§8, §14, §15 доп.): фиксированная доплата — гарантированный план, не зависящий
+      // от allocationPercent; сценарный процент считается от остатка ПОСЛЕ доплаты.
+      const configuredExtraDebtPayment = Math.max(0, extraMonthlyDebtPayment);
+      fundedExtraDebtPayment = Math.min(configuredExtraDebtPayment, Math.max(0, availableAfterMinimums));
+      unfundedExtraDebtPayment = configuredExtraDebtPayment - fundedExtraDebtPayment;
+      const availableAfterFixedDebtPayment = availableAfterMinimums - fundedExtraDebtPayment;
+      const remainingScenarioAllocation = Math.max(0, availableAfterFixedDebtPayment * allocationPercent / 100);
+      strategyAllocation = remainingScenarioAllocation;
+      if (queueNonEmpty) {
+        extraDebtPayment = fundedExtraDebtPayment;
+        goalContribution = remainingScenarioAllocation * preDebtGoalAllocationPercent / 100;
+        // Остаток сценарной доли (remainingScenarioAllocation − goalContribution) НЕ уходит ни в
+        // допплатёж, ни в цель — остаётся запасом семьи (§14 доп.), сюда намеренно не пишем.
+      } else if (redirectExtraDebtPaymentToGoal) {
+        // §15 доп.: очередь закрыта, перенаправление включено — фиксированная сумма продолжает
+        // использоваться как гарантированный взнос на автомобиль, плюс процент от остатка.
+        extraDebtPayment = 0;
+        goalContribution = fundedExtraDebtPayment + availableAfterFixedDebtPayment * allocationPercent / 100;
+      } else {
+        // §15 доп.: перенаправление выключено — доплата возвращается в общий свободный поток.
+        extraDebtPayment = 0;
+        fundedExtraDebtPayment = 0; unfundedExtraDebtPayment = 0;
+        goalContribution = availableAfterMinimums * allocationPercent / 100;
+      }
+    }
 
     activeQueue.concat(activeParallel).forEach(c => { c.remaining = amortizeMinimum(c); });
 
-    // §15: каскад дополнительного платежа — только по очереди, в её фиксированном порядке.
+    // §15 / §12 доп.: каскад дополнительного платежа — по очереди, в её фиксированном порядке,
+    // пропуская кредиты с allowExtra=false (§13 доп.) — им достаётся только минимальный платёж.
     let remainingExtra = extraDebtPayment;
     for (const c of activeQueue) {
       if (remainingExtra <= 0) break;
+      if (!c.allowExtra) continue;
       if (c.remaining <= 0) continue;
       const pay = Math.min(remainingExtra, c.remaining);
       c.remaining -= pay;
       remainingExtra -= pay;
     }
-    // Очередь закончилась раньше, чем исчерпан ресурс месяца — остаток идёт в цель (§15 п.2).
+    // Очередь закончилась (или все оставшиеся кредиты не принимают допплатёж) раньше, чем
+    // исчерпан ресурс месяца — остаток идёт в цель (§15 п.2).
     if (remainingExtra > 0) goalContribution += remainingExtra;
 
     activeQueue.concat(activeParallel).forEach(c => {
@@ -7555,6 +7632,7 @@ function simulateGoalPayoffMonths(params) {
       month, date: addMonthsToDateStr(startDateStr, month),
       availableAfterMinimums, strategyAllocation, goalContribution,
       extraDebtPayment: extraDebtPayment - remainingExtra,
+      fundedExtraDebtPayment, unfundedExtraDebtPayment,
       goalBalance: Math.min(goalBalance, remainingGoalAmountStart),
       queueRemaining: queue.filter(c => !c.closed).reduce((s, c) => s + c.remaining, 0),
     });
@@ -7572,6 +7650,36 @@ function simulateGoalPayoffMonths(params) {
     monthsToPriorityDebtsClosed: priorityDebtsClosedMonth, monthsToGoal: goalReachedMonth,
     goalBalance: Math.min(goalBalance, remainingGoalAmountStart),
     monthlyTimeline, creditEvents, warnings,
+  };
+}
+
+// §10 доп.: централизованный расчёт плановой ежемесячной нагрузки — не привязан к конкретному
+// сценарию (комфортный/базовый/ускоренный), показывает рост расходов от текущих обязательных
+// платежей до плановых (с фиксированной доплатой, если включён режим fixed_monthly). Использует
+// первый месяц симуляции как «текущее состояние» — минимальные платежи по кредитам ещё не
+// изменились закрытиями.
+function calculatePlannedMonthlyLoad(goal) {
+  const months = Number(goal.analysis_period_months) || 3;
+  const { avgMonthlyIncome, avgMonthlyVariableExpense } = goalHistoricalMonthlyAverages(months);
+  const monthlyIncome = goal.monthly_income_override != null ? Number(goal.monthly_income_override) : avgMonthlyIncome;
+  const currentVariableExpenses = goal.monthly_variable_expense_override != null ? Number(goal.monthly_variable_expense_override) : avgMonthlyVariableExpense;
+  const currentMandatoryExpenses = goal.monthly_mandatory_expense_override != null ? Number(goal.monthly_mandatory_expense_override) : goalMonthlyMandatoryTemplate();
+  const currentCreditMinimumPayments = goal.include_credits ? goalMonthlyCreditPayments() : 0;
+  const availableAfterMinimums = Math.max(0, monthlyIncome - currentMandatoryExpenses - currentVariableExpenses - currentCreditMinimumPayments);
+
+  const isFixedMode = goal.debt_acceleration_mode === 'fixed_monthly';
+  const configuredExtraDebtPayment = isFixedMode ? Math.max(0, Number(goal.extra_monthly_debt_payment || 0)) : 0;
+  const plannedExtraDebtPayment = isFixedMode ? Math.min(configuredExtraDebtPayment, availableAfterMinimums) : 0;
+  const unfundedExtraDebtPayment = configuredExtraDebtPayment - plannedExtraDebtPayment;
+  const totalPlannedExpenses = currentVariableExpenses + currentMandatoryExpenses + currentCreditMinimumPayments + plannedExtraDebtPayment;
+  const remainingAfterPlan = monthlyIncome - totalPlannedExpenses;
+
+  return {
+    currentVariableExpenses, currentMandatoryExpenses, currentCreditMinimumPayments,
+    configuredExtraDebtPayment, plannedExtraDebtPayment, unfundedExtraDebtPayment,
+    totalPlannedExpenses, remainingAfterPlan,
+    currentCreditTotal: currentCreditMinimumPayments,
+    plannedCreditTotal: currentCreditMinimumPayments + plannedExtraDebtPayment,
   };
 }
 
@@ -7594,10 +7702,14 @@ function calculateGoalForecast(goal) {
   const queueCredits = goal.include_credits ? getGoalPayoffQueue(state.credits) : [];
   const parallelCredits = goal.include_credits ? getGoalParallelCredits(state.credits) : [];
   const preDebtGoalAllocationPercent = Number(goal.pre_debt_goal_allocation_percent || 0);
+  const debtAccelerationMode = goal.debt_acceleration_mode === 'fixed_monthly' ? 'fixed_monthly' : 'auto_scenario';
+  const extraMonthlyDebtPayment = Math.max(0, Number(goal.extra_monthly_debt_payment || 0));
+  const redirectExtraDebtPaymentToGoal = goal.redirect_extra_debt_payment_to_goal !== false;
 
   const freeCashFlow = Math.max(0, monthlyIncome - monthlyMandatoryExpense - monthlyVariableExpense - monthlyCreditPayments);
   const remainingAmount = Math.max(0, Number(goal.target_amount || 0) - Number(goal.reserved_amount || 0));
   const today = todayStr();
+  const plannedMonthlyLoad = calculatePlannedMonthlyLoad(goal);
 
   const scenarioPercents = {
     comfortable: Number(goal.comfortable_allocation_percent),
@@ -7611,6 +7723,7 @@ function calculateGoalForecast(goal) {
       monthlyIncome, monthlyMandatoryExpense, monthlyVariableExpense,
       allocationPercent: percent, preDebtGoalAllocationPercent,
       queueCredits, parallelCredits, startDateStr: today,
+      debtAccelerationMode, extraMonthlyDebtPayment, redirectExtraDebtPaymentToGoal,
     });
     const monthlyAllocation = sim.monthlyTimeline.length ? sim.monthlyTimeline[0].strategyAllocation : freeCashFlow * percent / 100;
     scenarios[key] = {
@@ -7622,6 +7735,10 @@ function calculateGoalForecast(goal) {
       priorityDebtsClosedDate: sim.priorityDebtsClosedMonth != null ? addMonthsToDateStr(today, sim.priorityDebtsClosedMonth) : null,
       monthlyTimeline: sim.monthlyTimeline, creditEvents: sim.creditEvents, warnings: sim.warnings,
       goalBalance: sim.goalBalance,
+      fundedExtraDebtPayment: sim.monthlyTimeline.length ? sim.monthlyTimeline[0].fundedExtraDebtPayment : 0,
+      afterDebtsMonthlyAllocationLabel: debtAccelerationMode === 'fixed_monthly' && redirectExtraDebtPaymentToGoal
+        ? `${fmt.format(plannedMonthlyLoad.plannedExtraDebtPayment)} + ${percent}% оставшейся свободной суммы`
+        : `${percent}% свободного остатка`,
     };
   });
 
@@ -7641,6 +7758,7 @@ function calculateGoalForecast(goal) {
     remainingAmount, scenarios, desiredDateComparison,
     usingOverrides: { income: usingIncomeOverride, variable: usingVariableOverride, mandatory: usingMandatoryOverride },
     queueCredits, parallelCredits,
+    debtAccelerationMode, extraMonthlyDebtPayment, redirectExtraDebtPaymentToGoal, plannedMonthlyLoad,
   };
 }
 // «Что если»: пересчитывает прогноз с временно подменёнными полями цели, не затрагивая
@@ -7728,6 +7846,7 @@ function renderGoalsView() {
   renderGoalStages(goal, forecast);
   renderGoalScenarios(forecast);
   renderGoalBreakdown(forecast);
+  renderGoalLoadGrowth(goal, forecast);
   renderGoalPayoffQueue(goal, forecast);
   renderGoalParallelCredits(goal, forecast);
 
@@ -7801,8 +7920,13 @@ function renderGoalStages(goal, forecast) {
       title: 'Этап 1', text: 'Закрыть кредитные карты и потребительские кредиты',
       date: base.priorityDebtsClosedDate ? `До ${formatDateHuman(base.priorityDebtsClosedDate)}` : 'Срок не определён при текущем темпе',
     });
+    // §17 доп.: в фиксированном режиме с перенаправлением — явно указать, что доплата продолжает
+    // работать, но уже как взнос на автомобиль.
+    const stage2Text = forecast.debtAccelerationMode === 'fixed_monthly' && forecast.redirectExtraDebtPaymentToGoal && forecast.plannedMonthlyLoad.plannedExtraDebtPayment
+      ? `${fmt.format(forecast.plannedMonthlyLoad.plannedExtraDebtPayment)} перенаправляются на автомобиль`
+      : 'Активное накопление на автомобиль';
     stages.push({
-      title: 'Этап 2', text: 'Активное накопление на автомобиль',
+      title: 'Этап 2', text: stage2Text,
       date: base.priorityDebtsClosedDate ? `С ${formatDateHuman(base.priorityDebtsClosedDate)}` : '—',
     });
   } else {
@@ -7831,6 +7955,8 @@ function renderGoalScenarios(forecast) {
   const grid = document.getElementById('goalScenariosGrid');
   if (!grid) return;
   const hasQueue = !!forecast.queueCredits.length;
+  const isFixed = forecast.debtAccelerationMode === 'fixed_monthly';
+  const load = forecast.plannedMonthlyLoad;
   grid.innerHTML = Object.values(GOAL_SCENARIO_META).map(meta => {
     const sc = forecast.scenarios[meta.key];
     const monthsText = !forecast.remainingAmount ? 'Цель достигнута'
@@ -7845,10 +7971,27 @@ function renderGoalScenarios(forecast) {
           <span>Начало активного накопления</span>
           <span>${sc.priorityDebtsClosedDate ? formatDateHuman(sc.priorityDebtsClosedDate) : '—'}</span>
         </div>` : '';
+    // §18 доп.: в фиксированном режиме — доплата, плановая нагрузка и правило после закрытия очереди.
+    const fixedRows = isFixed ? `
+        <div class="goal-scenario-stage-row">
+          <span>Дополнительно на кредиты</span>
+          <span>${fmt.format(load.plannedExtraDebtPayment)} в месяц</span>
+        </div>
+        <div class="goal-scenario-stage-row">
+          <span>Плановая кредитная нагрузка</span>
+          <span>${fmt.format(load.plannedCreditTotal)} в месяц</span>
+        </div>
+        ${hasQueue && forecast.redirectExtraDebtPaymentToGoal ? `
+        <div class="goal-scenario-stage-row">
+          <span>После закрытия на автомобиль</span>
+          <span>${sc.afterDebtsMonthlyAllocationLabel}</span>
+        </div>` : ''}
+        ${load.unfundedExtraDebtPayment > 0 ? `<div class="goal-scenario-underfunded">Из указанных ${fmt.format(load.configuredExtraDebtPayment)} доходом обеспечено только ${fmt.format(load.plannedExtraDebtPayment)}</div>` : ''}` : '';
     return `
       <div class="goal-scenario-card ${meta.key === 'base' ? 'is-base' : ''} ${!sc.reachable && forecast.remainingAmount ? 'unreachable' : ''}">
         <div class="goal-scenario-label">${meta.label}${meta.key === 'base' ? ' <span class="goal-scenario-base-badge">рекомендуемый</span>' : ''}</div>
         <div class="goal-scenario-percent">${sc.percent}% свободного остатка · ${fmt.format(sc.monthlyAllocation)}/мес.</div>
+        ${fixedRows}
         ${debtsRow}
         <div class="goal-scenario-stage-row goal-scenario-final-row">
           <span>Автомобиль</span>
@@ -7913,6 +8056,29 @@ function renderGoalBreakdown(forecast) {
       <span class="cfp-label" style="font-weight:700; color:var(--text-primary);">Свободный остаток в месяц</span>
       <span class="cfp-value" style="font-size:15px;">${fmt.format(forecast.freeCashFlow)}</span>
     </div>`;
+}
+
+// §11 доп. («увеличение ежемесячных расходов на кредиты»): рост плановой ежемесячной нагрузки —
+// только для режима fixed_monthly (в auto_scenario доплата не задаётся отдельным числом, блок
+// скрыт). Явно используем формулировку «Плановые расходы», а не «Фактические» — реальные операции
+// не создаются, пока пользователь сам их не внесёт (§11, §6).
+function renderGoalLoadGrowth(goal, forecast) {
+  const panel = document.getElementById('goalLoadGrowthPanel');
+  const body = document.getElementById('goalLoadGrowthBody');
+  if (!panel || !body) return;
+  if (forecast.debtAccelerationMode !== 'fixed_monthly') { panel.style.display = 'none'; return; }
+  panel.style.display = '';
+  const load = forecast.plannedMonthlyLoad;
+  const row = (label, value, cls) => `
+    <div class="goal-load-growth-row ${cls || ''}"><span>${label}</span><span>${fmt.format(value)}</span></div>`;
+  body.innerHTML = `
+    ${row('Расходы по текущим данным', load.currentVariableExpenses + load.currentMandatoryExpenses + load.currentCreditTotal)}
+    ${load.plannedExtraDebtPayment ? row('Дополнительно на кредиты', load.plannedExtraDebtPayment, 'is-extra') : ''}
+    ${row('Плановые расходы', load.totalPlannedExpenses, 'is-total')}
+    ${row('Свободно после всех расходов', load.remainingAfterPlan, 'is-remaining')}
+    ${load.unfundedExtraDebtPayment > 0 ? `<div class="goal-load-underfunded-warning">Указанная доплата превышает свободную сумму на ${fmt.format(load.unfundedExtraDebtPayment)} в месяц. Из текущего дохода обеспечено: ${fmt.format(load.plannedExtraDebtPayment)}. Не обеспечено доходом: ${fmt.format(load.unfundedExtraDebtPayment)}.</div>` : ''}
+    <div class="goal-load-growth-row"><span>Сейчас на кредиты</span><span>${fmt.format(load.currentCreditTotal)}</span></div>
+    <div class="goal-load-growth-row is-total"><span>Всего на кредиты</span><span>${fmt.format(load.plannedCreditTotal)}</span></div>`;
 }
 
 // §7: очередь «закрыть до накопления» с ручной перестановкой (кнопки Выше/Ниже).
@@ -8017,9 +8183,13 @@ function renderHomeGoalsWidget() {
       debtRow = `<div class="cfp-row"><span class="cfp-label">Сначала кредиты</span><span class="cfp-value">${base.priorityDebtsClosedDate ? 'до ' + formatDateHuman(base.priorityDebtsClosedDate) : '—'}</span></div>`;
     }
   }
+  // §19 доп.: компактно, без формул — доплата по кредитам только если задан fixed_monthly режим.
+  const extraDebtRow = forecast.debtAccelerationMode === 'fixed_monthly' && forecast.plannedMonthlyLoad.plannedExtraDebtPayment
+    ? `<div class="cfp-row"><span class="cfp-label">Доплата по кредитам</span><span class="cfp-value">${fmt.format(forecast.plannedMonthlyLoad.plannedExtraDebtPayment)} в месяц</span></div>` : '';
   body.innerHTML = `
     <div class="cfp-row"><span class="cfp-label">${escapeHtml(goal.name)}</span><span class="cfp-value">${goalProgressPercent(goal)}%</span></div>
     <div class="cfp-row"><span class="cfp-label">Осталось накопить</span><span class="cfp-value">${fmt.format(forecast.remainingAmount)}</span></div>
+    ${extraDebtRow}
     ${debtRow}
     <div class="cfp-row"><span class="cfp-label">Автомобиль</span><span class="cfp-value">${monthsText}</span></div>`;
 }
@@ -8034,6 +8204,9 @@ function resetGoalForm() {
   document.getElementById('goalDesiredDateInput').value = '';
   document.getElementById('goalAnalysisPeriodInput').value = '3';
   document.getElementById('goalIncludeCreditsInput').checked = true;
+  document.getElementById('goalDebtAccelerationModeInput').value = 'auto_scenario';
+  document.getElementById('goalExtraDebtPaymentInput').value = '';
+  document.getElementById('goalRedirectExtraDebtInput').checked = true;
   document.getElementById('goalPreDebtAllocationInput').value = '0';
   document.getElementById('goalComfortablePercentInput').value = 50;
   document.getElementById('goalBasePercentInput').value = 70;
@@ -8044,6 +8217,8 @@ function resetGoalForm() {
   document.getElementById('goalStatusInput').value = 'active';
   document.getElementById('goalNotesInput').value = '';
   document.getElementById('goalSubmitBtn').textContent = 'Добавить цель';
+  applyGoalDebtAccelerationVisibility();
+  renderGoalLoadPreview();
 }
 // Заполняет форму текущими значениями выбранной цели — вызывается при каждом рендере экрана
 // в режиме 'edit', чтобы форма не отставала от сохранённых данных после переключения между
@@ -8057,6 +8232,9 @@ function populateGoalForm(goal) {
   document.getElementById('goalDesiredDateInput').value = goal.desired_date || '';
   document.getElementById('goalAnalysisPeriodInput').value = String(goal.analysis_period_months || 3);
   document.getElementById('goalIncludeCreditsInput').checked = goal.include_credits !== false;
+  document.getElementById('goalDebtAccelerationModeInput').value = goal.debt_acceleration_mode === 'fixed_monthly' ? 'fixed_monthly' : 'auto_scenario';
+  document.getElementById('goalExtraDebtPaymentInput').value = goal.extra_monthly_debt_payment ? Math.round(Number(goal.extra_monthly_debt_payment)) : '';
+  document.getElementById('goalRedirectExtraDebtInput').checked = goal.redirect_extra_debt_payment_to_goal !== false;
   document.getElementById('goalPreDebtAllocationInput').value = String(goal.pre_debt_goal_allocation_percent != null ? Math.round(Number(goal.pre_debt_goal_allocation_percent)) : 0);
   document.getElementById('goalComfortablePercentInput').value = goal.comfortable_allocation_percent != null ? Number(goal.comfortable_allocation_percent) : 50;
   document.getElementById('goalBasePercentInput').value = goal.base_allocation_percent != null ? Number(goal.base_allocation_percent) : 70;
@@ -8067,7 +8245,30 @@ function populateGoalForm(goal) {
   document.getElementById('goalStatusInput').value = goal.status || 'active';
   document.getElementById('goalNotesInput').value = goal.notes || '';
   document.getElementById('goalSubmitBtn').textContent = 'Сохранить изменения';
+  applyGoalDebtAccelerationVisibility();
+  renderGoalLoadPreview();
 }
+// §7 доп. («увеличение ежемесячных расходов на кредиты»): показать/скрыть поле фиксированной
+// доплаты и переключатель перенаправления в зависимости от выбранного режима ускорения.
+function applyGoalDebtAccelerationVisibility() {
+  const isFixed = document.getElementById('goalDebtAccelerationModeInput').value === 'fixed_monthly';
+  document.getElementById('goalExtraDebtPaymentRow').style.display = isFixed ? '' : 'none';
+  document.getElementById('goalRedirectExtraDebtRow').style.display = isFixed ? '' : 'none';
+}
+// §20 доп.: предварительный результат пересчитывается сразу при вводе суммы, до сохранения формы —
+// использует ТЕКУЩИЕ обязательные платежи по кредитам (goalMonthlyCreditPayments), не сохранённые
+// поля цели, поэтому актуален даже для ещё не сохранённой цели.
+function renderGoalLoadPreview() {
+  const el = document.getElementById('goalLoadPreview');
+  if (!el) return;
+  if (document.getElementById('goalDebtAccelerationModeInput').value !== 'fixed_monthly') { el.innerHTML = ''; return; }
+  const currentCreditTotal = goalMonthlyCreditPayments();
+  const extra = Math.max(0, parseMoneyInput(document.getElementById('goalExtraDebtPaymentInput').value));
+  if (!extra) { el.innerHTML = ''; return; }
+  el.innerHTML = `<div class="goal-load-preview-line">Платежи по кредитам вырастут: с ${fmt.format(currentCreditTotal)} до ${fmt.format(currentCreditTotal + extra)} в месяц</div>`;
+}
+document.getElementById('goalDebtAccelerationModeInput').addEventListener('change', () => { applyGoalDebtAccelerationVisibility(); renderGoalLoadPreview(); });
+document.getElementById('goalExtraDebtPaymentInput').addEventListener('input', renderGoalLoadPreview);
 document.getElementById('goalsEmptyAddBtn').addEventListener('click', () => {
   state.goalFormMode = 'create';
   resetGoalForm();
@@ -8117,6 +8318,9 @@ document.getElementById('goalSubmitBtn').addEventListener('click', async () => {
     analysis_period_months: parseInt(document.getElementById('goalAnalysisPeriodInput').value, 10),
     include_credits: document.getElementById('goalIncludeCreditsInput').checked,
     pre_debt_goal_allocation_percent: parseInt(document.getElementById('goalPreDebtAllocationInput').value, 10) || 0,
+    debt_acceleration_mode: document.getElementById('goalDebtAccelerationModeInput').value === 'fixed_monthly' ? 'fixed_monthly' : 'auto_scenario',
+    extra_monthly_debt_payment: Math.max(0, parseMoneyInput(document.getElementById('goalExtraDebtPaymentInput').value)),
+    redirect_extra_debt_payment_to_goal: document.getElementById('goalRedirectExtraDebtInput').checked,
     comfortable_allocation_percent: comfortable,
     base_allocation_percent: base,
     accelerated_allocation_percent: accelerated,
