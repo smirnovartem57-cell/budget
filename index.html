@@ -705,7 +705,7 @@
   .ec-status-checked .ec-day-dot { background: var(--income-accent); border-color: var(--income-accent); color: #fff; }
   .ec-status-has-unchecked .ec-day-dot { background: var(--btn-primary); border-color: var(--btn-primary); }
   .ec-status-empty-unchecked .ec-day-dot { background: var(--card-bg); border-color: var(--border); }
-  .ec-status-needs-recheck .ec-day-dot { background: var(--warning); border-color: var(--warning); }
+  .ec-status-needs-recheck .ec-day-dot { background: var(--warning); border-color: var(--warning); color: #fff; }
   .ec-is-today .ec-day-dow, .ec-is-today .ec-day-num { color: var(--btn-primary); }
   .ec-is-today { box-shadow: inset 0 0 0 1.5px var(--btn-primary); }
   .expense-check-summary { font-size: 12.5px; color: var(--text-secondary); margin-bottom: 4px; }
@@ -2961,7 +2961,6 @@ let state = {
   expenseDayChecks: [],       // строки expense_day_checks текущего пользователя
   dayChecksLoadError: false,  // не удалось загрузить отметки — календарь операций всё равно доступен
   dayChecksLoaded: false,
-  dayChecksInvalidatedLocally: new Set(), // даты, у которых отметка снята мутацией расхода В ЭТОЙ сессии — «Требует повторной проверки» (не персистится, см. §15)
   calendarMonth: null,        // 'YYYY-MM' открытого месяца в полном календаре
   calendarSelectedDate: null, // выбранный день внутри календаря
   calendarMobileView: 'grid', // 'grid' | 'day' — на мобильном день заменяет сетку, а не накладывается
@@ -2983,19 +2982,24 @@ function toast(msg, duration = 2200) {
   t.__hideTimer = setTimeout(() => t.classList.remove('show'), duration);
 }
 
-// Toast with an "Отменить" button that stays up for `ms` (default 5s). Falls back to a
-// plain toast when no undo handler is given. 2026-07-15
+// Toast with an action button that stays up for `ms` (default 5s). Falls back to a plain toast
+// when no handler is given. 2026-07-15; generalized 2026-07-25 to support a non-"Отменить" label
+// (see toastWithUndo below and invalidateExpenseDayChecks' "Повторить" retry action, §24).
 let undoToastTimer;
-function toastWithUndo(message, onUndo, ms = 5000) {
-  if (!onUndo) { toast(message, ms); return; }
+function toastWithAction(message, actionLabel, onAction, ms = 5000) {
+  if (!onAction) { toast(message, ms); return; }
   const el = document.getElementById('undoToast');
   document.getElementById('undoToastMsg').textContent = message;
   const btn = document.getElementById('undoToastBtn');
+  btn.textContent = actionLabel;
   const hide = () => { el.classList.remove('show'); btn.onclick = null; };
   clearTimeout(undoToastTimer);
   el.classList.add('show');
   undoToastTimer = setTimeout(hide, ms);
-  btn.onclick = async () => { clearTimeout(undoToastTimer); hide(); await onUndo(); };
+  btn.onclick = async () => { clearTimeout(undoToastTimer); hide(); await onAction(); };
+}
+function toastWithUndo(message, onUndo, ms = 5000) {
+  toastWithAction(message, 'Отменить', onUndo, ms);
 }
 
 function confirmDialog(message, { submessage = 'Это действие нельзя будет отменить.', confirmLabel = 'Удалить', cancelLabel = 'Отмена' } = {}) {
@@ -4802,10 +4806,15 @@ async function submitTxSheet(keepOpen) {
       return; // §13/§22: при ошибке форму не очищаем, значения остаются
     }
     saveLastUsedTx(state.kind, category, subcategory);
-    // ТЗ №3 §15: новый расход снимает отметку проверки со своей даты (доход — не трогает).
+    // §11/§20: новый расход инвалидирует проверку своей даты (доход — не трогает). Один
+    // пакетный запрос даже для целой регулярной серии, а не по одному на дату.
+    let needsRecheckNotice = false;
     if (state.kind === 'expense') {
       const uniqueDates = [...new Set(payloads.map(p => p.date))];
-      for (const d of uniqueDates) await invalidateExpenseDayCheck(d);
+      const transitioned = await invalidateExpenseDayChecks(uniqueDates, 'expense_created');
+      // §11: сообщение о повторной проверке — только для обычного одиночного расхода на уже
+      // проверенный день, не для массового создания регулярной серии.
+      needsRecheckNotice = !isRecurring && transitioned.length > 0;
     }
 
     if (comment) {
@@ -4825,6 +4834,7 @@ async function submitTxSheet(keepOpen) {
     pendingSuggestion = null;
 
     if (isRecurring) toast(`Добавлено платежей: ${payloads.length}`);
+    else if (needsRecheckNotice) toast('Расходы за этот день изменились — проверьте день снова', 3200);
     else toast(state.kind === 'expense' ? 'Расход добавлен' : 'Операция добавлена');
 
     document.getElementById('recurringCheckbox').checked = false;
@@ -5280,7 +5290,7 @@ async function recordShoppingBought(item, amount, date) {
   if (newTx && newTx.id) patch.linked_transaction_id = newTx.id;
   const { error: upErr } = await supabaseClient.from('shopping_list').update(patch).eq('id', item.id);
   if (upErr) { toast('Операция создана, но не удалось отметить покупку: ' + upErr.message); await loadAll(); return; }
-  await invalidateExpenseDayCheck(date); // ТЗ №3 §15: покупка добавила расход — снять отметку с даты
+  await invalidateExpenseDayChecks(date, 'shopping_expense_created'); // §18: покупка добавила расход
   await loadAll();
 
   toastWithUndo(`Куплено — ${fmt.format(amount)} добавлено в расходы`, (newTx && newTx.id) ? async () => {
@@ -5288,7 +5298,7 @@ async function recordShoppingBought(item, amount, date) {
     await supabaseClient.from('shopping_list')
       .update({ is_bought: false, bought_date: null, bought_amount: null, linked_transaction_id: null })
       .eq('id', item.id);
-    await invalidateExpenseDayCheck(date);
+    await invalidateExpenseDayChecks(date, 'expense_deleted');
     await loadAll();
     toast('Отменено');
   } : null);
@@ -6363,9 +6373,14 @@ function renderIncomeDynamics() {
 /* ---------------- RECURRING EXPENSES ---------------- */
 async function deleteRecurringGroup(groupId) {
   if (!(await confirmDialog('Удалить весь ежемесячный расход?', { submessage: 'Будут удалены все платежи этой серии. Это действие нельзя будет отменить.', confirmLabel: 'Удалить всё' }))) return;
+  // §20: собрать даты РАСХОДНЫХ операций серии до удаления — источник для пакетной инвалидации.
+  const affectedDates = new Set(
+    state.transactions.filter(t => t.recurring_group_id === groupId && t.kind === 'expense').map(t => t.date)
+  );
   const { error } = await supabaseClient.from('transactions').delete().eq('recurring_group_id', groupId);
   if (error) { toast('Ошибка: ' + error.message); return; }
   toast('Удалено');
+  if (affectedDates.size) await invalidateExpenseDayChecks(affectedDates, 'recurring_group_deleted');
   await loadAll();
 }
 
@@ -6378,6 +6393,8 @@ async function updateRecurringGroupDate(groupId, newDateStr) {
   if (!newDateStr) { toast('Укажите дату'); await loadAll(); return; }
   const groupTxs = state.transactions.filter(t => t.recurring_group_id === groupId);
   if (!groupTxs.length) { await loadAll(); return; }
+  // §21: старые даты расходных операций серии — до пересчёта.
+  const oldDates = new Set(groupTxs.filter(t => t.kind === 'expense').map(t => t.date));
   // Опорная (самая ранняя) дата серии. Новую дату применяем как сдвиг всего ряда:
   // и по месяцу (чтобы можно было поправить месяц, напр. август→июль), и по дню.
   const minDate = groupTxs.reduce((m, t) => (t.date < m ? t.date : m), groupTxs[0].date);
@@ -6385,6 +6402,7 @@ async function updateRecurringGroupDate(groupId, newDateStr) {
   const target = new Date(newDateStr + 'T00:00:00');
   const monthDelta = (target.getFullYear() - base.getFullYear()) * 12 + (target.getMonth() - base.getMonth());
   const newDay = target.getDate();
+  const newDates = new Set();
   for (const t of groupTxs) {
     const d = new Date(t.date + 'T00:00:00');
     d.setDate(1);                              // избегаем перескока месяца при setMonth
@@ -6394,8 +6412,12 @@ async function updateRecurringGroupDate(groupId, newDateStr) {
     const updatedDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     const { error } = await supabaseClient.from('transactions').update({ date: updatedDate }).eq('id', t.id);
     if (error) { toast('Ошибка: ' + error.message); return; }
+    if (t.kind === 'expense') newDates.add(updatedDate);
   }
   toast('Дата обновлена для всех платежей');
+  // §21: инвалидировать объединение старых и новых дат одним пакетным запросом (§23).
+  const affectedDates = new Set([...oldDates, ...newDates]);
+  if (affectedDates.size) await invalidateExpenseDayChecks(affectedDates, 'recurring_group_updated');
   await loadAll();
 }
 
@@ -6597,30 +6619,62 @@ function expenseTxForDay(dateStr) {
     .sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
 }
 // §1/§2: 5 статусов дня. Наличие операций НИКОГДА не переводит день в «Проверен» само по себе —
-// только явная строка в expense_day_checks это делает.
+// только явная строка в expense_day_checks это делает. «Требует повторной проверки» теперь тоже
+// читается из самой строки (invalidated_at IS NOT NULL) — персистентно, а не из сессионного Set
+// (см. отменённый ТЗ №3 §15 подход и новую срочную корректировку 2026-07-25 «постоянный статус»).
 function getDayStatus(dateStr) {
   if (dateStr > calendarTodayStr()) return 'future';
-  if (getDayCheck(dateStr)) return 'checked';
-  if (state.dayChecksInvalidatedLocally.has(dateStr)) return 'needs-recheck';
+  const check = getDayCheck(dateStr);
+  if (check) return check.invalidated_at ? 'needs-recheck' : 'checked';
   return expenseTxForDay(dateStr).length ? 'has-unchecked' : 'empty-unchecked';
 }
 
-// §15: «простая реализация» — при любой мутации РАСХОДА снимаем отметку проверки этой даты
-// (если она была). Доходы сюда не попадают ни при одном вызове (см. места вызова ниже).
-// §16: снятие отметки — вторичная операция; если расход/мутация уже сохранены успешно, ошибка
-// снятия отметки не откатывает их — только нейтральный тост.
-async function invalidateExpenseDayCheck(dateStr) {
-  if (!dateStr || !currentUser) return;
-  const existing = getDayCheck(dateStr);
-  if (!existing) return; // день не был проверен — снимать нечего
-  let { error } = await supabaseClient.from('expense_day_checks').delete().eq('id', existing.id);
+// Срочная корректировка 2026-07-25 «постоянный статус повторной проверки»: единая пакетная
+// функция инвалидации — заменяет прежний invalidateExpenseDayCheck (удалял строку целиком, и
+// «Требует повторной проверки» существовало только в state.dayChecksInvalidatedLocally этой
+// сессии). Теперь строка НЕ удаляется — только помечается invalidated_at/invalidation_reason,
+// это и есть постоянный статус «Требует повторной проверки» (см. getDayStatus выше). Ручное
+// «Снять отметку» (unconfirmExpenseDay) — отдельное действие, оно по-прежнему удаляет строку.
+//
+// Принимает одну дату (строку), массив дат или Set дат. Обновляет ТОЛЬКО существующие строки
+// со статусом «Проверен» (invalidated_at IS NULL) одним пакетным UPDATE — недопустимо по одному
+// запросу на дату (§23). Для непроверенных дней строка не создаётся (§8/§10). Возвращает массив
+// дат, которые реально перешли Проверен → Требует повторной проверки (для контекстных тостов —
+// например, при добавлении одиночного расхода показать сообщение только если день был проверен).
+async function invalidateExpenseDayChecks(dates, reason = 'expense_updated') {
+  if (!currentUser) return [];
+  const raw = dates instanceof Set ? [...dates] : (Array.isArray(dates) ? dates : [dates]);
+  const uniqueDates = [...new Set(raw.filter(d => typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d)))];
+  if (!uniqueDates.length) return [];
+  const nowIso = new Date().toISOString();
+  const runUpdate = () => supabaseClient.from('expense_day_checks')
+    .update({ invalidated_at: nowIso, invalidation_reason: reason, updated_at: nowIso })
+    .eq('user_id', currentUser.id)
+    .in('check_date', uniqueDates)
+    .is('invalidated_at', null)
+    .select('check_date');
+  let { data, error } = await runUpdate();
   if (error) {
     await new Promise(r => setTimeout(r, 1200));
-    ({ error } = await supabaseClient.from('expense_day_checks').delete().eq('id', existing.id));
+    ({ data, error } = await runUpdate());
   }
-  if (error) { toast('Расход сохранён, но статус проверки дня не обновился'); return; }
-  state.expenseDayChecks = state.expenseDayChecks.filter(c => c.id !== existing.id);
-  state.dayChecksInvalidatedLocally.add(dateStr);
+  if (error) {
+    const msg = uniqueDates.length > 1
+      ? 'Операции изменены, но статусы некоторых дней не обновились'
+      : 'Расход сохранён, но статус проверки дня не обновился';
+    toastWithAction(msg, 'Повторить', () => invalidateExpenseDayChecks(uniqueDates, reason), 8000);
+    return [];
+  }
+  const transitionedDates = (data || []).map(r => r.check_date);
+  transitionedDates.forEach(d => {
+    const c = getDayCheck(d);
+    if (c) { c.invalidated_at = nowIso; c.invalidation_reason = reason; c.updated_at = nowIso; }
+  });
+  if (transitionedDates.length) {
+    renderExpenseCheckWidget();
+    renderExpenseCalendarIfOpen();
+  }
+  return transitionedDates;
 }
 
 /* ---------------- DELETE TRANSACTION ---------------- */
@@ -6630,7 +6684,7 @@ async function deleteTx(id) {
   const { error } = await supabaseClient.from('transactions').delete().eq('id', id);
   if (error) { toast('Ошибка: ' + error.message); return; }
   toast('Удалено');
-  if (tx && tx.kind === 'expense') await invalidateExpenseDayCheck(tx.date);
+  if (tx && tx.kind === 'expense') await invalidateExpenseDayChecks(tx.date, 'expense_deleted');
   await loadAll();
 }
 
@@ -6642,8 +6696,7 @@ async function updateTxDate(id, newDate) {
   if (error) { toast('Ошибка: ' + error.message); return; }
   toast('Дата обновлена');
   if (tx && tx.kind === 'expense') {
-    await invalidateExpenseDayCheck(tx.date);
-    if (newDate !== tx.date) await invalidateExpenseDayCheck(newDate);
+    await invalidateExpenseDayChecks(newDate !== tx.date ? [tx.date, newDate] : tx.date, 'expense_date_changed');
   }
   await loadAll();
 }
@@ -6654,7 +6707,7 @@ async function updateTxTime(id, newTime) {
   const { error } = await supabaseClient.from('transactions').update({ time: newTime || null }).eq('id', id);
   if (error) { toast('Ошибка: ' + error.message); return; }
   toast('Время обновлено');
-  if (tx && tx.kind === 'expense') await invalidateExpenseDayCheck(tx.date);
+  if (tx && tx.kind === 'expense') await invalidateExpenseDayChecks(tx.date, 'expense_updated');
   await loadAll();
 }
 
@@ -6666,7 +6719,7 @@ async function updateTxAmount(id, rawValue) {
   const { error } = await supabaseClient.from('transactions').update({ amount: value }).eq('id', id);
   if (error) { toast('Ошибка: ' + error.message); return; }
   toast('Обновлено');
-  if (tx && tx.kind === 'expense') await invalidateExpenseDayCheck(tx.date);
+  if (tx && tx.kind === 'expense') await invalidateExpenseDayChecks(tx.date, 'expense_updated');
   await loadAll();
 }
 
@@ -6722,11 +6775,11 @@ document.getElementById('txDetailSaveBtn').addEventListener('click', async () =>
     .update({ amount, date, time, comment: comment || null })
     .eq('id', txDetailCurrentId);
   if (error) { toast('Ошибка: ' + error.message); return; }
-  // ТЗ №3 §15: правка суммы/даты/времени/комментария расхода снимает отметку со старой даты
-  // и, если дата перенесена, с новой тоже. Перенос дохода отметку не трогает.
+  // §14/§15: правка любого значимого поля расхода инвалидирует день; если дата перенесена — оба
+  // дня (старый и новый), причина expense_date_changed, иначе — expense_updated. Доход не трогает.
   if (oldTx && oldTx.kind === 'expense') {
-    await invalidateExpenseDayCheck(oldTx.date);
-    if (date !== oldTx.date) await invalidateExpenseDayCheck(date);
+    if (date !== oldTx.date) await invalidateExpenseDayChecks([oldTx.date, date], 'expense_date_changed');
+    else await invalidateExpenseDayChecks(oldTx.date, 'expense_updated');
   }
   closeTxDetailSheet();
   toast('Сохранено');
@@ -6754,7 +6807,7 @@ document.getElementById('txDetailDuplicateBtn').addEventListener('click', async 
   };
   const { error } = await insertWithRetry('transactions', [payload]);
   if (error) { toast('Ошибка: ' + error.message); return; }
-  if (t.kind === 'expense') await invalidateExpenseDayCheck(payload.date);
+  if (t.kind === 'expense') await invalidateExpenseDayChecks(payload.date, 'expense_created');
   closeTxDetailSheet();
   toast('Операция продублирована на сегодня');
   await loadAll();
@@ -8638,7 +8691,9 @@ function renderExpenseCheckWidget() {
     const dow = EC_WEEKDAY_SHORT[new Date(dateStr + 'T00:00:00Z').getUTCDay()];
     const isToday = dateStr === todayKey;
     const label = ecDayAriaLabel(dateStr, status);
-    const icon = status === 'checked' ? '<i data-lucide="check"></i>' : '';
+    // §25: needs-recheck не должен полагаться только на цвет — отдельная иконка, как у checked.
+    const icon = status === 'checked' ? '<i data-lucide="check"></i>'
+      : status === 'needs-recheck' ? '<i data-lucide="triangle-alert"></i>' : '';
     return `<button type="button" class="ec-day-chip ec-status-${status}${isToday ? ' ec-is-today' : ''}" data-date="${dateStr}" aria-label="${escapeHtml(label)}">
       <span class="ec-day-dow">${dow}</span>
       <span class="ec-day-num">${d}</span>
@@ -8647,7 +8702,9 @@ function renderExpenseCheckWidget() {
   }).join('');
 
   const checkedCount = days.filter(d => getDayStatus(d) === 'checked').length;
-  const anyChecksExist = state.expenseDayChecks.length > 0 || state.dayChecksInvalidatedLocally.size > 0;
+  // Строка теперь не удаляется при инвалидации (см. invalidateExpenseDayChecks) — needs-recheck
+  // дни тоже живут в state.expenseDayChecks, отдельный флаг больше не нужен.
+  const anyChecksExist = state.expenseDayChecks.length > 0;
   let summaryText;
   if (checkedCount === 7) summaryText = 'Все последние дни проверены';
   else if (!anyChecksExist) summaryText = 'Отмечайте проверенные дни, чтобы не забывать расходы';
@@ -8870,7 +8927,11 @@ function openAddExpenseFromDay(dateStr) {
   document.getElementById('dateInput').value = dateStr;
 }
 
-// §13/§29: подтверждение дня — блокировка повторного нажатия, обработка конфликта 23505.
+// §5/§13/§26/§29: подтверждение дня (первичное ИЛИ повторное после «Требует повторной проверки») —
+// единый UPSERT по (user_id, check_date), а не INSERT+перехват конфликта 23505. Всегда очищает
+// invalidated_at/invalidation_reason и переставляет checked_at/updated_at — это и есть переход
+// «Требует повторной проверки» → «Проверен» без создания второй строки (постоянная корректировка
+// 2026-07-25; раньше конфликт 23505 просто читал существующую строку, не снимая инвалидацию).
 let ecConfirmInFlight = false;
 async function confirmExpenseDay(dateStr) {
   if (ecConfirmInFlight) return;
@@ -8880,23 +8941,16 @@ async function confirmExpenseDay(dateStr) {
   if (btn) btn.disabled = true;
   try {
     const nowIso = new Date().toISOString();
-    let { data, error } = await supabaseClient.from('expense_day_checks')
-      .insert({ user_id: currentUser.id, check_date: dateStr, checked_at: nowIso })
+    const { data, error } = await supabaseClient.from('expense_day_checks')
+      .upsert({
+        user_id: currentUser.id, check_date: dateStr,
+        checked_at: nowIso, updated_at: nowIso, invalidated_at: null, invalidation_reason: null,
+      }, { onConflict: 'user_id,check_date' })
       .select();
-    if (error && error.code === '23505') {
-      const { data: existing } = await supabaseClient.from('expense_day_checks')
-        .select('*').eq('user_id', currentUser.id).eq('check_date', dateStr).maybeSingle();
-      if (existing) {
-        state.expenseDayChecks = state.expenseDayChecks.filter(c => c.check_date !== dateStr).concat(existing);
-        state.dayChecksInvalidatedLocally.delete(dateStr);
-        toast('День проверен');
-        renderExpenseDayPane(); renderExpenseCalendarGrid(); renderExpenseCheckWidget();
-        return;
-      }
-    }
     if (error) { toast('Не удалось отметить день проверенным'); return; }
-    if (data && data[0]) state.expenseDayChecks.push(data[0]);
-    state.dayChecksInvalidatedLocally.delete(dateStr);
+    if (data && data[0]) {
+      state.expenseDayChecks = state.expenseDayChecks.filter(c => c.check_date !== dateStr).concat(data[0]);
+    }
     toast('День проверен');
     renderExpenseDayPane(); renderExpenseCalendarGrid(); renderExpenseCheckWidget();
   } finally {
@@ -8904,7 +8958,9 @@ async function confirmExpenseDay(dateStr) {
   }
 }
 
-// §14: снятие отметки — обратимо, без дополнительного подтверждающего окна.
+// §6/§14: снятие отметки вручную — обратимо, без доп. подтверждения. В отличие от инвалидации
+// мутацией расхода, это по-прежнему полное удаление строки (день становится «не проверен», а не
+// «требует повторной проверки») — пользователь сам решил, что подтверждение больше не в силе.
 async function unconfirmExpenseDay(dateStr) {
   if (ecConfirmInFlight) return;
   const existing = getDayCheck(dateStr);
@@ -8916,7 +8972,6 @@ async function unconfirmExpenseDay(dateStr) {
     const { error } = await supabaseClient.from('expense_day_checks').delete().eq('id', existing.id);
     if (error) { toast('Не удалось снять отметку'); return; }
     state.expenseDayChecks = state.expenseDayChecks.filter(c => c.id !== existing.id);
-    state.dayChecksInvalidatedLocally.delete(dateStr);
     renderExpenseDayPane(); renderExpenseCalendarGrid(); renderExpenseCheckWidget();
   } finally {
     ecConfirmInFlight = false;
