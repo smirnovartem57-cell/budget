@@ -1035,9 +1035,47 @@
   .goal-scenario-percent { font-size: 12px; color: var(--text-secondary); }
   .goal-scenario-months { font-size: 20px; font-weight: 700; color: var(--text-primary); font-variant-numeric: tabular-nums; }
   .goal-scenario-date { font-size: 12.5px; color: var(--text-secondary); }
+  .goal-scenario-base-badge { font-size: 9.5px; font-weight: 700; text-transform: none; letter-spacing: 0; color: var(--btn-primary); background: var(--info-bg); padding: 1px 6px; border-radius: 999px; vertical-align: middle; }
+  .goal-scenario-stage-row { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--text-secondary); }
+  .goal-scenario-final-row { font-weight: 700; color: var(--text-primary); font-size: 13px; padding-top: 4px; border-top: 1px dashed var(--border); margin-top: 2px; }
   @media (max-width: 640px) {
     .goal-scenarios-grid { grid-template-columns: 1fr; }
     .goal-hero-facts { grid-template-columns: 1fr 1fr; }
+  }
+
+  /* Кредиты × Цели (2026-07-25): стратегия погашения, очередь, параллельные кредиты. */
+  .goal-hero-debt-line { font-size: 13px; color: var(--text-primary); }
+  .goal-hero-debt-line .goal-debt-line-label { color: var(--text-secondary); }
+  .goal-hero-debt-line .goal-debt-line-value { font-weight: 700; }
+  .goal-hero-debt-line .goal-debt-line-note { color: var(--income-accent); font-weight: 600; }
+  .goal-stages-body { display: flex; flex-direction: column; gap: 10px; }
+  .goal-stage-item { padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--card-bg); }
+  .goal-stage-item.goal-stage-parallel { border-style: dashed; }
+  .goal-stage-title { font-size: 11.5px; font-weight: 700; color: var(--btn-primary); text-transform: uppercase; letter-spacing: .02em; margin-bottom: 2px; }
+  .goal-stage-text { font-size: 14px; color: var(--text-primary); font-weight: 600; }
+  .goal-stage-date { font-size: 12.5px; color: var(--text-secondary); margin-top: 2px; }
+  .goal-milestones { margin-top: 10px; display: flex; flex-direction: column; gap: 4px; }
+  .goal-milestone-item { font-size: 12px; color: var(--text-secondary); padding-left: 14px; position: relative; }
+  .goal-milestone-item::before { content: ''; position: absolute; left: 0; top: 6px; width: 6px; height: 6px; border-radius: 999px; background: var(--btn-primary); }
+  .goal-queue-body { display: flex; flex-direction: column; gap: 8px; }
+  .goal-queue-item { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--card-bg); }
+  .goal-queue-item-num { flex: none; width: 22px; height: 22px; border-radius: 999px; background: var(--btn-primary); color: #fff; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+  .goal-queue-item-main { flex: 1; min-width: 0; }
+  .goal-queue-item-name { font-size: 14px; font-weight: 700; color: var(--text-primary); }
+  .goal-queue-item-type { font-size: 11.5px; color: var(--text-secondary); margin-bottom: 4px; }
+  .goal-queue-item-facts { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 12px; color: var(--text-secondary); }
+  .goal-queue-item-approx { font-size: 11px; color: var(--warning); margin-top: 4px; }
+  .goal-queue-item-actions { flex: none; display: flex; flex-direction: column; gap: 4px; }
+  .goal-queue-move-btn { padding: 4px 10px; font-size: 12px; min-height: 32px; }
+  .goal-queue-move-btn:disabled { opacity: .35; cursor: default; }
+  .goal-parallel-item { padding: 10px 12px; border: 1px dashed var(--border); border-radius: var(--radius-sm); background: var(--card-bg); margin-bottom: 8px; }
+  .goal-parallel-item:last-child { margin-bottom: 0; }
+  .goal-parallel-item-name { font-size: 14px; font-weight: 700; color: var(--text-primary); }
+  .goal-parallel-item-facts { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+  .goal-parallel-item-note { font-size: 11.5px; color: var(--income-accent); font-weight: 600; margin-top: 4px; }
+  @media (max-width: 640px) {
+    .goal-queue-item { flex-wrap: wrap; }
+    .goal-queue-item-actions { flex-direction: row; }
   }
 
   .page-tabs { display: flex; gap: 8px; margin-bottom: 20px; }
@@ -2624,9 +2662,17 @@
             <div class="credit-form-hint">Включите, если этот платёж уже добавлен в раздел обязательных расходов.</div>
           </div>
           <div class="form-row">
+            <label>Как учитывать кредит при цели на автомобиль</label>
+            <select id="creditGoalStrategyInput">
+              <option value="close_before_goal">Закрыть до накопления</option>
+              <option value="scheduled_during_goal">Выплачивать параллельно</option>
+              <option value="not_counted">Не учитывать</option>
+            </select>
+          </div>
+          <div class="form-row" id="creditAllowExtraPaymentRow">
             <label class="recurring-check-label">
-              <input type="checkbox" id="creditIncludeInGoalInput" checked>
-              Учитывать кредит при расчёте финансовых целей
+              <input type="checkbox" id="creditAllowExtraPaymentInput" checked>
+              Разрешить досрочное погашение в прогнозе
             </label>
           </div>
           <button class="btn-primary" id="creditSubmitBtn">Добавить кредит</button>
@@ -2694,13 +2740,21 @@
           <div><div class="goal-hero-fact-label">Цель</div><div class="goal-hero-fact-value" id="goalHeroTarget">—</div></div>
           <div><div class="goal-hero-fact-label">Осталось накопить</div><div class="goal-hero-fact-value" id="goalHeroRemaining">—</div></div>
         </div>
+        <div class="goal-hero-debt-line" id="goalHeroDebtLine"></div>
         <div class="goal-hero-desired" id="goalHeroDesired" style="display:none;"></div>
+      </div>
+
+      <!-- §17: «План достижения цели» — этапы по базовому сценарию. -->
+      <div class="panel">
+        <h2>План достижения цели</h2>
+        <div id="goalStagesBody" class="goal-stages-body"></div>
       </div>
 
       <div class="panel">
         <h2>Сценарии накопления</h2>
         <div class="goal-scenarios-grid" id="goalScenariosGrid"></div>
         <div class="chart-box" id="goalScenariosChartBox" style="height:140px; margin-top:14px;"><canvas id="goalScenariosChart"></canvas></div>
+        <div id="goalScenariosMilestones" class="goal-milestones"></div>
       </div>
 
       <div class="panel">
@@ -2708,12 +2762,22 @@
         <div id="goalBreakdownBody"></div>
       </div>
 
+      <!-- §7: очередь кредитов, закрываемых до активного накопления, с ручной перестановкой. -->
       <div class="panel">
         <h2 style="justify-content:space-between;">
-          <span>Влияние кредитов</span>
-          <span class="badge-info badge-normalcase" id="goalCreditsImpactBadge"></span>
+          <span>Что закрываем перед автомобилем</span>
+          <span class="badge-info badge-normalcase" id="goalQueueBadge"></span>
         </h2>
-        <div id="goalCreditsImpactBody"></div>
+        <div id="goalQueueBody" class="goal-queue-body"></div>
+      </div>
+
+      <!-- §8: кредиты, выплачиваемые параллельно (например ипотека) — не блокируют цель. -->
+      <div class="panel">
+        <h2 style="justify-content:space-between;">
+          <span>Выплачиваются параллельно</span>
+          <span class="badge-info badge-normalcase" id="goalParallelBadge"></span>
+        </h2>
+        <div id="goalParallelBody"></div>
       </div>
     </div>
 
@@ -2764,7 +2828,17 @@
             <input type="checkbox" id="goalIncludeCreditsInput" checked>
             Учитывать платежи по кредитам
           </label>
-          <div class="credit-form-hint">Учитываются кредиты из раздела «Кредиты» с отмеченной галочкой «Учитывать кредит при расчёте финансовых целей».</div>
+          <div class="credit-form-hint">Учитываются кредиты из раздела «Кредиты» с выбранной стратегией «Закрыть до накопления» или «Выплачивать параллельно».</div>
+        </div>
+        <div class="form-row">
+          <label>Доля ресурса на автомобиль до закрытия очереди кредитов</label>
+          <select id="goalPreDebtAllocationInput">
+            <option value="0">0%</option>
+            <option value="10">10%</option>
+            <option value="20">20%</option>
+            <option value="30">30%</option>
+          </select>
+          <div class="credit-form-hint">Пока не закрыты приоритетные кредиты, эта доля ресурса сценария идёт на автомобиль, остальное — на досрочное погашение очереди.</div>
         </div>
         <div class="form-row">
           <label>Комфортный темп, % от свободного остатка</label>
@@ -7134,6 +7208,25 @@ function applyCreditFieldLabels() {
   document.getElementById('creditMonthlyLabel').textContent = labels.monthly;
 }
 document.getElementById('creditTypeInput').addEventListener('change', applyCreditFieldLabels);
+// §5: показывать «Разрешить досрочное погашение» только для стратегии «Закрыть до накопления».
+function applyCreditGoalStrategyVisibility() {
+  const strategy = document.getElementById('creditGoalStrategyInput').value;
+  const isCloseBeforeGoal = strategy === 'close_before_goal';
+  document.getElementById('creditAllowExtraPaymentRow').style.display = isCloseBeforeGoal ? '' : 'none';
+  // Поле не участвует в расчёте вне close_before_goal (досрочный платёж некуда направлять) —
+  // держим сохранённое значение согласованным с тем, что видит пользователь.
+  if (!isCloseBeforeGoal) document.getElementById('creditAllowExtraPaymentInput').checked = false;
+}
+document.getElementById('creditGoalStrategyInput').addEventListener('change', applyCreditGoalStrategyVisibility);
+// §5: для ипотеки при СОЗДАНИИ кредита предлагаем параллельный режим по умолчанию — не более чем
+// подсказка, пользователь может тут же выбрать другой вариант. При РЕДАКТИРОВАНИИ смена типа
+// кредита никогда не трогает уже сохранённую стратегию (state.editingCreditId проверяется).
+document.getElementById('creditTypeInput').addEventListener('change', () => {
+  if (state.editingCreditId) return;
+  const type = document.getElementById('creditTypeInput').value;
+  document.getElementById('creditGoalStrategyInput').value = type === 'mortgage' ? 'scheduled_during_goal' : 'close_before_goal';
+  applyCreditGoalStrategyVisibility();
+});
 
 // Пустое необязательное поле → null, а не 0 (§11: «корректно обрабатывать пустые необязательные поля»).
 function parseOptionalMoneyInput(str) {
@@ -7289,16 +7382,195 @@ function goalHistoricalMonthlyAverages(months) {
 }
 // Ежемесячная нагрузка по кредитам, которую нужно вычесть из свободного остатка при расчёте
 // цели: только активные, явно включённые пользователем (include_in_goal_forecast) и ещё не
-// учтённые в обязательных расходах (иначе платёж посчитается дважды).
+// учтённые в обязательных расходах (иначе платёж посчитается дважды). Не зависит от стратегии —
+// минимальный платёж идёт независимо от того, копится ли кредит в очереди или выплачивается
+// параллельно (§9 ТЗ 2026-07-25 «Кредиты × Цели»).
 function goalMonthlyCreditPayments() {
   return state.credits
     .filter(c => c.status === 'active' && c.include_in_goal_forecast && !c.payment_already_counted_in_mandatory)
     .reduce((s, c) => s + Number(c.monthly_payment || 0), 0);
 }
+
+/* ====== Очередь погашения приоритетных кредитов (ТЗ 2026-07-25, «Кредиты × Цели») ======
+   §2: прогноз ориентируется на сохранённое поле credits.goal_payoff_strategy, а не выводит его
+   заново из credit_type при каждом расчёте — credit_type влияет только на автоматический
+   порядок сортировки внутри очереди (§6) и на подсказку по умолчанию при СОЗДАНИИ кредита
+   (форма), не на саму принадлежность к очереди. */
+const CREDIT_GOAL_PRIORITY_TYPE_RANK = { credit_card: 0, consumer: 1, other: 2, auto: 3, installment: 4 };
+// Единственная функция построения очереди «закрыть до накопления» — переиспользуется расчётом
+// прогноза и экраном ручной перестановки (§7). §6: goal_priority_order, если заполнен хотя бы у
+// одного кредита в сравниваемой паре, имеет приоритет над автоматическим порядком.
+function getGoalPayoffQueue(credits) {
+  const eligible = credits.filter(c =>
+    c.status === 'active' && c.include_in_goal_forecast && c.goal_payoff_strategy === 'close_before_goal');
+  const today = appTodayStr();
+  return eligible.slice().sort((a, b) => {
+    const aHasOrder = a.goal_priority_order != null, bHasOrder = b.goal_priority_order != null;
+    if (aHasOrder && bHasOrder && a.goal_priority_order !== b.goal_priority_order) return a.goal_priority_order - b.goal_priority_order;
+    if (aHasOrder !== bHasOrder) return aHasOrder ? -1 : 1;
+
+    const aOverdue = a.next_payment_date ? daysDiffDateStr(today, a.next_payment_date) < 0 : false;
+    const bOverdue = b.next_payment_date ? daysDiffDateStr(today, b.next_payment_date) < 0 : false;
+    if (aOverdue !== bOverdue) return aOverdue ? -1 : 1;
+
+    const aRank = CREDIT_GOAL_PRIORITY_TYPE_RANK[a.credit_type] ?? 2;
+    const bRank = CREDIT_GOAL_PRIORITY_TYPE_RANK[b.credit_type] ?? 2;
+    if (aRank !== bRank) return aRank - bRank;
+
+    const aRate = a.interest_rate != null ? Number(a.interest_rate) : -Infinity;
+    const bRate = b.interest_rate != null ? Number(b.interest_rate) : -Infinity;
+    if (aRate !== bRate) return bRate - aRate;
+
+    const aRem = Number(a.remaining_amount || 0), bRem = Number(b.remaining_amount || 0);
+    if (aRem !== bRem) return aRem - bRem;
+
+    const aDate = a.next_payment_date || '9999-99-99';
+    const bDate = b.next_payment_date || '9999-99-99';
+    return aDate.localeCompare(bDate);
+  });
+}
+// Кредиты «выплачиваются параллельно» (goal_payoff_strategy = scheduled_during_goal) — не входят
+// в очередь, не блокируют старт накопления; их минимальный платёж учитывается в нагрузке, пока
+// не погашены естественным образом (§4 группа 2).
+function getGoalParallelCredits(credits) {
+  return credits.filter(c =>
+    c.status === 'active' && c.include_in_goal_forecast && c.goal_payoff_strategy === 'scheduled_during_goal');
+}
+// Кредит без ставки и без плановой даты окончания — показать пользователю, что срок в очереди
+// приблизительный (§14). Не влияет на саму симуляцию (там отсутствие ставки уже эквивалентно
+// нулевой ставке, §13) — только на информационную подпись в блоке очереди.
+function creditGoalEstimateIsApproximate(c) {
+  return c.interest_rate == null && !c.planned_end_date;
+}
+
+const GOAL_SIMULATION_HORIZON_MONTHS = 240;
+// Помесячная симуляция одного сценария (§12 ТЗ): для каждого месяца считаются минимальные
+// платежи по всем активным кредитам (с процентами, §13), дополнительный платёж направляется
+// только в первый незакрытый приоритетный кредит очереди, излишек каскадом переносится дальше
+// внутри того же месяца, а если очередь закончилась — в цель (§15). После полного закрытия
+// очереди весь ресурс сценария идёт в цель (§11). Работает по локальным копиям остатков —
+// реальные строки credits не меняются.
+function simulateGoalPayoffMonths(params) {
+  const {
+    remainingGoalAmountStart,
+    monthlyIncome, monthlyMandatoryExpense, monthlyVariableExpense,
+    allocationPercent, preDebtGoalAllocationPercent,
+    queueCredits, parallelCredits,
+    startDateStr, horizonMonths = GOAL_SIMULATION_HORIZON_MONTHS,
+  } = params;
+
+  if (remainingGoalAmountStart <= 0) {
+    return {
+      priorityDebtsClosedMonth: queueCredits.length ? null : 0,
+      goalReachedMonth: 0,
+      monthsToPriorityDebtsClosed: queueCredits.length ? null : 0,
+      monthsToGoal: 0,
+      goalBalance: 0,
+      monthlyTimeline: [], creditEvents: [], warnings: [],
+    };
+  }
+
+  const warnings = [];
+  const warnedNoPrincipal = new Set();
+  const creditEvents = [];
+  const monthlyTimeline = [];
+
+  const cloneCredit = c => ({
+    id: c.id, name: c.name, credit_type: c.credit_type,
+    remaining: Number(c.remaining_amount || 0),
+    monthlyPayment: Number(c.monthly_payment || 0),
+    rate: c.interest_rate != null ? Number(c.interest_rate) : null,
+    countedInMandatory: !!c.payment_already_counted_in_mandatory,
+    closed: false,
+  });
+  const queue = queueCredits.map(cloneCredit);
+  const parallel = parallelCredits.map(cloneCredit);
+
+  // §13: проценты, если ставка задана; иначе interestPart = 0 (эквивалентно кредиту без ставки).
+  function amortizeMinimum(credit) {
+    const monthlyRate = credit.rate != null ? credit.rate / 100 / 12 : 0;
+    const interestPart = credit.remaining * monthlyRate;
+    const principalFromMinimum = Math.max(0, credit.monthlyPayment - interestPart);
+    if (credit.monthlyPayment > 0 && credit.monthlyPayment <= interestPart && !warnedNoPrincipal.has(credit.id)) {
+      warnedNoPrincipal.add(credit.id);
+      warnings.push(`«${credit.name}»: по введённым параметрам платёж не уменьшает основной долг`);
+    }
+    return Math.max(0, credit.remaining - principalFromMinimum);
+  }
+
+  let goalBalance = 0;
+  let priorityDebtsClosedMonth = queue.length === 0 ? 0 : null;
+  let goalReachedMonth = null;
+
+  for (let month = 1; month <= horizonMonths; month++) {
+    const activeQueue = queue.filter(c => !c.closed);
+    const activeParallel = parallel.filter(c => !c.closed);
+
+    // §9: платёж, уже учтённый в обязательных расходах, не вычитается второй раз здесь; после
+    // закрытия кредита его платёж сам перестаёт входить в эту сумму на следующий месяц.
+    const separateMonthlyCreditPayments = activeQueue.concat(activeParallel)
+      .filter(c => !c.countedInMandatory)
+      .reduce((s, c) => s + c.monthlyPayment, 0);
+    const availableAfterMinimums = Math.max(0, monthlyIncome - monthlyMandatoryExpense - monthlyVariableExpense - separateMonthlyCreditPayments);
+    const strategyAllocation = Math.max(0, availableAfterMinimums * allocationPercent / 100);
+
+    const head = activeQueue[0] || null;
+    // §11: пока очередь не пуста — доля ресурса идёт в цель, остальное на приоритетный кредит;
+    // после закрытия очереди весь ресурс сценария идёт в цель.
+    let goalContribution = head ? strategyAllocation * preDebtGoalAllocationPercent / 100 : strategyAllocation;
+    let extraDebtPayment = head ? strategyAllocation - goalContribution : 0;
+
+    activeQueue.concat(activeParallel).forEach(c => { c.remaining = amortizeMinimum(c); });
+
+    // §15: каскад дополнительного платежа — только по очереди, в её фиксированном порядке.
+    let remainingExtra = extraDebtPayment;
+    for (const c of activeQueue) {
+      if (remainingExtra <= 0) break;
+      if (c.remaining <= 0) continue;
+      const pay = Math.min(remainingExtra, c.remaining);
+      c.remaining -= pay;
+      remainingExtra -= pay;
+    }
+    // Очередь закончилась раньше, чем исчерпан ресурс месяца — остаток идёт в цель (§15 п.2).
+    if (remainingExtra > 0) goalContribution += remainingExtra;
+
+    activeQueue.concat(activeParallel).forEach(c => {
+      if (c.remaining <= 0 && !c.closed) {
+        c.remaining = 0; c.closed = true;
+        creditEvents.push({ creditId: c.id, name: c.name, month, date: addMonthsToDateStr(startDateStr, month), group: queue.includes(c) ? 'queue' : 'parallel' });
+      }
+    });
+
+    goalBalance += goalContribution;
+
+    monthlyTimeline.push({
+      month, date: addMonthsToDateStr(startDateStr, month),
+      availableAfterMinimums, strategyAllocation, goalContribution,
+      extraDebtPayment: extraDebtPayment - remainingExtra,
+      goalBalance: Math.min(goalBalance, remainingGoalAmountStart),
+      queueRemaining: queue.filter(c => !c.closed).reduce((s, c) => s + c.remaining, 0),
+    });
+
+    if (priorityDebtsClosedMonth == null && queue.every(c => c.closed)) priorityDebtsClosedMonth = month;
+    if (goalReachedMonth == null && goalBalance >= remainingGoalAmountStart) goalReachedMonth = month;
+    if (priorityDebtsClosedMonth != null && goalReachedMonth != null) break;
+  }
+
+  if (priorityDebtsClosedMonth == null) warnings.push('Приоритетные кредиты не будут закрыты в горизонте 240 месяцев при выбранном сценарии');
+  if (goalReachedMonth == null) warnings.push('Цель не будет достигнута в горизонте 240 месяцев при выбранном сценарии');
+
+  return {
+    priorityDebtsClosedMonth, goalReachedMonth,
+    monthsToPriorityDebtsClosed: priorityDebtsClosedMonth, monthsToGoal: goalReachedMonth,
+    goalBalance: Math.min(goalBalance, remainingGoalAmountStart),
+    monthlyTimeline, creditEvents, warnings,
+  };
+}
+
 // Единственная функция расчёта прогноза цели — переиспользуется и «живой» карточкой (по
 // сохранённым полям цели), и simulateGoalScenario (по временно подменённым полям, без записи в
 // БД). Каждый из трёх сценариев (comfortable/base/accelerated) — своя доля свободного остатка,
-// направляемая на цель ежемесячно.
+// направляемая на приоритетные кредиты и цель ежемесячно (см. simulateGoalPayoffMonths).
 function calculateGoalForecast(goal) {
   const months = Number(goal.analysis_period_months) || 3;
   const { avgMonthlyIncome, avgMonthlyVariableExpense } = goalHistoricalMonthlyAverages(months);
@@ -7311,6 +7583,10 @@ function calculateGoalForecast(goal) {
   const monthlyMandatoryExpense = usingMandatoryOverride ? Number(goal.monthly_mandatory_expense_override) : goalMonthlyMandatoryTemplate();
   const monthlyCreditPayments = goal.include_credits ? goalMonthlyCreditPayments() : 0;
 
+  const queueCredits = goal.include_credits ? getGoalPayoffQueue(state.credits) : [];
+  const parallelCredits = goal.include_credits ? getGoalParallelCredits(state.credits) : [];
+  const preDebtGoalAllocationPercent = Number(goal.pre_debt_goal_allocation_percent || 0);
+
   const freeCashFlow = Math.max(0, monthlyIncome - monthlyMandatoryExpense - monthlyVariableExpense - monthlyCreditPayments);
   const remainingAmount = Math.max(0, Number(goal.target_amount || 0) - Number(goal.reserved_amount || 0));
   const today = todayStr();
@@ -7322,12 +7598,22 @@ function calculateGoalForecast(goal) {
   };
   const scenarios = {};
   Object.entries(scenarioPercents).forEach(([key, percent]) => {
-    const monthlyAllocation = freeCashFlow * (percent / 100);
-    const reachable = monthlyAllocation > 0;
-    const monthsNeeded = remainingAmount <= 0 ? 0 : (reachable ? Math.ceil(remainingAmount / monthlyAllocation) : null);
+    const sim = simulateGoalPayoffMonths({
+      remainingGoalAmountStart: remainingAmount,
+      monthlyIncome, monthlyMandatoryExpense, monthlyVariableExpense,
+      allocationPercent: percent, preDebtGoalAllocationPercent,
+      queueCredits, parallelCredits, startDateStr: today,
+    });
+    const monthlyAllocation = sim.monthlyTimeline.length ? sim.monthlyTimeline[0].strategyAllocation : freeCashFlow * percent / 100;
     scenarios[key] = {
-      percent, monthlyAllocation, reachable, monthsNeeded,
-      projectedDate: monthsNeeded == null ? null : addMonthsToDateStr(today, monthsNeeded),
+      percent, monthlyAllocation,
+      reachable: sim.goalReachedMonth != null,
+      monthsNeeded: sim.goalReachedMonth,
+      projectedDate: sim.goalReachedMonth != null ? addMonthsToDateStr(today, sim.goalReachedMonth) : null,
+      priorityDebtsClosedMonth: sim.priorityDebtsClosedMonth,
+      priorityDebtsClosedDate: sim.priorityDebtsClosedMonth != null ? addMonthsToDateStr(today, sim.priorityDebtsClosedMonth) : null,
+      monthlyTimeline: sim.monthlyTimeline, creditEvents: sim.creditEvents, warnings: sim.warnings,
+      goalBalance: sim.goalBalance,
     };
   });
 
@@ -7346,6 +7632,7 @@ function calculateGoalForecast(goal) {
     monthlyIncome, monthlyMandatoryExpense, monthlyVariableExpense, monthlyCreditPayments, freeCashFlow,
     remainingAmount, scenarios, desiredDateComparison,
     usingOverrides: { income: usingIncomeOverride, variable: usingVariableOverride, mandatory: usingMandatoryOverride },
+    queueCredits, parallelCredits,
   };
 }
 // «Что если»: пересчитывает прогноз с временно подменёнными полями цели, не затрагивая
@@ -7430,9 +7717,11 @@ function renderGoalsView() {
 
   const forecast = calculateGoalForecast(goal);
   renderGoalHero(goal, forecast);
+  renderGoalStages(goal, forecast);
   renderGoalScenarios(forecast);
   renderGoalBreakdown(forecast);
-  renderGoalCreditsImpact(goal);
+  renderGoalPayoffQueue(goal, forecast);
+  renderGoalParallelCredits(goal, forecast);
 
   if (state.goalFormMode === 'create') {
     formTitle.textContent = 'Новая цель';
@@ -7455,6 +7744,21 @@ function renderGoalHero(goal, forecast) {
   document.getElementById('goalHeroTarget').textContent = fmt.format(Number(goal.target_amount || 0));
   document.getElementById('goalHeroRemaining').textContent = fmt.format(forecast.remainingAmount);
 
+  // §19: главная карточка цели — «сначала кредиты» + дата автомобиля, либо отдельная строка про
+  // ипотеку, если приоритетной очереди нет, а параллельно платится только она.
+  const base = forecast.scenarios.base;
+  const debtLineEl = document.getElementById('goalHeroDebtLine');
+  if (debtLineEl) {
+    if (!forecast.queueCredits.length && forecast.parallelCredits.length) {
+      debtLineEl.innerHTML = `<span class="goal-debt-line-note">Ипотека не блокирует цель</span>`;
+    } else if (forecast.queueCredits.length) {
+      const closedText = base.priorityDebtsClosedDate ? `до ${formatDateHuman(base.priorityDebtsClosedDate)}` : 'срок не определён при текущем темпе';
+      debtLineEl.innerHTML = `<span class="goal-debt-line-label">Сначала кредиты:</span> <span class="goal-debt-line-value">${closedText}</span>`;
+    } else {
+      debtLineEl.innerHTML = '';
+    }
+  }
+
   const desiredEl = document.getElementById('goalHeroDesired');
   const cmp = forecast.desiredDateComparison;
   if (goal.desired_date && cmp) {
@@ -7474,19 +7778,74 @@ function renderGoalHero(goal, forecast) {
   }
 }
 
+// §17: «План достижения цели» — этапы, вычисленные по базовому сценарию.
+function renderGoalStages(goal, forecast) {
+  const box = document.getElementById('goalStagesBody');
+  if (!box) return;
+  const base = forecast.scenarios.base;
+  if (!forecast.remainingAmount) {
+    box.innerHTML = '<div class="empty-note">Цель уже достигнута.</div>';
+    return;
+  }
+  const stages = [];
+  if (forecast.queueCredits.length) {
+    stages.push({
+      title: 'Этап 1', text: 'Закрыть кредитные карты и потребительские кредиты',
+      date: base.priorityDebtsClosedDate ? `До ${formatDateHuman(base.priorityDebtsClosedDate)}` : 'Срок не определён при текущем темпе',
+    });
+    stages.push({
+      title: 'Этап 2', text: 'Активное накопление на автомобиль',
+      date: base.priorityDebtsClosedDate ? `С ${formatDateHuman(base.priorityDebtsClosedDate)}` : '—',
+    });
+  } else {
+    stages.push({ title: '', text: 'Можно направлять деньги на автомобиль уже сейчас', date: '' });
+  }
+  stages.push({
+    title: `Этап ${forecast.queueCredits.length ? 3 : 1}`, text: `Собрать ${fmt.format(Number(goal.target_amount || 0))}`,
+    date: base.projectedDate ? formatDateHuman(base.projectedDate) : 'Недостижимо при текущем темпе',
+  });
+  let html = stages.map(s => `
+    <div class="goal-stage-item">
+      ${s.title ? `<div class="goal-stage-title">${s.title}</div>` : ''}
+      <div class="goal-stage-text">${escapeHtml(s.text)}</div>
+      ${s.date ? `<div class="goal-stage-date">${escapeHtml(s.date)}</div>` : ''}
+    </div>`).join('');
+  if (forecast.parallelCredits.length) {
+    html += `<div class="goal-stage-item goal-stage-parallel">
+      <div class="goal-stage-title">${escapeHtml(forecast.parallelCredits.map(c => c.name).join(', '))}</div>
+      <div class="goal-stage-text">Выплачивается по графику и не блокирует цель</div>
+    </div>`;
+  }
+  box.innerHTML = html;
+}
+
 function renderGoalScenarios(forecast) {
   const grid = document.getElementById('goalScenariosGrid');
   if (!grid) return;
+  const hasQueue = !!forecast.queueCredits.length;
   grid.innerHTML = Object.values(GOAL_SCENARIO_META).map(meta => {
     const sc = forecast.scenarios[meta.key];
     const monthsText = !forecast.remainingAmount ? 'Цель достигнута'
       : sc.reachable ? `${sc.monthsNeeded} ${pluralMonths(sc.monthsNeeded)}` : 'Недостижимо';
     const dateText = sc.projectedDate ? formatDateHuman(sc.projectedDate) : 'При текущем свободном остатке — никогда';
+    const debtsRow = hasQueue ? `
+        <div class="goal-scenario-stage-row">
+          <span>Закрытие приоритетных кредитов</span>
+          <span>${sc.priorityDebtsClosedMonth != null ? (sc.priorityDebtsClosedMonth === 0 ? 'уже закрыты' : creditRemainingTermLabel(sc.priorityDebtsClosedMonth)) : 'не определено'}</span>
+        </div>
+        <div class="goal-scenario-stage-row">
+          <span>Начало активного накопления</span>
+          <span>${sc.priorityDebtsClosedDate ? formatDateHuman(sc.priorityDebtsClosedDate) : '—'}</span>
+        </div>` : '';
     return `
       <div class="goal-scenario-card ${meta.key === 'base' ? 'is-base' : ''} ${!sc.reachable && forecast.remainingAmount ? 'unreachable' : ''}">
-        <div class="goal-scenario-label">${meta.label}</div>
+        <div class="goal-scenario-label">${meta.label}${meta.key === 'base' ? ' <span class="goal-scenario-base-badge">рекомендуемый</span>' : ''}</div>
         <div class="goal-scenario-percent">${sc.percent}% свободного остатка · ${fmt.format(sc.monthlyAllocation)}/мес.</div>
-        <div class="goal-scenario-months">${monthsText}</div>
+        ${debtsRow}
+        <div class="goal-scenario-stage-row goal-scenario-final-row">
+          <span>Автомобиль</span>
+          <span>${monthsText}</span>
+        </div>
         <div class="goal-scenario-date">${sc.reachable || !forecast.remainingAmount ? dateText : ''}</div>
       </div>`;
   }).join('');
@@ -7515,6 +7874,20 @@ function renderGoalScenariosChart(forecast) {
       scales: { x: { ticks: { precision: 0 }, title: { display: true, text: 'Месяцев до цели' } } },
     },
   });
+  // §20: точки закрытия очереди/старта накопления и достижения цели — текстовыми метками под
+  // графиком (плагин аннотаций Chart.js недоступен из песочницы, как и в этапе 2 — CDN
+  // заблокирован политикой egress); ипотека сюда не попадает — она не «точка нулевого долга».
+  const milestonesEl = document.getElementById('goalScenariosMilestones');
+  if (!milestonesEl) return;
+  const base = forecast.scenarios.base;
+  const points = [];
+  if (forecast.queueCredits.length && base.priorityDebtsClosedDate) {
+    points.push(`Приоритетные кредиты закрыты: ${formatDateHuman(base.priorityDebtsClosedDate)}`);
+  }
+  if (base.projectedDate) points.push(`Цель достигнута: ${formatDateHuman(base.projectedDate)}`);
+  milestonesEl.innerHTML = points.length
+    ? points.map(p => `<div class="goal-milestone-item">${escapeHtml(p)}</div>`).join('')
+    : '';
 }
 
 function renderGoalBreakdown(forecast) {
@@ -7534,23 +7907,85 @@ function renderGoalBreakdown(forecast) {
     </div>`;
 }
 
-function renderGoalCreditsImpact(goal) {
-  const badge = document.getElementById('goalCreditsImpactBadge');
-  const body = document.getElementById('goalCreditsImpactBody');
+// §7: очередь «закрыть до накопления» с ручной перестановкой (кнопки Выше/Ниже).
+function renderGoalPayoffQueue(goal, forecast) {
+  const badge = document.getElementById('goalQueueBadge');
+  const body = document.getElementById('goalQueueBody');
   if (!body) return;
   if (!goal.include_credits) {
-    if (badge) badge.textContent = 'Не учитываются';
+    if (badge) badge.textContent = '';
     body.innerHTML = '<div class="empty-note">Кредиты не учитываются в этой цели — включите «Учитывать платежи по кредитам» в настройках.</div>';
     return;
   }
-  const counted = state.credits.filter(c => c.status === 'active' && c.include_in_goal_forecast && !c.payment_already_counted_in_mandatory);
-  if (badge) badge.textContent = counted.length ? `${counted.length} ${pluralCredit(counted.length)}` : '';
-  if (!counted.length) {
-    body.innerHTML = '<div class="empty-note">Нет кредитов, учитываемых при расчёте цели. Включите галочку «Учитывать кредит при расчёте финансовых целей» в разделе «Кредиты».</div>';
+  const queue = forecast.queueCredits;
+  if (badge) badge.textContent = queue.length ? `${queue.length} ${pluralCredit(queue.length)}` : '';
+  if (!queue.length) {
+    body.innerHTML = '<div class="empty-note">Можно направлять деньги на автомобиль уже сейчас — нет кредитов в очереди «закрыть до накопления».</div>';
     return;
   }
-  body.innerHTML = counted.map(c => `
-    <div class="cfp-row"><span class="cfp-label">${escapeHtml(c.name)}</span><span class="cfp-value">${fmt.format(Number(c.monthly_payment))}/мес.</span></div>`).join('');
+  body.innerHTML = queue.map((c, i) => `
+    <div class="goal-queue-item" data-id="${c.id}">
+      <div class="goal-queue-item-num">${i + 1}</div>
+      <div class="goal-queue-item-main">
+        <div class="goal-queue-item-name">${escapeHtml(c.name)}</div>
+        <div class="goal-queue-item-type">${escapeHtml(creditTypeLabel(c.credit_type))}</div>
+        <div class="goal-queue-item-facts">
+          <span>Остаток: ${fmt.format(Number(c.remaining_amount))}</span>
+          ${c.interest_rate != null ? `<span>Ставка: ${formatPercent(Number(c.interest_rate))}</span>` : ''}
+          <span>Платёж: ${fmt.format(Number(c.monthly_payment))}/мес.</span>
+        </div>
+        ${creditGoalEstimateIsApproximate(c) ? '<div class="goal-queue-item-approx">Приблизительный срок без учёта процентов</div>' : ''}
+      </div>
+      <div class="goal-queue-item-actions">
+        <button type="button" class="btn-ghost goal-queue-move-btn" data-dir="up" data-id="${c.id}" ${i === 0 ? 'disabled' : ''}>Выше</button>
+        <button type="button" class="btn-ghost goal-queue-move-btn" data-dir="down" data-id="${c.id}" ${i === queue.length - 1 ? 'disabled' : ''}>Ниже</button>
+      </div>
+    </div>`).join('');
+}
+let goalQueueReorderInFlight = false;
+document.getElementById('goalQueueBody').addEventListener('click', async (e) => {
+  const btn = e.target.closest('.goal-queue-move-btn');
+  if (!btn || btn.disabled || goalQueueReorderInFlight) return;
+  const queue = getGoalPayoffQueue(state.credits);
+  const idx = queue.findIndex(c => c.id === btn.dataset.id);
+  if (idx === -1) return;
+  const swapWith = btn.dataset.dir === 'up' ? idx - 1 : idx + 1;
+  if (swapWith < 0 || swapWith >= queue.length) return;
+  [queue[idx], queue[swapWith]] = [queue[swapWith], queue[idx]];
+  goalQueueReorderInFlight = true;
+  btn.disabled = true;
+  try {
+    // §7 п.1-3: обновляем goal_priority_order у всей очереди по новому порядку и пересчитываем
+    // все три сценария; §7 п.4: реальные остатки кредитов при этом не трогаем.
+    const results = await Promise.all(queue.map((c, i) =>
+      supabaseClient.from('credits').update({ goal_priority_order: (i + 1) * 10, updated_at: new Date().toISOString() }).eq('id', c.id)));
+    if (results.some(r => r.error)) { toast('Не удалось сохранить порядок'); return; }
+    await loadAll();
+  } finally {
+    goalQueueReorderInFlight = false;
+  }
+});
+
+// §8: кредиты «выплачиваются параллельно» — отдельный блок, не смешивается с очередью.
+function renderGoalParallelCredits(goal, forecast) {
+  const badge = document.getElementById('goalParallelBadge');
+  const body = document.getElementById('goalParallelBody');
+  if (!body) return;
+  const list = forecast.parallelCredits;
+  if (badge) badge.textContent = list.length ? `${list.length} ${pluralCredit(list.length)}` : '';
+  if (!goal.include_credits || !list.length) {
+    body.innerHTML = '<div class="empty-note">Нет кредитов со стратегией «Выплачивать параллельно».</div>';
+    return;
+  }
+  body.innerHTML = list.map(c => `
+    <div class="goal-parallel-item">
+      <div class="goal-parallel-item-name">${escapeHtml(c.name)}</div>
+      <div class="goal-parallel-item-facts">
+        <span>Платёж: ${fmt.format(Number(c.monthly_payment))} в месяц</span>
+        ${c.planned_end_date ? `<span>До: ${capFirst(monthLabel(c.planned_end_date.slice(0, 7)))}</span>` : ''}
+      </div>
+      <div class="goal-parallel-item-note">Не блокирует цель</div>
+    </div>`).join('');
 }
 
 function renderHomeGoalsWidget() {
@@ -7564,10 +7999,21 @@ function renderHomeGoalsWidget() {
   const base = forecast.scenarios.base;
   const monthsText = !forecast.remainingAmount ? 'Цель достигнута'
     : base.reachable ? `${base.monthsNeeded} ${pluralMonths(base.monthsNeeded)}` : 'недостижимо при текущем темпе';
+  // §19: если параллельно платится только ипотека — отдельная строка «не блокирует цель»;
+  // если есть приоритетная очередь — строка «сначала кредиты» с датой закрытия очереди.
+  let debtRow = '';
+  if (forecast.remainingAmount) {
+    if (!forecast.queueCredits.length && forecast.parallelCredits.length) {
+      debtRow = `<div class="cfp-row"><span class="cfp-label">Ипотека</span><span class="cfp-value">не блокирует цель</span></div>`;
+    } else if (forecast.queueCredits.length) {
+      debtRow = `<div class="cfp-row"><span class="cfp-label">Сначала кредиты</span><span class="cfp-value">${base.priorityDebtsClosedDate ? 'до ' + formatDateHuman(base.priorityDebtsClosedDate) : '—'}</span></div>`;
+    }
+  }
   body.innerHTML = `
     <div class="cfp-row"><span class="cfp-label">${escapeHtml(goal.name)}</span><span class="cfp-value">${goalProgressPercent(goal)}%</span></div>
     <div class="cfp-row"><span class="cfp-label">Осталось накопить</span><span class="cfp-value">${fmt.format(forecast.remainingAmount)}</span></div>
-    <div class="cfp-row"><span class="cfp-label">При базовом темпе</span><span class="cfp-value">${monthsText}</span></div>`;
+    ${debtRow}
+    <div class="cfp-row"><span class="cfp-label">Автомобиль</span><span class="cfp-value">${monthsText}</span></div>`;
 }
 
 /* ---- Форма добавления/редактирования цели ---- */
@@ -7580,6 +8026,7 @@ function resetGoalForm() {
   document.getElementById('goalDesiredDateInput').value = '';
   document.getElementById('goalAnalysisPeriodInput').value = '3';
   document.getElementById('goalIncludeCreditsInput').checked = true;
+  document.getElementById('goalPreDebtAllocationInput').value = '0';
   document.getElementById('goalComfortablePercentInput').value = 50;
   document.getElementById('goalBasePercentInput').value = 70;
   document.getElementById('goalAcceleratedPercentInput').value = 90;
@@ -7602,6 +8049,7 @@ function populateGoalForm(goal) {
   document.getElementById('goalDesiredDateInput').value = goal.desired_date || '';
   document.getElementById('goalAnalysisPeriodInput').value = String(goal.analysis_period_months || 3);
   document.getElementById('goalIncludeCreditsInput').checked = goal.include_credits !== false;
+  document.getElementById('goalPreDebtAllocationInput').value = String(goal.pre_debt_goal_allocation_percent != null ? Math.round(Number(goal.pre_debt_goal_allocation_percent)) : 0);
   document.getElementById('goalComfortablePercentInput').value = goal.comfortable_allocation_percent != null ? Number(goal.comfortable_allocation_percent) : 50;
   document.getElementById('goalBasePercentInput').value = goal.base_allocation_percent != null ? Number(goal.base_allocation_percent) : 70;
   document.getElementById('goalAcceleratedPercentInput').value = goal.accelerated_allocation_percent != null ? Number(goal.accelerated_allocation_percent) : 90;
@@ -7660,6 +8108,7 @@ document.getElementById('goalSubmitBtn').addEventListener('click', async () => {
     desired_date: document.getElementById('goalDesiredDateInput').value || null,
     analysis_period_months: parseInt(document.getElementById('goalAnalysisPeriodInput').value, 10),
     include_credits: document.getElementById('goalIncludeCreditsInput').checked,
+    pre_debt_goal_allocation_percent: parseInt(document.getElementById('goalPreDebtAllocationInput').value, 10) || 0,
     comfortable_allocation_percent: comfortable,
     base_allocation_percent: base,
     accelerated_allocation_percent: accelerated,
@@ -7871,8 +8320,10 @@ function resetCreditForm() {
   document.getElementById('creditEndDateInput').value = '';
   document.getElementById('creditNotesInput').value = '';
   document.getElementById('creditCountedInMandatoryInput').checked = false;
-  document.getElementById('creditIncludeInGoalInput').checked = true;
+  document.getElementById('creditGoalStrategyInput').value = 'close_before_goal';
+  document.getElementById('creditAllowExtraPaymentInput').checked = true;
   applyCreditFieldLabels();
+  applyCreditGoalStrategyVisibility();
   document.getElementById('creditSubmitBtn').textContent = 'Добавить кредит';
 }
 function openCreditEditForm(id) {
@@ -7894,8 +8345,13 @@ function openCreditEditForm(id) {
   document.getElementById('creditEndDateInput').value = c.planned_end_date || '';
   document.getElementById('creditNotesInput').value = c.notes || '';
   document.getElementById('creditCountedInMandatoryInput').checked = !!c.payment_already_counted_in_mandatory;
-  document.getElementById('creditIncludeInGoalInput').checked = c.include_in_goal_forecast !== false;
+  // §5: «Не учитывать» — по include_in_goal_forecast; иначе показываем сохранённую стратегию
+  // (goal_payoff_strategy) как есть, credit_type её не переопределяет.
+  document.getElementById('creditGoalStrategyInput').value = c.include_in_goal_forecast === false
+    ? 'not_counted' : (c.goal_payoff_strategy === 'scheduled_during_goal' ? 'scheduled_during_goal' : 'close_before_goal');
+  document.getElementById('creditAllowExtraPaymentInput').checked = c.allow_extra_payment_before_goal !== false;
   applyCreditFieldLabels();
+  applyCreditGoalStrategyVisibility();
   document.getElementById('creditSubmitBtn').textContent = 'Сохранить изменения';
   const body = document.getElementById('creditFormBody');
   const toggleBtn = document.getElementById('creditFormToggleBtn');
@@ -7920,6 +8376,10 @@ document.getElementById('creditSubmitBtn').addEventListener('click', async () =>
   const startDate = document.getElementById('creditStartDateInput').value || null;
   const plannedEndDate = document.getElementById('creditEndDateInput').value || null;
   if (startDate && plannedEndDate && plannedEndDate < startDate) { toast('Плановая дата окончания раньше даты начала'); return; }
+  // §5: «Не учитывать» → include_in_goal_forecast=false, остальные две опции — стратегия +
+  // include_in_goal_forecast=true.
+  const goalStrategyValue = document.getElementById('creditGoalStrategyInput').value;
+  const includeInGoalForecast = goalStrategyValue !== 'not_counted';
 
   const payload = {
     name, credit_type: creditType,
@@ -7933,9 +8393,15 @@ document.getElementById('creditSubmitBtn').addEventListener('click', async () =>
     payment_day: paymentDay,
     planned_end_date: plannedEndDate,
     payment_already_counted_in_mandatory: document.getElementById('creditCountedInMandatoryInput').checked,
-    include_in_goal_forecast: document.getElementById('creditIncludeInGoalInput').checked,
+    include_in_goal_forecast: includeInGoalForecast,
+    allow_extra_payment_before_goal: document.getElementById('creditAllowExtraPaymentInput').checked,
     notes: document.getElementById('creditNotesInput').value.trim() || null,
   };
+  // «Не учитывать» не переопределяет ранее сохранённую стратегию — поле просто не входит в
+  // payload, чтобы при повторном включении кредита в цель стратегия не терялась (§2, §26).
+  if (goalStrategyValue !== 'not_counted') {
+    payload.goal_payoff_strategy = goalStrategyValue === 'scheduled_during_goal' ? 'scheduled_during_goal' : 'close_before_goal';
+  }
   const btn = document.getElementById('creditSubmitBtn');
   creditFormInFlight = true; btn.disabled = true;
   try {
