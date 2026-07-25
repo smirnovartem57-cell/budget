@@ -4775,7 +4775,10 @@ function generateMonthlyDates(startDateStr, endDateStr) {
 
 function populateCategorySelect() {
   const sel = document.getElementById('categorySelect');
-  const list = state.categories.filter(c => c.kind === state.kind);
+  // «Кредит» — не выбирается вручную ни в обычном, ни в регулярном расходе (тот же чекбокс
+  // «Ежемесячный» в этой форме): единственный способ создать операцию с этой категорией —
+  // «Отметить платёж» на вкладке Кредиты (RPC record_credit_payment, простановка credit_id).
+  const list = state.categories.filter(c => c.kind === state.kind && !(state.kind === 'expense' && c.name === 'Кредит'));
   sel.innerHTML = '';
   list.forEach(c => {
     const opt = document.createElement('option');
@@ -5214,6 +5217,7 @@ function getRecentCategories(kind, n) {
   const seen = [];
   for (const t of state.transactions) {
     if (t.kind !== kind || !t.category) continue;
+    if (kind === 'expense' && t.category === 'Кредит') continue; // не выбирается вручную, см. populateCategorySelect
     if (!seen.includes(t.category)) seen.push(t.category);
     if (seen.length >= n) break;
   }
@@ -5262,6 +5266,7 @@ function getRepeatExpenseCandidates() {
   const seenKeys = new Set();
   for (const t of state.transactions) {
     if (t.kind !== 'expense') continue;
+    if (t.category === 'Кредит') continue; // повторяется только через «Отметить платёж» на Кредитах
     const key = repeatExpenseKey(t);
     if (seenKeys.has(key)) continue;
     seenKeys.add(key);
@@ -9168,7 +9173,7 @@ document.getElementById('creditPaymentSubmitBtn').addEventListener('click', asyn
       'Сервер не отвечает — проверьте интернет-соединение'
     ).catch(err => ({ error: err }));
     if (error) { toast('Не удалось сохранить платёж: ' + error.message); return; } // §37: значения не очищаем
-    toast('Платёж отмечен');
+    toast('Платёж отмечен и добавлен в расходы');
     document.getElementById('creditPaymentOverlay').classList.remove('visible');
     // RPC всегда создаёт расходную операцию — инвалидируем проверку дня, как при обычном расходе.
     await invalidateExpenseDayChecks(paymentDate, 'expense_created');
@@ -9286,8 +9291,11 @@ async function invalidateExpenseDayChecks(dates, reason = 'expense_updated') {
 
 /* ---------------- DELETE TRANSACTION ---------------- */
 async function deleteTx(id) {
-  if (!(await confirmDialog('Удалить эту операцию?'))) return;
   const tx = state.transactions.find(t => t.id === id);
+  const confirmMsg = tx && tx.credit_id
+    ? 'Удалить эту операцию? Связанный платёж по кредиту тоже будет удалён из истории.'
+    : 'Удалить эту операцию?';
+  if (!(await confirmDialog(confirmMsg))) return;
   const { error } = await supabaseClient.from('transactions').delete().eq('id', id);
   if (error) { toast('Ошибка: ' + error.message); return; }
   toast('Удалено');
@@ -9295,11 +9303,27 @@ async function deleteTx(id) {
   await loadAll();
 }
 
+// Платёж по кредиту (t.credit_id) — инлайновые правки в таблице «Операции» должны идти через
+// update_credit_payment, как и сохранение из детального листа (см. txDetailSaveBtn), иначе
+// credit_payments и связанная операция расходятся (та же природа бага, что чинит repair-RPC).
+function linkedCreditPaymentFor(tx) {
+  return tx && tx.credit_id ? state.creditPayments.find(p => p.transaction_id === tx.id) : null;
+}
+async function saveCreditPaymentEdit(payment, { date, amount, comment }) {
+  return supabaseClient.rpc('update_credit_payment', {
+    p_payment_id: payment.id, p_payment_date: date, p_amount: amount,
+    p_remaining_amount_after: payment.remaining_amount_after, p_comment: comment,
+  });
+}
+
 async function updateTxDate(id, newDate) {
   if (!isConfigured) { toast('Сначала подключите базу данных'); return; }
   if (!newDate) { toast('Укажите дату'); await loadAll(); return; }
   const tx = state.transactions.find(t => t.id === id);
-  const { error } = await supabaseClient.from('transactions').update({ date: newDate }).eq('id', id);
+  const linkedPayment = linkedCreditPaymentFor(tx);
+  const { error } = linkedPayment
+    ? await saveCreditPaymentEdit(linkedPayment, { date: newDate, amount: Number(tx.amount), comment: tx.comment || null })
+    : await supabaseClient.from('transactions').update({ date: newDate }).eq('id', id);
   if (error) { toast('Ошибка: ' + error.message); return; }
   toast('Дата обновлена');
   if (tx && tx.kind === 'expense') {
@@ -9311,6 +9335,7 @@ async function updateTxDate(id, newDate) {
 async function updateTxTime(id, newTime) {
   if (!isConfigured) { toast('Сначала подключите базу данных'); return; }
   const tx = state.transactions.find(t => t.id === id);
+  // Время не хранится в credit_payments — правится напрямую в transactions вне зависимости от credit_id.
   const { error } = await supabaseClient.from('transactions').update({ time: newTime || null }).eq('id', id);
   if (error) { toast('Ошибка: ' + error.message); return; }
   toast('Время обновлено');
@@ -9323,7 +9348,10 @@ async function updateTxAmount(id, rawValue) {
   const value = parseFloat(rawValue);
   if (!value || value <= 0) { toast('Сумма должна быть больше нуля'); await loadAll(); return; }
   const tx = state.transactions.find(t => t.id === id);
-  const { error } = await supabaseClient.from('transactions').update({ amount: value }).eq('id', id);
+  const linkedPayment = linkedCreditPaymentFor(tx);
+  const { error } = linkedPayment
+    ? await saveCreditPaymentEdit(linkedPayment, { date: tx.date, amount: value, comment: tx.comment || null })
+    : await supabaseClient.from('transactions').update({ amount: value }).eq('id', id);
   if (error) { toast('Ошибка: ' + error.message); return; }
   toast('Обновлено');
   if (tx && tx.kind === 'expense') await invalidateExpenseDayChecks(tx.date, 'expense_updated');
@@ -9350,12 +9378,16 @@ function openTxDetailSheet(id) {
   document.getElementById('txDetailTime').value = t.time ? t.time.slice(0, 5) : '';
   document.getElementById('txDetailComment').value = t.comment || '';
   const repeatBtn = document.getElementById('txDetailRepeatBtn');
-  if (repeatBtn) repeatBtn.style.display = t.kind === 'expense' ? '' : 'none';
+  if (repeatBtn) repeatBtn.style.display = (t.kind === 'expense' && !t.credit_id) ? '' : 'none';
   // Платёж по кредиту (t.credit_id): правка суммы/даты/комментария синхронизируется с
   // credit_payments через update_credit_payment (см. обработчик txDetailSaveBtn), но остаток
-  // долга (credits.remaining_amount) задним числом не пересчитывается.
+  // долга (credits.remaining_amount) задним числом не пересчитывается. «Повторить»/«Дублировать»
+  // скрыты — прямой insert создал бы операцию с category='Кредит' без credit_id и без
+  // соответствующей строки credit_payments (та же природа бага, что чинит repair-миграция).
   const creditNote = document.getElementById('txDetailCreditNote');
   if (creditNote) creditNote.style.display = t.credit_id ? 'block' : 'none';
+  const duplicateBtn = document.getElementById('txDetailDuplicateBtn');
+  if (duplicateBtn) duplicateBtn.style.display = t.credit_id ? 'none' : '';
   document.getElementById('txDetailOverlay').classList.add('visible');
   if (window.lucide) lucide.createIcons();
 }
@@ -9388,15 +9420,10 @@ document.getElementById('txDetailSaveBtn').addEventListener('click', async () =>
   // credit_payments и связанная операция не разошлись (см. 20260725_credit_payment_edit_rpc.sql).
   // Остаток долга (credits.remaining_amount) при этом не пересчитывается — как и раньше, это
   // проекция по истории, задним числом её не трогаем.
-  const linkedPayment = oldTx && oldTx.credit_id
-    ? state.creditPayments.find(p => p.transaction_id === txDetailCurrentId)
-    : null;
+  const linkedPayment = linkedCreditPaymentFor(oldTx);
   let error;
   if (linkedPayment) {
-    ({ error } = await supabaseClient.rpc('update_credit_payment', {
-      p_payment_id: linkedPayment.id, p_payment_date: date, p_amount: amount,
-      p_remaining_amount_after: linkedPayment.remaining_amount_after, p_comment: comment || null,
-    }));
+    ({ error } = await saveCreditPaymentEdit(linkedPayment, { date, amount, comment: comment || null }));
     if (!error && time !== (oldTx.time || null)) {
       ({ error } = await supabaseClient.from('transactions').update({ time }).eq('id', txDetailCurrentId));
     }
