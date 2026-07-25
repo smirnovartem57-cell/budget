@@ -1094,15 +1094,6 @@
   .goal-breakdown-hint { font-size: 11.5px; color: var(--text-secondary); padding: 0 0 6px; line-height: 1.4; }
   .goal-breakdown-sub-list { padding: 0 0 4px 10px; }
   .goal-breakdown-sub-row { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--text-secondary); padding: 2px 0; }
-  .goal-breakdown-sub-row.is-counted-elsewhere { font-style: italic; }
-  .goal-breakdown-duplicate-warning { font-size: 12px; color: var(--warning); background: var(--warning-bg); padding: 6px 10px; border-radius: var(--radius-sm); margin: 2px 0 6px; }
-  /* Доп. к ТЗ 2026-07-25 «Связать операции с кредитами», §12: раскрытие состава повседневных. */
-  .goal-breakdown-check-toggle-btn { font-size: 11.5px; padding: 4px 8px; min-height: 28px; margin: 2px 0 8px; }
-  .goal-breakdown-check-list { padding: 0 0 8px 10px; display: flex; flex-direction: column; gap: 4px; }
-  .goal-breakdown-check-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--text-secondary); flex-wrap: wrap; }
-  .goal-breakdown-check-info { flex: 1 1 auto; min-width: 0; }
-  .goal-breakdown-check-amount { font-variant-numeric: tabular-nums; }
-  .goal-breakdown-check-link-btn { font-size: 11px; padding: 3px 8px; min-height: 24px; }
   @media (max-width: 640px) {
     .goal-queue-item { flex-wrap: wrap; }
     .goal-queue-item-actions { flex-direction: row; }
@@ -2307,25 +2298,6 @@
           </div>
         </div>
 
-        <!-- Доп. к ТЗ 2026-07-25 «Связать операции с кредитами»: явная связь операции с кредитом —
-             только по выбору пользователя, никогда автоматически (§13). Скрыто для регулярных
-             расходов — там кредит связывается через саму регулярную группу в форме кредита (§7). -->
-        <div class="form-row" id="creditLinkRow" style="display:none;">
-          <label class="recurring-check-label">
-            <input type="checkbox" id="creditLinkCheckbox">
-            Это платёж по кредиту
-          </label>
-          <div id="creditLinkFields" style="display:none;margin-top:8px;">
-            <label>Кредит</label>
-            <select id="creditLinkSelect"></select>
-            <label style="margin-top:8px;">Тип платежа</label>
-            <select id="creditLinkTypeSelect">
-              <option value="minimum">Минимальный платёж</option>
-              <option value="extra">Дополнительное погашение</option>
-            </select>
-          </div>
-        </div>
-
         <div class="form-row">
           <label>Комментарий (необязательно)</label>
           <div class="notepad-input-row" style="margin-bottom:0;">
@@ -2706,23 +2678,6 @@
             <label>Примечание (необязательно)</label>
             <input type="text" id="creditNotesInput" placeholder="Например: рефинансирован в 2025">
           </div>
-          <!-- Доп. к ТЗ 2026-07-25 «Связать операции с кредитами», §7: явная связь кредита с
-               активной регулярной группой расходов — сильнее ручного флажка ниже, синхронизирует
-               его при сохранении (§8). Не сопоставлять группы автоматически по названию/сумме —
-               только явный выбор из уже существующих активных групп. -->
-          <div class="form-row">
-            <label>Связать с регулярным расходом (необязательно)</label>
-            <select id="creditMandatoryGroupInput"><option value="">Не связан</option></select>
-            <div class="credit-form-hint">Если этот платёж уже внесён как ежемесячный расход — выберите его здесь, чтобы не учитывать дважды.</div>
-          </div>
-          <div class="form-row" id="creditCountedInMandatoryRow">
-            <label class="recurring-check-label">
-              <input type="checkbox" id="creditCountedInMandatoryInput">
-              Платёж уже учтён в обязательных расходах
-            </label>
-            <div class="credit-form-hint">Включите, если этот платёж уже добавлен в приложении как регулярный ежемесячный расход. Иначе он будет учтён отдельно.</div>
-          </div>
-          <div class="credit-form-hint" id="creditMandatoryGroupSyncedHint" style="display:none;">Уже учитывается через связанную регулярную группу — отдельно вычитаться не будет.</div>
           <div class="form-row">
             <label>Как учитывать кредит при цели на автомобиль</label>
             <select id="creditGoalStrategyInput">
@@ -3387,23 +3342,7 @@
       <div class="form-row"><label>Сумма, ₽</label><input type="number" id="txDetailAmountInput" min="0" step="1" inputmode="decimal"></div>
       <div class="form-row"><label>Дата и время</label><div class="datetime-row"><input type="date" id="txDetailDate" min="2020-01-01" max="2099-12-31"><input type="time" id="txDetailTime"></div></div>
       <div class="form-row"><label>Комментарий</label><input type="text" id="txDetailComment" placeholder="Например: покупки домой"></div>
-      <!-- Доп. к ТЗ 2026-07-25 «Связать операции с кредитами»: связать/изменить/снять связь с
-           кредитом у уже существующей операции (§5). Только для расходов, только явный выбор. -->
-      <div class="form-row" id="txDetailCreditLinkRow" style="display:none;">
-        <label class="recurring-check-label">
-          <input type="checkbox" id="txDetailCreditLinkCheckbox">
-          Это платёж по кредиту
-        </label>
-        <div id="txDetailCreditLinkFields" style="display:none;margin-top:8px;">
-          <label>Кредит</label>
-          <select id="txDetailCreditLinkSelect"></select>
-          <label style="margin-top:8px;">Тип платежа</label>
-          <select id="txDetailCreditLinkTypeSelect">
-            <option value="minimum">Минимальный платёж</option>
-            <option value="extra">Дополнительное погашение</option>
-          </select>
-        </div>
-      </div>
+      <div class="credit-form-hint" id="txDetailCreditNote" style="display:none;">Это платёж по кредиту. Сумма/дата/комментарий синхронизируются с историей платежей, но остаток долга задним числом не пересчитывается — при ошибке удалите операцию и отметьте платёж заново в разделе «Кредиты».</div>
       <button type="button" class="btn-primary" id="txDetailSaveBtn">Сохранить</button>
       <!-- ТЗ №2 (2026-07-24) §8: «Повторить расход» — только для расхода, открывает форму создания
            (НЕ режим редактирования), сумму не переносит. -->
@@ -3426,7 +3365,8 @@
   </div>
 </div>
 
-<!-- Кредиты: «Отметить платёж» (§20-22) — не создаёт расход автоматически. -->
+<!-- Кредиты: «Отметить платёж» — атомарно создаёт запись платежа И расходную операцию через
+     RPC record_credit_payment (план упрощения 2026-07-25, #170). -->
 <div class="bottom-sheet-overlay bottom-sheet-modal" id="creditPaymentOverlay">
   <div class="bottom-sheet">
     <div class="bottom-sheet-handle"></div>
@@ -3441,7 +3381,7 @@
         <div class="credit-form-hint">Укажите остаток из банковского приложения после списания платежа.</div>
       </div>
       <div class="form-row"><label>Комментарий (необязательно)</label><input type="text" id="creditPaymentCommentInput"></div>
-      <div class="credit-form-hint" style="margin-bottom:10px;">Платёж в разделе кредитов не создаёт расход автоматически. При необходимости внесите его в операции отдельно.</div>
+      <div class="credit-form-hint" style="margin-bottom:10px;">Платёж одновременно создаст расходную операцию в «Операциях» (категория «Кредит») и уменьшит остаток долга.</div>
       <button class="btn-primary" id="creditPaymentSubmitBtn">Сохранить платёж</button>
     </div>
   </div>
@@ -4782,34 +4722,6 @@ function setKind(kind) {
     document.getElementById('recurringEndDateRow').style.display = 'none';
   }
   populateCategorySelect();
-  populateCreditLinkSelect();
-  applyTxCreditLinkVisibility();
-}
-
-// Доп. к ТЗ 2026-07-25 «Связать операции с кредитами»: список активных кредитов для выбора — и в
-// форме создания, и в детальном листе операции — только явный выбор пользователя, без
-// автосопоставления.
-function populateCreditLinkOptions(selectId) {
-  const sel = document.getElementById(selectId);
-  const prev = sel.value;
-  const active = state.credits.filter(c => c.status === 'active');
-  sel.innerHTML = active.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
-  if (active.some(c => c.id === prev)) sel.value = prev;
-}
-function populateCreditLinkSelect() { populateCreditLinkOptions('creditLinkSelect'); }
-
-// Кредит связывается с регулярным расходом через саму регулярную группу (форма кредита, §7) —
-// здесь переключатель скрыт для регулярных операций, чтобы не создавать два способа сделать
-// одно и то же.
-function applyTxCreditLinkVisibility() {
-  const row = document.getElementById('creditLinkRow');
-  const isRecurringChecked = document.getElementById('recurringCheckbox').checked;
-  const show = state.kind === 'expense' && !isRecurringChecked;
-  row.style.display = show ? 'block' : 'none';
-  if (!show) {
-    document.getElementById('creditLinkCheckbox').checked = false;
-    document.getElementById('creditLinkFields').style.display = 'none';
-  }
 }
 
 document.getElementById('recurringCheckbox').addEventListener('change', (e) => {
@@ -4818,11 +4730,6 @@ document.getElementById('recurringCheckbox').addEventListener('change', (e) => {
   if (e.target.checked && !endDateInput.value) {
     endDateInput.value = `${new Date().getFullYear()}-12-31`;
   }
-  applyTxCreditLinkVisibility();
-});
-
-document.getElementById('creditLinkCheckbox').addEventListener('change', (e) => {
-  document.getElementById('creditLinkFields').style.display = e.target.checked ? 'block' : 'none';
 });
 
 document.getElementById('incomeRecurringCheckbox').addEventListener('change', (e) => {
@@ -4868,7 +4775,10 @@ function generateMonthlyDates(startDateStr, endDateStr) {
 
 function populateCategorySelect() {
   const sel = document.getElementById('categorySelect');
-  const list = state.categories.filter(c => c.kind === state.kind);
+  // «Кредит» — не выбирается вручную ни в обычном, ни в регулярном расходе (тот же чекбокс
+  // «Ежемесячный» в этой форме): единственный способ создать операцию с этой категорией —
+  // «Отметить платёж» на вкладке Кредиты (RPC record_credit_payment, простановка credit_id).
+  const list = state.categories.filter(c => c.kind === state.kind && !(state.kind === 'expense' && c.name === 'Кредит'));
   sel.innerHTML = '';
   list.forEach(c => {
     const opt = document.createElement('option');
@@ -5307,6 +5217,7 @@ function getRecentCategories(kind, n) {
   const seen = [];
   for (const t of state.transactions) {
     if (t.kind !== kind || !t.category) continue;
+    if (kind === 'expense' && t.category === 'Кредит') continue; // не выбирается вручную, см. populateCategorySelect
     if (!seen.includes(t.category)) seen.push(t.category);
     if (seen.length >= n) break;
   }
@@ -5355,6 +5266,7 @@ function getRepeatExpenseCandidates() {
   const seenKeys = new Set();
   for (const t of state.transactions) {
     if (t.kind !== 'expense') continue;
+    if (t.category === 'Кредит') continue; // повторяется только через «Отметить платёж» на Кредитах
     const key = repeatExpenseKey(t);
     if (seenKeys.has(key)) continue;
     seenKeys.add(key);
@@ -5523,15 +5435,6 @@ async function submitTxSheet(keepOpen) {
   const userId = currentUser ? currentUser.id : null;
 
   const isRecurring = state.kind === 'expense' && document.getElementById('recurringCheckbox').checked;
-  // Доп. к ТЗ 2026-07-25 «Связать операции с кредитами»: только для одиночной (не регулярной)
-  // операции — регулярный кредитный платёж связывается через саму группу в форме кредита (§7).
-  const isCreditLink = state.kind === 'expense' && !isRecurring && document.getElementById('creditLinkCheckbox').checked;
-  let creditId = null, creditPaymentType = null;
-  if (isCreditLink) {
-    creditId = document.getElementById('creditLinkSelect').value || null;
-    if (!creditId) { toast('Выберите кредит или отключите «Это платёж по кредиту»'); return; }
-    creditPaymentType = document.getElementById('creditLinkTypeSelect').value;
-  }
   let payloads;
   if (isRecurring) {
     const endDate = document.getElementById('recurringEndDateInput').value;
@@ -5544,8 +5447,7 @@ async function submitTxSheet(keepOpen) {
   } else {
     // §15/§16: и обычное создание, и «Повторить» (repeat-expense) всегда идут через INSERT —
     // старая операция (если это повтор) нигде здесь не читается и не обновляется.
-    payloads = [{ kind: state.kind, category, subcategory, amount, date, time, comment: comment || null, user_id: userId,
-      credit_id: creditId, credit_payment_type: creditPaymentType }];
+    payloads = [{ kind: state.kind, category, subcategory, amount, date, time, comment: comment || null, user_id: userId }];
   }
 
   const submitBtn = document.getElementById('submitBtn');
@@ -5594,8 +5496,6 @@ async function submitTxSheet(keepOpen) {
 
     document.getElementById('recurringCheckbox').checked = false;
     document.getElementById('recurringEndDateRow').style.display = 'none';
-    document.getElementById('creditLinkCheckbox').checked = false;
-    document.getElementById('creditLinkFields').style.display = 'none';
     hideCatSuggestion();
 
     if (keepOpen) {
@@ -7289,7 +7189,7 @@ function getActiveRecurringGroups() {
   state.transactions.forEach(t => {
     if (!t.is_recurring || !t.recurring_group_id) return;
     if (!groups[t.recurring_group_id]) {
-      groups[t.recurring_group_id] = { recurringGroupId: t.recurring_group_id, category: t.category, subcategory: t.subcategory, amount: Number(t.amount), endDate: t.recurring_end_date, minDate: t.date };
+      groups[t.recurring_group_id] = { category: t.category, subcategory: t.subcategory, amount: Number(t.amount), endDate: t.recurring_end_date, minDate: t.date };
     } else if (t.date < groups[t.recurring_group_id].minDate) {
       groups[t.recurring_group_id].minDate = t.date;
     }
@@ -7493,15 +7393,10 @@ function calculateCreditSummary() {
   const activeCredits = state.credits.filter(c => c.status === 'active');
   const totalRemainingCreditDebt = activeCredits.reduce((s, c) => s + Number(c.remaining_amount || 0), 0);
   const totalMonthlyCreditPayments = activeCredits.reduce((s, c) => s + Number(c.monthly_payment || 0), 0);
-  // §31: платёж, уже учтённый в обязательных расходах, не должен войти сюда второй раз —
-  // этот срез предназначен для будущего этапа расчёта цели, а не для KPI «Платежи в месяц».
-  const monthlyPaymentsNotAlreadyCounted = activeCredits
-    .filter(c => !c.payment_already_counted_in_mandatory)
-    .reduce((s, c) => s + Number(c.monthly_payment || 0), 0);
   const withDate = activeCredits.filter(c => c.next_payment_date).sort((a, b) => a.next_payment_date.localeCompare(b.next_payment_date));
   const nearestPayment = withDate[0] || null;
   const includedInGoalForecast = activeCredits.filter(c => c.include_in_goal_forecast);
-  return { totalRemainingCreditDebt, totalMonthlyCreditPayments, monthlyPaymentsNotAlreadyCounted, activeCredits, nearestPayment, includedInGoalForecast };
+  return { totalRemainingCreditDebt, totalMonthlyCreditPayments, activeCredits, nearestPayment, includedInGoalForecast };
 }
 
 /* ====== Раздел «Цели» (2026-07-25, этап 2): расчёт прогноза накопления ======
@@ -7509,8 +7404,7 @@ function calculateCreditSummary() {
    платежи» (§11): шаблоны активных регулярных расходов (getActiveRecurringGroups) + активные
    подписки, а не историческое усреднение — это устраняет риск двойного счёта с «переменными»
    расходами (историческая выборка ниже явно исключает t.is_recurring). Кредиты считаются
-   отдельным срезом (goalMonthlyCreditPayments), чтобы платёж, уже включённый в обязательные
-   расходы (payment_already_counted_in_mandatory), не удваивался. */
+   отдельным срезом (goalMonthlyCreditPayments) — они всегда отдельная статья (#169). */
 
 const GOAL_TYPE_LABELS = { car: 'Автомобиль' };
 // Архитектурно допускаются другие значения goal_type (см. схему БД), но интерфейс сейчас
@@ -7677,26 +7571,16 @@ function resolveGoalIncomeAndExpenses(goal) {
   };
 }
 
-// Доп. к ТЗ 2026-07-25 «Связать операции с кредитами»: явная связь кредита с активной регулярной
-// группой (credits.mandatory_recurring_group_id) — источник истины сильнее ручного флажка
-// payment_already_counted_in_mandatory. Если связанная группа перестала быть активной (истёк
-// recurring_end_date), связь больше не действует — платёж возвращается в «Минимальные платежи по
-// кредитам», а не тихо продолжает считаться учтённым по устаревшей ссылке.
-function creditEffectiveAlreadyCounted(credit) {
-  if (credit.mandatory_recurring_group_id) {
-    return getActiveRecurringGroups().some(g => g.recurringGroupId === credit.mandatory_recurring_group_id);
-  }
-  return !!credit.payment_already_counted_in_mandatory;
-}
-
 // Ежемесячная нагрузка по кредитам, которую нужно вычесть из свободного остатка при расчёте
-// цели: только активные, явно включённые пользователем (include_in_goal_forecast) и ещё не
-// учтённые в обязательных расходах (иначе платёж посчитается дважды). Не зависит от стратегии —
-// минимальный платёж идёт независимо от того, копится ли кредит в очереди или выплачивается
-// параллельно (§9 ТЗ 2026-07-25 «Кредиты × Цели»).
+// цели: только активные и явно включённые пользователем (include_in_goal_forecast). Кредиты
+// всегда отдельная статья (план упрощения 2026-07-25, #169) — единственный способ внести
+// платёж, record_credit_payment, создаёт операцию с credit_id, которая структурно не может
+// попасть в «Регулярные расходы», поэтому двойной учёт исключён без дополнительной проверки.
+// Не зависит от стратегии — минимальный платёж идёт независимо от того, копится ли кредит в
+// очереди или выплачивается параллельно (§9 ТЗ 2026-07-25 «Кредиты × Цели»).
 function goalMonthlyCreditPayments() {
   return state.credits
-    .filter(c => c.status === 'active' && c.include_in_goal_forecast && !creditEffectiveAlreadyCounted(c))
+    .filter(c => c.status === 'active' && c.include_in_goal_forecast)
     .reduce((s, c) => s + Number(c.monthly_payment || 0), 0);
 }
 
@@ -7799,7 +7683,6 @@ function simulateGoalPayoffMonths(params) {
     remaining: Number(c.remaining_amount || 0),
     monthlyPayment: Number(c.monthly_payment || 0),
     rate: c.interest_rate != null ? Number(c.interest_rate) : null,
-    countedInMandatory: !!c.payment_already_counted_in_mandatory,
     // §13: кредит с выключенным досрочным погашением получает только минимальный платёж —
     // ни сценарный, ни фиксированный допплатёж на него не направляются.
     allowExtra: c.allow_extra_payment_before_goal !== false,
@@ -7835,10 +7718,9 @@ function simulateGoalPayoffMonths(params) {
     const activeParallel = parallel.filter(c => !c.closed);
     const queueNonEmpty = activeQueue.length > 0;
 
-    // §9: платёж, уже учтённый в обязательных расходах, не вычитается второй раз здесь; после
-    // закрытия кредита его платёж сам перестаёт входить в эту сумму на следующий месяц.
+    // Кредиты всегда отдельная статья (план упрощения #169); после закрытия кредита его платёж
+    // сам перестаёт входить в эту сумму на следующий месяц.
     const separateMonthlyCreditPayments = activeQueue.concat(activeParallel)
-      .filter(c => !c.countedInMandatory)
       .reduce((s, c) => s + c.monthlyPayment, 0);
     const availableAfterMinimums = Math.max(0, monthlyIncome - monthlyMandatoryExpense - monthlyVariableExpense - separateMonthlyCreditPayments);
 
@@ -8426,25 +8308,13 @@ function goalEverydayExpenseTransactions(goal, resolved) {
   return state.transactions.filter(t => t.kind === 'expense' && !t.is_recurring && !t.credit_id && monthKey(t.date) === ref.monthKeyStr && t.date <= today);
 }
 
-// §15 ТЗ 2026-07-25 «Исправление расчёта свободного остатка»: совпадение суммы кредитного платежа
-// с активной регулярной группой — это ТОЛЬКО повод показать предупреждение, не основание для
-// автослияния (нет надёжной связи transactions↔credits, см. §14 — запрещено сопоставлять по
-// названию/категории/банку).
-function creditMandatoryAmountMatches(credit) {
-  const amount = Number(credit.monthly_payment || 0);
-  if (!amount) return false;
-  return getActiveRecurringGroups().some(g => Number(g.amount || 0) === amount);
-}
-
-// Доп. к ТЗ 2026-07-25 «Исправление расчёта свободного остатка» + «Связать операции с кредитами»:
+// Доп. к ТЗ 2026-07-25 «Исправление расчёта свободного остатка»:
 // пять независимых статей — ни одна операция не должна попасть в две строки одновременно.
-// Кредит, для которого creditEffectiveAlreadyCounted() истинно (флаг payment_already_counted_in_mandatory
-// либо явная связь credits.mandatory_recurring_group_id с активной группой — см. §7/§8), уже
-// сидит внутри «Регулярных расходов»; его способ учёта показан справочным подытогом «Из них
-// платежи по кредитам» ВНУТРИ раскрытия «Регулярных расходов» (не под «Минимальными платежами» —
-// там он только путал бы, будто вычитается ещё раз). Итог — plannedMonthlyLoad.remainingAfterPlan,
-// который уже включает доплату по кредитам (в отличие от forecast.freeCashFlow, используемого
-// только для авто-сценариев §10/§11).
+// Кредиты (2026-07-25, план упрощения #169) всегда отдельная статья «Минимальные платежи по
+// кредитам»: единственный способ внести платёж — record_credit_payment (см. openCreditPaymentForm),
+// который создаёт операцию с credit_id и структурно не может попасть в «Регулярные расходы».
+// Итог — plannedMonthlyLoad.remainingAfterPlan, который уже включает доплату по кредитам
+// (в отличие от forecast.freeCashFlow, используемого только для авто-сценариев §10/§11).
 function renderGoalBreakdown(goal, forecast) {
   const body = document.getElementById('goalBreakdownBody');
   if (!body) return;
@@ -8473,10 +8343,7 @@ function renderGoalBreakdown(goal, forecast) {
     everydayAnnotation = `Среднее за ${Number(goal.analysis_period_months) || 3} мес.`;
   }
 
-  // --- Регулярные расходы: активные группы + подписки, плюс отдельным подытогом — кредиты, чей
-  // платёж уже сидит внутри этой суммы (флаг/связь с группой = true, доп. к ТЗ 2026-07-25
-  // «Связать операции с кредитами», §10 — не скрывать их полностью, но и не заводить вторую
-  // вычитаемую строку в основном блоке). ---
+  // --- Регулярные расходы: активные группы + подписки (кредиты сюда никогда не входят). ---
   const activeGroups = getActiveRecurringGroups();
   const activeSubs = state.subscriptions.filter(s => s.is_active);
   const regularSubRows = [
@@ -8486,20 +8353,11 @@ function renderGoalBreakdown(goal, forecast) {
   const totalActivePayments = activeGroups.length + activeSubs.length;
   const regularHint = `${totalActivePayments} ${pluralActivePaymentsPhrase(totalActivePayments)}`;
 
-  const alreadyCountedCredits = state.credits.filter(c => c.status === 'active' && c.include_in_goal_forecast && creditEffectiveAlreadyCounted(c));
-  const alreadyCountedTotal = alreadyCountedCredits.reduce((s, c) => s + Number(c.monthly_payment || 0), 0);
-  const alreadyCountedRows = alreadyCountedCredits.map(c => `<div class="goal-breakdown-sub-row is-counted-elsewhere"><span>${escapeHtml(c.name)} — учтено в регулярных расходах</span><span>${fmt.format(Number(c.monthly_payment || 0))}</span></div>`).join('');
-  const regularCreditsSubtotal = alreadyCountedCredits.length ? `
-    <div class="goal-breakdown-sub-row" style="font-weight:600;"><span>Из них платежи по кредитам</span><span>${fmt.format(alreadyCountedTotal)}</span></div>
-    ${alreadyCountedRows}` : '';
-
-  // --- Минимальные платежи по кредитам: вычитаются только те, что НЕ учтены выше. ---
-  const separateCredits = state.credits.filter(c => c.status === 'active' && c.include_in_goal_forecast && !creditEffectiveAlreadyCounted(c));
-  const separateCreditRows = separateCredits.map(c => {
-    const dup = creditMandatoryAmountMatches(c);
-    return `<div class="goal-breakdown-sub-row"><span>${escapeHtml(c.name)} — учитывается отдельно</span><span>${fmt.format(Number(c.monthly_payment || 0))}</span></div>
-      ${dup ? `<div class="goal-breakdown-duplicate-warning">В регулярных расходах найден платёж с такой же суммой. Проверьте, не учитывается ли кредит «${escapeHtml(c.name)}» дважды.</div>` : ''}`;
-  }).join('');
+  // --- Минимальные платежи по кредитам: всегда отдельная статья. ---
+  const separateCredits = state.credits.filter(c => c.status === 'active' && c.include_in_goal_forecast);
+  const separateCreditRows = separateCredits.map(c =>
+    `<div class="goal-breakdown-sub-row"><span>${escapeHtml(c.name)}</span><span>${fmt.format(Number(c.monthly_payment || 0))}</span></div>`
+  ).join('');
   const creditsHint = 'Не входит в регулярные расходы.';
 
   const isFixedMode = forecast.debtAccelerationMode === 'fixed_monthly';
@@ -8513,19 +8371,9 @@ function renderGoalBreakdown(goal, forecast) {
     ${row('Повседневные расходы', forecast.monthlyVariableExpense, everydayAnnotation)}
     <div class="goal-breakdown-hint">${escapeHtml(everydayHint)}</div>
     ${everydayCategoryRows ? `<div class="goal-breakdown-sub-list">${everydayCategoryRows}</div>` : ''}
-    ${everydayTx.length ? `
-    <button type="button" class="btn-ghost goal-breakdown-check-toggle-btn" onclick="toggleGoalEverydayCheckList()">Проверить состав</button>
-    <div class="goal-breakdown-check-list" id="goalEverydayCheckList" style="display:none;">
-      ${everydayTx.map(t => `
-        <div class="goal-breakdown-check-row">
-          <span class="goal-breakdown-check-info">${formatDateHuman(t.date)} · ${escapeHtml(txCategoryLabel(t))}</span>
-          <span class="goal-breakdown-check-amount">${fmt.format(Number(t.amount))}</span>
-          <button type="button" class="btn-ghost goal-breakdown-check-link-btn" onclick="openGoalEverydayTxCreditLink('${t.id}')">Связать с кредитом</button>
-        </div>`).join('')}
-    </div>` : ''}
     ${row('Регулярные расходы', forecast.monthlyMandatoryExpense, o.mandatory ? 'Указано вручную' : null)}
     <div class="goal-breakdown-hint">${escapeHtml(regularHint)}</div>
-    <div class="goal-breakdown-sub-list">${regularSubRows}${regularCreditsSubtotal}</div>
+    <div class="goal-breakdown-sub-list">${regularSubRows}</div>
     ${row('Минимальные платежи по кредитам', forecast.monthlyCreditPayments, null)}
     <div class="goal-breakdown-hint">${escapeHtml(creditsHint)}</div>
     ${separateCreditRows ? `<div class="goal-breakdown-sub-list">${separateCreditRows}</div>` : ''}
@@ -8534,21 +8382,6 @@ function renderGoalBreakdown(goal, forecast) {
       <span class="cfp-label" style="font-weight:700; color:var(--text-primary);">Свободная сумма после всех расходов</span>
       <span class="cfp-value" style="font-size:15px;">${fmt.format(load.remainingAfterPlan)}</span>
     </div>`;
-}
-
-// §12 ТЗ 2026-07-25 «Связать операции с кредитами»: раскрытие состава повседневных расходов —
-// список конкретных операций расчётного месяца с действием «Связать с кредитом» на каждой.
-function toggleGoalEverydayCheckList() {
-  const list = document.getElementById('goalEverydayCheckList');
-  if (list) list.style.display = list.style.display === 'none' ? 'block' : 'none';
-}
-function openGoalEverydayTxCreditLink(id) {
-  openTxDetailSheet(id);
-  const row = document.getElementById('txDetailCreditLinkRow');
-  if (row && row.style.display !== 'none') {
-    document.getElementById('txDetailCreditLinkCheckbox').checked = true;
-    document.getElementById('txDetailCreditLinkFields').style.display = 'block';
-  }
 }
 
 // §11 доп. («увеличение ежемесячных расходов на кредиты»): рост плановой ежемесячной нагрузки —
@@ -9010,10 +8843,6 @@ function renderCreditsList() {
   const emptyNote = document.getElementById('creditsEmptyNote');
   const errorNote = document.getElementById('creditsErrorNote');
   if (!body) return;
-  // Держим список регулярных групп в форме кредита свежим при каждой перерисовке (не только при
-  // открытии формы редактирования) — сохраняя уже выбранное значение, если форма сейчас открыта.
-  populateCreditMandatoryGroupSelect(document.getElementById('creditMandatoryGroupInput').value || null);
-  applyCreditMandatoryGroupVisibility();
   if (state.creditsLoadError) {
     body.innerHTML = ''; emptyNote.style.display = 'none'; errorNote.style.display = 'flex';
     return;
@@ -9070,27 +8899,6 @@ document.getElementById('creditsRetryBtn').addEventListener('click', () => loadA
 
 /* ---- Форма добавления/редактирования кредита ---- */
 let creditFormInFlight = false;
-// Доп. к ТЗ 2026-07-25 «Связать операции с кредитами»: список активных регулярных групп для
-// связи с кредитом. currentGroupId сохраняется, даже если группа больше не активна (истекла) —
-// пользователь должен явно снять устаревшую связь, а не увидеть, что она молча пропала.
-function populateCreditMandatoryGroupSelect(currentGroupId) {
-  const sel = document.getElementById('creditMandatoryGroupInput');
-  const groups = getActiveRecurringGroups();
-  const options = ['<option value="">Не связан</option>'].concat(
-    groups.map(g => `<option value="${g.recurringGroupId}">${escapeHtml(g.subcategory ? `${g.category} · ${g.subcategory}` : g.category)} — ${fmt.format(g.amount)}</option>`)
-  );
-  sel.innerHTML = options.join('');
-  sel.value = currentGroupId && groups.some(g => g.recurringGroupId === currentGroupId) ? currentGroupId : '';
-}
-// Если кредит связан с группой — ручной флажок больше не нужен: значение выводится из связи,
-// а не хранится независимо (§8, «не допускать состояния, когда интерфейс показывает одно, а
-// расчёт использует другое»).
-function applyCreditMandatoryGroupVisibility() {
-  const linked = !!document.getElementById('creditMandatoryGroupInput').value;
-  document.getElementById('creditCountedInMandatoryRow').style.display = linked ? 'none' : 'block';
-  document.getElementById('creditMandatoryGroupSyncedHint').style.display = linked ? 'block' : 'none';
-}
-document.getElementById('creditMandatoryGroupInput').addEventListener('change', applyCreditMandatoryGroupVisibility);
 
 function resetCreditForm() {
   state.editingCreditId = null;
@@ -9106,9 +8914,6 @@ function resetCreditForm() {
   document.getElementById('creditPaymentDayInput').value = '';
   document.getElementById('creditEndDateInput').value = '';
   document.getElementById('creditNotesInput').value = '';
-  document.getElementById('creditCountedInMandatoryInput').checked = false;
-  populateCreditMandatoryGroupSelect(null);
-  applyCreditMandatoryGroupVisibility();
   document.getElementById('creditGoalStrategyInput').value = 'close_before_goal';
   document.getElementById('creditAllowExtraPaymentInput').checked = true;
   applyCreditFieldLabels();
@@ -9133,9 +8938,6 @@ function openCreditEditForm(id) {
   document.getElementById('creditPaymentDayInput').value = c.payment_day || '';
   document.getElementById('creditEndDateInput').value = c.planned_end_date || '';
   document.getElementById('creditNotesInput').value = c.notes || '';
-  document.getElementById('creditCountedInMandatoryInput').checked = !!c.payment_already_counted_in_mandatory;
-  populateCreditMandatoryGroupSelect(c.mandatory_recurring_group_id || null);
-  applyCreditMandatoryGroupVisibility();
   // §5: «Не учитывать» — по include_in_goal_forecast; иначе показываем сохранённую стратегию
   // (goal_payoff_strategy) как есть, credit_type её не переопределяет.
   document.getElementById('creditGoalStrategyInput').value = c.include_in_goal_forecast === false
@@ -9171,10 +8973,6 @@ document.getElementById('creditSubmitBtn').addEventListener('click', async () =>
   // include_in_goal_forecast=true.
   const goalStrategyValue = document.getElementById('creditGoalStrategyInput').value;
   const includeInGoalForecast = goalStrategyValue !== 'not_counted';
-  // §8: связь с регулярной группой — источник истины сильнее ручного флажка; при её наличии
-  // флажок принудительно синхронизируется в true, чтобы интерфейс и расчёт не расходились.
-  const mandatoryGroupId = document.getElementById('creditMandatoryGroupInput').value || null;
-  const paymentAlreadyCounted = mandatoryGroupId ? true : document.getElementById('creditCountedInMandatoryInput').checked;
 
   const payload = {
     name, credit_type: creditType,
@@ -9187,8 +8985,6 @@ document.getElementById('creditSubmitBtn').addEventListener('click', async () =>
     next_payment_date: document.getElementById('creditNextPaymentInput').value || null,
     payment_day: paymentDay,
     planned_end_date: plannedEndDate,
-    payment_already_counted_in_mandatory: paymentAlreadyCounted,
-    mandatory_recurring_group_id: mandatoryGroupId,
     include_in_goal_forecast: includeInGoalForecast,
     allow_extra_payment_before_goal: document.getElementById('creditAllowExtraPaymentInput').checked,
     notes: document.getElementById('creditNotesInput').value.trim() || null,
@@ -9328,7 +9124,9 @@ async function toggleCreditGoalForecast(id, checked) {
   renderGoalsView(); renderHomeGoalsWidget();
 }
 
-/* ---- Отметить платёж (§20-22): НЕ создаёт расход автоматически ---- */
+/* ---- Отметить платёж: атомарный RPC record_credit_payment (план упрощения 2026-07-25, #170) —
+   единственный способ внести платёж по кредиту; создаёт credit_payments и связанную расходную
+   операцию (credit_id) за одну транзакцию БД, обновляет остаток и next_payment_date. ---- */
 let creditPaymentInFlight = false;
 function openCreditPaymentForm(creditId) {
   const c = state.credits.find(x => x.id === creditId);
@@ -9366,20 +9164,19 @@ document.getElementById('creditPaymentSubmitBtn').addEventListener('click', asyn
   const btn = document.getElementById('creditPaymentSubmitBtn');
   creditPaymentInFlight = true; btn.disabled = true;
   try {
-    const payload = {
-      credit_id: creditId, user_id: currentUser ? currentUser.id : null,
-      payment_date: paymentDate, amount, remaining_amount_after: remainingAfter, notes: comment || null,
-    };
-    const { error } = await insertWithRetry('credit_payments', [payload]);
-    if (error) { toast('Не удалось сохранить платёж'); return; } // §37: значения не очищаем
-    // §21: обновляем остаток (если указан), переносим следующую дату на месяц вперёд, updated_at.
-    const patch = { updated_at: new Date().toISOString() };
-    if (remainingAfter != null) patch.remaining_amount = remainingAfter;
-    if (c.next_payment_date) patch.next_payment_date = addOneMonthClamped(c.next_payment_date);
-    const { error: updErr } = await supabaseClient.from('credits').update(patch).eq('id', creditId);
-    if (updErr) toast('Платёж сохранён, но не удалось обновить данные кредита');
-    else toast('Платёж отмечен');
+    const { error } = await withTimeout(
+      supabaseClient.rpc('record_credit_payment', {
+        p_credit_id: creditId, p_payment_date: paymentDate, p_amount: amount,
+        p_remaining_amount_after: remainingAfter, p_comment: comment || null,
+      }),
+      15000,
+      'Сервер не отвечает — проверьте интернет-соединение'
+    ).catch(err => ({ error: err }));
+    if (error) { toast('Не удалось сохранить платёж: ' + error.message); return; } // §37: значения не очищаем
+    toast('Платёж отмечен и добавлен в расходы');
     document.getElementById('creditPaymentOverlay').classList.remove('visible');
+    // RPC всегда создаёт расходную операцию — инвалидируем проверку дня, как при обычном расходе.
+    await invalidateExpenseDayChecks(paymentDate, 'expense_created');
     await loadAll();
     if (state.credits.find(x => x.id === creditId)) openCreditDetail(creditId);
   } finally {
@@ -9494,8 +9291,11 @@ async function invalidateExpenseDayChecks(dates, reason = 'expense_updated') {
 
 /* ---------------- DELETE TRANSACTION ---------------- */
 async function deleteTx(id) {
-  if (!(await confirmDialog('Удалить эту операцию?'))) return;
   const tx = state.transactions.find(t => t.id === id);
+  const confirmMsg = tx && tx.credit_id
+    ? 'Удалить эту операцию? Связанный платёж по кредиту тоже будет удалён из истории.'
+    : 'Удалить эту операцию?';
+  if (!(await confirmDialog(confirmMsg))) return;
   const { error } = await supabaseClient.from('transactions').delete().eq('id', id);
   if (error) { toast('Ошибка: ' + error.message); return; }
   toast('Удалено');
@@ -9503,11 +9303,27 @@ async function deleteTx(id) {
   await loadAll();
 }
 
+// Платёж по кредиту (t.credit_id) — инлайновые правки в таблице «Операции» должны идти через
+// update_credit_payment, как и сохранение из детального листа (см. txDetailSaveBtn), иначе
+// credit_payments и связанная операция расходятся (та же природа бага, что чинит repair-RPC).
+function linkedCreditPaymentFor(tx) {
+  return tx && tx.credit_id ? state.creditPayments.find(p => p.transaction_id === tx.id) : null;
+}
+async function saveCreditPaymentEdit(payment, { date, amount, comment }) {
+  return supabaseClient.rpc('update_credit_payment', {
+    p_payment_id: payment.id, p_payment_date: date, p_amount: amount,
+    p_remaining_amount_after: payment.remaining_amount_after, p_comment: comment,
+  });
+}
+
 async function updateTxDate(id, newDate) {
   if (!isConfigured) { toast('Сначала подключите базу данных'); return; }
   if (!newDate) { toast('Укажите дату'); await loadAll(); return; }
   const tx = state.transactions.find(t => t.id === id);
-  const { error } = await supabaseClient.from('transactions').update({ date: newDate }).eq('id', id);
+  const linkedPayment = linkedCreditPaymentFor(tx);
+  const { error } = linkedPayment
+    ? await saveCreditPaymentEdit(linkedPayment, { date: newDate, amount: Number(tx.amount), comment: tx.comment || null })
+    : await supabaseClient.from('transactions').update({ date: newDate }).eq('id', id);
   if (error) { toast('Ошибка: ' + error.message); return; }
   toast('Дата обновлена');
   if (tx && tx.kind === 'expense') {
@@ -9519,6 +9335,7 @@ async function updateTxDate(id, newDate) {
 async function updateTxTime(id, newTime) {
   if (!isConfigured) { toast('Сначала подключите базу данных'); return; }
   const tx = state.transactions.find(t => t.id === id);
+  // Время не хранится в credit_payments — правится напрямую в transactions вне зависимости от credit_id.
   const { error } = await supabaseClient.from('transactions').update({ time: newTime || null }).eq('id', id);
   if (error) { toast('Ошибка: ' + error.message); return; }
   toast('Время обновлено');
@@ -9531,7 +9348,10 @@ async function updateTxAmount(id, rawValue) {
   const value = parseFloat(rawValue);
   if (!value || value <= 0) { toast('Сумма должна быть больше нуля'); await loadAll(); return; }
   const tx = state.transactions.find(t => t.id === id);
-  const { error } = await supabaseClient.from('transactions').update({ amount: value }).eq('id', id);
+  const linkedPayment = linkedCreditPaymentFor(tx);
+  const { error } = linkedPayment
+    ? await saveCreditPaymentEdit(linkedPayment, { date: tx.date, amount: value, comment: tx.comment || null })
+    : await supabaseClient.from('transactions').update({ amount: value }).eq('id', id);
   if (error) { toast('Ошибка: ' + error.message); return; }
   toast('Обновлено');
   if (tx && tx.kind === 'expense') await invalidateExpenseDayChecks(tx.date, 'expense_updated');
@@ -9558,31 +9378,19 @@ function openTxDetailSheet(id) {
   document.getElementById('txDetailTime').value = t.time ? t.time.slice(0, 5) : '';
   document.getElementById('txDetailComment').value = t.comment || '';
   const repeatBtn = document.getElementById('txDetailRepeatBtn');
-  if (repeatBtn) repeatBtn.style.display = t.kind === 'expense' ? '' : 'none';
-  // Доп. к ТЗ 2026-07-25 «Связать операции с кредитами», §5: доступно только для расходов, и
-  // только не-регулярных — регулярный кредитный платёж связывается через саму группу в форме
-  // кредита (§7), чтобы не было двух конкурирующих способов сделать одно и то же.
-  const creditLinkRow = document.getElementById('txDetailCreditLinkRow');
-  const creditLinkCheckbox = document.getElementById('txDetailCreditLinkCheckbox');
-  const creditLinkFields = document.getElementById('txDetailCreditLinkFields');
-  const showCreditLink = t.kind === 'expense' && !t.is_recurring;
-  creditLinkRow.style.display = showCreditLink ? 'block' : 'none';
-  if (showCreditLink) {
-    populateCreditLinkOptions('txDetailCreditLinkSelect');
-    creditLinkCheckbox.checked = !!t.credit_id;
-    creditLinkFields.style.display = t.credit_id ? 'block' : 'none';
-    if (t.credit_id) document.getElementById('txDetailCreditLinkSelect').value = t.credit_id;
-    document.getElementById('txDetailCreditLinkTypeSelect').value = t.credit_payment_type || 'minimum';
-  } else {
-    creditLinkCheckbox.checked = false;
-    creditLinkFields.style.display = 'none';
-  }
+  if (repeatBtn) repeatBtn.style.display = (t.kind === 'expense' && !t.credit_id) ? '' : 'none';
+  // Платёж по кредиту (t.credit_id): правка суммы/даты/комментария синхронизируется с
+  // credit_payments через update_credit_payment (см. обработчик txDetailSaveBtn), но остаток
+  // долга (credits.remaining_amount) задним числом не пересчитывается. «Повторить»/«Дублировать»
+  // скрыты — прямой insert создал бы операцию с category='Кредит' без credit_id и без
+  // соответствующей строки credit_payments (та же природа бага, что чинит repair-миграция).
+  const creditNote = document.getElementById('txDetailCreditNote');
+  if (creditNote) creditNote.style.display = t.credit_id ? 'block' : 'none';
+  const duplicateBtn = document.getElementById('txDetailDuplicateBtn');
+  if (duplicateBtn) duplicateBtn.style.display = t.credit_id ? 'none' : '';
   document.getElementById('txDetailOverlay').classList.add('visible');
   if (window.lucide) lucide.createIcons();
 }
-document.getElementById('txDetailCreditLinkCheckbox').addEventListener('change', (e) => {
-  document.getElementById('txDetailCreditLinkFields').style.display = e.target.checked ? 'block' : 'none';
-});
 function closeTxDetailSheet() {
   document.getElementById('txDetailOverlay').classList.remove('visible');
   txDetailCurrentId = null;
@@ -9608,18 +9416,22 @@ document.getElementById('txDetailSaveBtn').addEventListener('click', async () =>
   const comment = document.getElementById('txDetailComment').value.trim();
   const oldTx = state.transactions.find(t => t.id === txDetailCurrentId);
   const updatePayload = { amount, date, time, comment: comment || null };
-  // Доп. к ТЗ 2026-07-25 «Связать операции с кредитами», §5: только для расходов и только
-  // не-регулярных (см. showCreditLink в openTxDetailSheet) — иначе поля просто не показаны и
-  // сохранять их не нужно, старое значение (обычно null) остаётся как есть.
-  if (oldTx && oldTx.kind === 'expense' && !oldTx.is_recurring) {
-    const linked = document.getElementById('txDetailCreditLinkCheckbox').checked;
-    updatePayload.credit_id = linked ? (document.getElementById('txDetailCreditLinkSelect').value || null) : null;
-    updatePayload.credit_payment_type = linked ? document.getElementById('txDetailCreditLinkTypeSelect').value : null;
-    if (linked && !updatePayload.credit_id) { toast('Выберите кредит или отключите «Это платёж по кредиту»'); return; }
+  // Платёж по кредиту (t.credit_id) — правим через update_credit_payment, чтобы
+  // credit_payments и связанная операция не разошлись (см. 20260725_credit_payment_edit_rpc.sql).
+  // Остаток долга (credits.remaining_amount) при этом не пересчитывается — как и раньше, это
+  // проекция по истории, задним числом её не трогаем.
+  const linkedPayment = linkedCreditPaymentFor(oldTx);
+  let error;
+  if (linkedPayment) {
+    ({ error } = await saveCreditPaymentEdit(linkedPayment, { date, amount, comment: comment || null }));
+    if (!error && time !== (oldTx.time || null)) {
+      ({ error } = await supabaseClient.from('transactions').update({ time }).eq('id', txDetailCurrentId));
+    }
+  } else {
+    ({ error } = await supabaseClient.from('transactions')
+      .update(updatePayload)
+      .eq('id', txDetailCurrentId));
   }
-  const { error } = await supabaseClient.from('transactions')
-    .update(updatePayload)
-    .eq('id', txDetailCurrentId);
   if (error) { toast('Ошибка: ' + error.message); return; }
   // §14/§15: правка любого значимого поля расхода инвалидирует день; если дата перенесена — оба
   // дня (старый и новый), причина expense_date_changed, иначе — expense_updated. Доход не трогает.
