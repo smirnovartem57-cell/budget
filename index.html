@@ -3185,11 +3185,36 @@ async function insertWithRetry(table, payloads, { retries = 2 } = {}) {
 function monthKey(dateStr) {
   return dateStr.slice(0, 7);
 }
+// Срочная доработка (2026-07-24) «единая часовая зона приложения»: ЕДИНСТВЕННАЯ константа и
+// функция пользовательской календарной даты для всего приложения. Раньше в разных местах
+// использовались разные зоны (UTC через todayStr()/toISOString(), Asia/Almaty через
+// BALANCE_TIMEZONE/localSnapshotDateStr()) — это создавало риск разъезда дат около полуночи.
+// Теперь только Europe/Moscow (фиксированный UTC+3, без перехода на летнее время в России с 2014
+// года). Хранение в БД (created_at/updated_at/checked_at — timestamptz) остаётся в UTC, меняется
+// только пользовательская календарная ИНТЕРПРЕТАЦИЯ дат.
+const APP_TIMEZONE = 'Europe/Moscow';
+function appTodayStr(date = new Date()) {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: APP_TIMEZONE, year: 'numeric', month: '2-digit', day: '2-digit' }).format(date);
+}
+// «Сейчас» по часам приложения — HH:MM, используется для предзаполнения времени операции.
+function appNowTimeStr() {
+  return new Intl.DateTimeFormat('en-GB', { timeZone: APP_TIMEZONE, hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date());
+}
+// Прибавляет/вычитает целые календарные дни к строке YYYY-MM-DD. Арифметика идёт через
+// Date.UTC как нейтральный счётчик дней (не через локальное время устройства) — единственный
+// безопасный способ сдвигать календарную дату без риска съехать на день из-за часового пояса.
+function addDaysToDateStr(dateStr, days) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d) + days * 86400000).toISOString().slice(0, 10);
+}
+function yesterdayStr() { return addDaysToDateStr(appTodayStr(), -1); }
+// todayStr() — оставлено как имя для существующих вызовов по всему файлу (их много), но это
+// больше не отдельная UTC-реализация — единственная точка правды теперь appTodayStr().
 function todayStr() {
-  return new Date().toISOString().slice(0, 10);
+  return appTodayStr();
 }
 function hasHappened(t) {
-  return t.date <= todayStr();
+  return t.date <= appTodayStr();
 }
 function monthLabel(key) {
   const [y, m] = key.split('-');
@@ -3865,7 +3890,7 @@ function openRepeatExpenseFromHistory(tx) {
   document.getElementById('commentInput').value = tx.comment || '';
   document.getElementById('amountInput').value = '';
   document.getElementById('dateInput').value = todayStr();
-  document.getElementById('timeInput').value = new Date().toTimeString().slice(0, 5);
+  document.getElementById('timeInput').value = appNowTimeStr();
   setTimeout(() => document.getElementById('amountInput').focus(), 50);
 }
 document.getElementById('navAddBtn').addEventListener('click', openTxSheet);
@@ -4703,7 +4728,7 @@ document.getElementById('newCatSave').addEventListener('click', async () => {
 function resetSheetFieldsForAddAnother() {
   document.getElementById('amountInput').value = '';
   document.getElementById('commentInput').value = '';
-  document.getElementById('timeInput').value = new Date().toTimeString().slice(0, 5);
+  document.getElementById('timeInput').value = appNowTimeStr();
   const catSel = document.getElementById('categorySelect');
   const placeholder = document.createElement('option');
   placeholder.value = ''; placeholder.textContent = 'Выберите категорию'; placeholder.disabled = true;
@@ -4743,7 +4768,7 @@ async function submitTxSheet(keepOpen) {
     toast(state.kind === 'expense' ? 'Укажите сумму расхода' : 'Введите сумму больше нуля');
     return;
   }
-  const date = document.getElementById('dateInput').value || new Date().toISOString().slice(0,10);
+  const date = document.getElementById('dateInput').value || appTodayStr();
   const time = document.getElementById('timeInput').value || null;
   const comment = document.getElementById('commentInput').value.trim();
   const userId = currentUser ? currentUser.id : null;
@@ -4811,7 +4836,7 @@ async function submitTxSheet(keepOpen) {
       resetSheetFieldsForAddAnother();
     } else {
       document.getElementById('amountInput').value = '';
-      document.getElementById('timeInput').value = new Date().toTimeString().slice(0, 5);
+      document.getElementById('timeInput').value = appNowTimeStr();
       document.getElementById('commentInput').value = '';
       closeTxSheet();
       await loadAll();
@@ -4825,11 +4850,14 @@ async function submitTxSheet(keepOpen) {
 document.getElementById('submitBtn').addEventListener('click', () => submitTxSheet(false));
 document.getElementById('submitAndAddBtn').addEventListener('click', () => submitTxSheet(true));
 
-document.getElementById('dateInput').valueAsDate = new Date();
-document.getElementById('timeInput').value = new Date().toTimeString().slice(0, 5);
-document.getElementById('debtDateInput').valueAsDate = new Date();
-document.getElementById('shoppingDateInput').valueAsDate = new Date();
-document.getElementById('incomeDateInput').valueAsDate = new Date();
+// .valueAsDate = new Date() ушёл — <input type=date>.valueAsDate трактует Date по UTC-суткам
+// внутри, что могло не совпасть с московским днём около полуночи; .value = appTodayStr() задаёт
+// ровно нужную календарную строку.
+document.getElementById('dateInput').value = appTodayStr();
+document.getElementById('timeInput').value = appNowTimeStr();
+document.getElementById('debtDateInput').value = appTodayStr();
+document.getElementById('shoppingDateInput').value = appTodayStr();
+document.getElementById('incomeDateInput').value = appTodayStr();
 
 /* ---------------- DEBTS ---------------- */
 document.getElementById('debtSubmitBtn').addEventListener('click', async () => {
@@ -4838,7 +4866,7 @@ document.getElementById('debtSubmitBtn').addEventListener('click', async () => {
   if (!debtorName) { toast('Введите, кто должен'); return; }
   const amount = parseFloat(document.getElementById('debtAmountInput').value);
   if (!amount || amount <= 0) { toast('Введите сумму больше нуля'); return; }
-  const date = document.getElementById('debtDateInput').value || new Date().toISOString().slice(0,10);
+  const date = document.getElementById('debtDateInput').value || appTodayStr();
   const comment = document.getElementById('debtCommentInput').value.trim();
 
   const { error } = await insertWithRetry('debts', {
@@ -4855,7 +4883,7 @@ document.getElementById('debtSubmitBtn').addEventListener('click', async () => {
 
 // «Списать долг» (отдельная форма рядом с «Добавить долг»). Списывает произвольную сумму
 // с выбранного непогашенного долга — та же логика, что частичное погашение (recordDebtPayment).
-document.getElementById('debtWriteoffDate').valueAsDate = new Date();
+document.getElementById('debtWriteoffDate').value = appTodayStr();
 function renderDebtWriteoffOptions() {
   const sel = document.getElementById('debtWriteoffSelect');
   if (!sel) return;
@@ -5503,7 +5531,7 @@ async function deleteShoppingNote(id) {
 }
 
 function renderShoppingNotes() {
-  document.getElementById('notepadDateLabel').textContent = new Date().toLocaleDateString('ru-RU', { day: '2-digit', month: 'long' });
+  document.getElementById('notepadDateLabel').textContent = new Date().toLocaleDateString('ru-RU', { day: '2-digit', month: 'long', timeZone: APP_TIMEZONE });
   const list = state.shoppingNotes.slice().sort((a, b) => Number(a.is_done) - Number(b.is_done));
   const ul = document.getElementById('notepadList');
   ul.innerHTML = '';
@@ -6274,7 +6302,7 @@ function renderIncomeDynamics() {
 
   const isNarrow = window.innerWidth <= 480;
   const isDayView = state.incomeDynamicsView === 'day';
-  const curDayIdx = (isDayView && state.viewMode !== 'year' && state.selectedMonth === todayStr().slice(0, 7)) ? (new Date().getDate() - 1) : -1;
+  const curDayIdx = (isDayView && state.viewMode !== 'year' && state.selectedMonth === todayStr().slice(0, 7)) ? (parseInt(appTodayStr().slice(8, 10), 10) - 1) : -1;
   sizeDayChart('incomeDynamicsChartScroll', 'incomeDynamicsChartBox', labels.length, isDayView, curDayIdx);
   const ctx = document.getElementById('incomeDynamicsChart');
   if (incomeDynamicsChartInstance) incomeDynamicsChartInstance.destroy();
@@ -6373,7 +6401,7 @@ async function updateRecurringGroupDate(groupId, newDateStr) {
 
 function renderRecurring() {
   const groups = {};
-  const today = new Date().toISOString().slice(0, 10);
+  const today = appTodayStr();
   const currentMonthKey = today.slice(0, 7);
   state.transactions.forEach(t => {
     if (!t.is_recurring || !t.recurring_group_id) return;
@@ -6391,8 +6419,7 @@ function renderRecurring() {
   });
 
   const { key, dir } = state.recurringSort;
-  const horizon7d = new Date(); horizon7d.setDate(horizon7d.getDate() + 7);
-  const horizon7 = horizon7d.toISOString().slice(0, 10);
+  const horizon7 = addDaysToDateStr(today, 7);
   const STATUS_ORDER = { overdue: 0, soon: 1, later: 2, paid: 3 };
   const STATUS_LABEL = { overdue: 'Просрочено', soon: 'Ближайшие', later: 'Позже', paid: 'Оплачено' };
 
@@ -6450,7 +6477,7 @@ function renderRecurring() {
     const tr = document.createElement('tr');
     tr.className = 'recurring-row' + (grouped && state.recurringCollapsed[status] ? ' rrow-hidden' : '');
     tr.dataset.rstatus = status;
-    const endFmt = g.endDate ? new Date(g.endDate).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '';
+    const endFmt = g.endDate ? new Date(g.endDate + 'T00:00:00').toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '';
     tr.innerHTML = `
       <td class="rc-primary"><span class="cat-cell">${categoryIconImg(g.category, 'expense')}<span class="cat-badge">${g.subcategory ? `${g.category} · ${g.subcategory}` : g.category}</span></span></td>
       <td class="rc-secondary">
@@ -6505,10 +6532,8 @@ function matchingActualForRecurring(g, monthK) {
 }
 
 function renderRecurringDueSoon() {
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  const horizon = new Date(today); horizon.setDate(horizon.getDate() + 7);
-  const todayS = todayStr();
-  const horizonS = horizon.toISOString().slice(0, 10);
+  const todayS = appTodayStr();
+  const horizonS = addDaysToDateStr(todayS, 7);
 
   const dueTx = state.transactions
     .filter(t => t.is_recurring && t.date >= todayS && t.date <= horizonS)
@@ -6557,9 +6582,9 @@ function renderRecurringBreakdown() {
 }
 
 /* ---------------- EXPENSE DAY CHECKS (календарь проверки расходов, ТЗ №3 2026-07-24) ---------------- */
-// Локальный календарный день — по конвенции проекта (Asia/Almaty, см. BALANCE_TIMEZONE/
-// localSnapshotDateStr выше), а не todayStr()/toISOString(), которые дают дату по UTC.
-function calendarTodayStr() { return localSnapshotDateStr(); }
+// Срочная доработка (2026-07-24) «единая часовая зона»: только APP_TIMEZONE (Europe/Moscow) —
+// имя сохранено для существующих вызовов по календарю.
+function calendarTodayStr() { return appTodayStr(); }
 
 function getDayCheck(dateStr) {
   return state.expenseDayChecks.find(c => c.check_date === dateStr) || null;
@@ -7062,30 +7087,26 @@ function latestSnapshot() {
   const s = snapshotsDesc();
   return s.length ? s[0] : null;
 }
-// Календарный день снимка: предпочитаем авторитетное поле snapshot_date (локальный день
-// Asia/Almaty, вычисленный на момент сохранения — см. localSnapshotDateStr); откат на грубый
-// UTC-срез created_at только для гипотетических старых записей без этого поля.
+// Календарный день снимка: предпочитаем авторитетное поле snapshot_date (московский день,
+// вычисленный на момент сохранения — см. appTodayStr); откат на грубый срез created_at только
+// для гипотетических старых записей без этого поля.
 function snapDay(s) { return s ? (s.snapshot_date || String(s.created_at || '').slice(0, 10)) : ''; }
 
-// Часовой пояс семьи для правила «одна сверка в день» (ТЗ 2026-07-24 доп. §2). Отдельная от
-// todayStr() функция: todayStr() — UTC-день, уже используется по всему проекту для дат ОПЕРАЦИЙ
-// и намеренно не трогается; localSnapshotDateStr() — именно локальный календарный день
-// пользователя, нужен только здесь, иначе смещение до 5 часов после полуночи может создать
-// дубль или, наоборот, не дать сохранить сегодняшнюю сверку.
-const BALANCE_TIMEZONE = 'Asia/Almaty';
+// Срочная доработка (2026-07-24) «единая часовая зона»: имя сохранено для существующих вызовов,
+// но это теперь просто appTodayStr() — единственная реализация календарной даты на всё приложение.
 function localSnapshotDateStr(date = new Date()) {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: BALANCE_TIMEZONE, year: 'numeric', month: '2-digit', day: '2-digit' }).format(date);
+  return appTodayStr(date);
 }
-// Находит сегодняшний (по локальному дню) снимок текущей семьи, если он уже есть.
+// Находит сегодняшний (по московскому дню) снимок текущей семьи, если он уже есть.
 function findTodaySnapshot() {
-  const today = localSnapshotDateStr();
+  const today = appTodayStr();
   return state.balanceSnapshots.find(s => snapDay(s) === today) || null;
 }
+// Разница в календарных ДНЯХ (по Москве), а не в миллисекундах браузерного локального времени —
+// иначе near-midnight и часовой пояс устройства пользователя могли дать неверный день (§11).
 function daysSinceTs(ts) {
-  const then = new Date(ts), now = new Date();
-  // по календарным дням: обнуляем время, чтобы «сегодня» = 0 независимо от часа
-  const d0 = new Date(then.getFullYear(), then.getMonth(), then.getDate());
-  const n0 = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const d0 = Date.parse(appTodayStr(new Date(ts)) + 'T00:00:00Z');
+  const n0 = Date.parse(appTodayStr() + 'T00:00:00Z');
   return Math.round((n0 - d0) / 86400000);
 }
 function snapFreshnessLevel(days) {
@@ -7223,7 +7244,7 @@ function renderRealBalance() {
   const wasEdited = !!(snap.updated_at && snap.created_at && snap.updated_at !== snap.created_at);
   const days = daysSinceTs(displayTs);
   const level = snapFreshnessLevel(days);
-  const timeStr = new Date(displayTs).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+  const timeStr = new Date(displayTs).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', timeZone: APP_TIMEZONE });
 
   titleEl.textContent = 'Текущий остаток семьи';
 
@@ -7512,7 +7533,7 @@ function renderBalanceHistory() {
     const displayTs = s.updated_at || s.created_at;
     const wasEdited = !!(s.updated_at && s.created_at && s.updated_at !== s.created_at);
     const d = new Date(displayTs);
-    const timeStr = d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+    const timeStr = d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', timeZone: APP_TIMEZONE });
     // Дата берётся из snapshot_date (авторитетный локальный календарный день записи), не из
     // часового пояса устройства при парсинге created_at.
     const isToday = snapDay(s) === today;
@@ -7986,16 +8007,16 @@ function categoryIconImg(category, operationType, sizeClass = 'ci-row') {
 
 // «Сегодня» / «Вчера» / «18 июля» — заголовок группы операций по дате.
 function dayGroupLabel(dateStr) {
-  const today = todayStr();
-  const yest = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  const today = appTodayStr();
+  const yest = yesterdayStr();
   if (dateStr === today) return 'Сегодня';
   if (dateStr === yest) return 'Вчера';
   return capFirst(formatDateHuman(dateStr));
 }
 // Относительный день строчными для второй строки карточки: «сегодня» / «вчера» / «16 июля».
 function relDayLabel(dateStr) {
-  const today = todayStr();
-  const yest = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  const today = appTodayStr();
+  const yest = yesterdayStr();
   if (dateStr === today) return 'сегодня';
   if (dateStr === yest) return 'вчера';
   return formatDateHuman(dateStr);
@@ -8295,7 +8316,7 @@ function renderDynamicsChart() {
 
   const isNarrow = window.innerWidth <= 480;
   const isDayView = state.dynamicsView === 'day';
-  const curDayIdx = (isDayView && !byYear && state.selectedMonth === todayStr().slice(0, 7)) ? (new Date().getDate() - 1) : -1;
+  const curDayIdx = (isDayView && !byYear && state.selectedMonth === todayStr().slice(0, 7)) ? (parseInt(appTodayStr().slice(8, 10), 10) - 1) : -1;
   sizeDayChart('dynamicsChartScroll', 'dynamicsChartBox', labels.length, isDayView, curDayIdx);
   const ctx = document.getElementById('dynamicsChart');
   if (dynamicsChartInstance) dynamicsChartInstance.destroy();
