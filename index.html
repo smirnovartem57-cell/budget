@@ -3342,7 +3342,7 @@
       <div class="form-row"><label>Сумма, ₽</label><input type="number" id="txDetailAmountInput" min="0" step="1" inputmode="decimal"></div>
       <div class="form-row"><label>Дата и время</label><div class="datetime-row"><input type="date" id="txDetailDate" min="2020-01-01" max="2099-12-31"><input type="time" id="txDetailTime"></div></div>
       <div class="form-row"><label>Комментарий</label><input type="text" id="txDetailComment" placeholder="Например: покупки домой"></div>
-      <div class="credit-form-hint" id="txDetailCreditNote" style="display:none;">Это платёж по кредиту. Изменение суммы/даты здесь не пересчитывает остаток долга — при ошибке удалите операцию и отметьте платёж заново в разделе «Кредиты».</div>
+      <div class="credit-form-hint" id="txDetailCreditNote" style="display:none;">Это платёж по кредиту. Сумма/дата/комментарий синхронизируются с историей платежей, но остаток долга задним числом не пересчитывается — при ошибке удалите операцию и отметьте платёж заново в разделе «Кредиты».</div>
       <button type="button" class="btn-primary" id="txDetailSaveBtn">Сохранить</button>
       <!-- ТЗ №2 (2026-07-24) §8: «Повторить расход» — только для расхода, открывает форму создания
            (НЕ режим редактирования), сумму не переносит. -->
@@ -9351,9 +9351,9 @@ function openTxDetailSheet(id) {
   document.getElementById('txDetailComment').value = t.comment || '';
   const repeatBtn = document.getElementById('txDetailRepeatBtn');
   if (repeatBtn) repeatBtn.style.display = t.kind === 'expense' ? '' : 'none';
-  // Платёж по кредиту (t.credit_id) создаётся только атомарным RPC record_credit_payment —
-  // правка суммы/даты здесь не пересчитывает остаток долга и credit_payments, поэтому просто
-  // предупреждаем, а не пытаемся тихо синхронизировать задним числом.
+  // Платёж по кредиту (t.credit_id): правка суммы/даты/комментария синхронизируется с
+  // credit_payments через update_credit_payment (см. обработчик txDetailSaveBtn), но остаток
+  // долга (credits.remaining_amount) задним числом не пересчитывается.
   const creditNote = document.getElementById('txDetailCreditNote');
   if (creditNote) creditNote.style.display = t.credit_id ? 'block' : 'none';
   document.getElementById('txDetailOverlay').classList.add('visible');
@@ -9384,9 +9384,27 @@ document.getElementById('txDetailSaveBtn').addEventListener('click', async () =>
   const comment = document.getElementById('txDetailComment').value.trim();
   const oldTx = state.transactions.find(t => t.id === txDetailCurrentId);
   const updatePayload = { amount, date, time, comment: comment || null };
-  const { error } = await supabaseClient.from('transactions')
-    .update(updatePayload)
-    .eq('id', txDetailCurrentId);
+  // Платёж по кредиту (t.credit_id) — правим через update_credit_payment, чтобы
+  // credit_payments и связанная операция не разошлись (см. 20260725_credit_payment_edit_rpc.sql).
+  // Остаток долга (credits.remaining_amount) при этом не пересчитывается — как и раньше, это
+  // проекция по истории, задним числом её не трогаем.
+  const linkedPayment = oldTx && oldTx.credit_id
+    ? state.creditPayments.find(p => p.transaction_id === txDetailCurrentId)
+    : null;
+  let error;
+  if (linkedPayment) {
+    ({ error } = await supabaseClient.rpc('update_credit_payment', {
+      p_payment_id: linkedPayment.id, p_payment_date: date, p_amount: amount,
+      p_remaining_amount_after: linkedPayment.remaining_amount_after, p_comment: comment || null,
+    }));
+    if (!error && time !== (oldTx.time || null)) {
+      ({ error } = await supabaseClient.from('transactions').update({ time }).eq('id', txDetailCurrentId));
+    }
+  } else {
+    ({ error } = await supabaseClient.from('transactions')
+      .update(updatePayload)
+      .eq('id', txDetailCurrentId));
+  }
   if (error) { toast('Ошибка: ' + error.message); return; }
   // §14/§15: правка любого значимого поля расхода инвалидирует день; если дата перенесена — оба
   // дня (старый и новый), причина expense_date_changed, иначе — expense_updated. Доход не трогает.
