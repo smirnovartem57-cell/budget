@@ -7187,6 +7187,32 @@ function creditProgressPercent(c) {
   if (!c.original_amount || original <= 0 || remaining > original) return null;
   return Math.round((original - remaining) / original * 100);
 }
+// Сколько ещё осталось платить: остаток долга / ежемесячный платёж, округлено вверх (последний
+// неполный месяц всё равно требует платежа). null, если платёж не задан/нулевой или долг уже
+// погашен — в таких случаях показывать срок бессмысленно.
+function creditMonthsRemaining(c) {
+  const remaining = Number(c.remaining_amount);
+  const monthly = Number(c.monthly_payment);
+  if (!remaining || remaining <= 0 || !monthly || monthly <= 0) return null;
+  return Math.ceil(remaining / monthly);
+}
+function pluralYears(n) {
+  const a = Math.abs(n) % 100, b = a % 10;
+  if (a > 10 && a < 20) return 'лет';
+  if (b === 1) return 'год';
+  if (b >= 2 && b <= 4) return 'года';
+  return 'лет';
+}
+// «2 года 3 месяца» / «5 месяцев» / «1 год» — без нулевой части.
+function creditRemainingTermLabel(totalMonths) {
+  if (totalMonths == null) return null;
+  const years = Math.floor(totalMonths / 12);
+  const months = totalMonths % 12;
+  const parts = [];
+  if (years > 0) parts.push(`${years} ${pluralYears(years)}`);
+  if (months > 0 || !years) parts.push(`${months} ${pluralMonths(months)}`);
+  return parts.join(' ');
+}
 
 // §32: единственная функция расчёта сводки по кредитам — используется и главной карточкой, и
 // KPI полного раздела, вычисления не дублируются.
@@ -7733,6 +7759,7 @@ function creditCardHtml(c) {
   const due = c.status === 'active' ? creditPaymentDueStatus(c.next_payment_date) : null;
   const progress = creditProgressPercent(c);
   const labels = creditFieldLabels(c.credit_type);
+  const remainingTerm = creditRemainingTermLabel(creditMonthsRemaining(c));
   const statusBadge = c.status === 'paid'
     ? `<span class="credit-card-status-badge credit-card-status-paid">Погашен</span>`
     : (due ? `<span class="credit-card-status-badge credit-card-status-${due.cls}">${due.text}</span>` : '');
@@ -7755,6 +7782,7 @@ function creditCardHtml(c) {
       <div class="credit-card-facts">
         <div><div class="credit-card-fact-label">${labels.remaining}</div><div class="credit-card-fact-value">${fmt.format(Number(c.remaining_amount))}</div></div>
         <div><div class="credit-card-fact-label">${labels.monthly}</div><div class="credit-card-fact-value">${fmt.format(Number(c.monthly_payment))} в месяц</div></div>
+        ${remainingTerm ? `<div><div class="credit-card-fact-label">Осталось платить</div><div class="credit-card-fact-value">${remainingTerm}</div></div>` : ''}
         ${c.interest_rate != null ? `<div><div class="credit-card-fact-label">Ставка</div><div class="credit-card-fact-value">${formatPercent(Number(c.interest_rate))}</div></div>` : ''}
         ${c.next_payment_date ? `<div><div class="credit-card-fact-label">Следующий платёж</div><div class="credit-card-fact-value">${formatDateHuman(c.next_payment_date)}</div></div>` : ''}
         ${c.planned_end_date ? `<div><div class="credit-card-fact-label">До</div><div class="credit-card-fact-value">${capFirst(monthLabel(c.planned_end_date.slice(0, 7)))}</div></div>` : ''}
@@ -7969,6 +7997,7 @@ function renderCreditDetail(id) {
   const typeCls = creditTypeClass(c.credit_type);
   const labels = creditFieldLabels(c.credit_type);
   const due = c.status === 'active' ? creditPaymentDueStatus(c.next_payment_date) : null;
+  const remainingTerm = creditRemainingTermLabel(creditMonthsRemaining(c));
   const history = creditPaymentHistory(id);
   const historyHtml = history.length
     ? history.slice(0, 20).map(p => `
@@ -7996,6 +8025,7 @@ function renderCreditDetail(id) {
       <div><div class="credit-detail-fact-label">${labels.remaining}</div><div class="credit-detail-fact-value">${fmt.format(Number(c.remaining_amount))}</div></div>
       ${c.original_amount != null ? `<div><div class="credit-detail-fact-label">${labels.original.replace(' (необязательно)', '')}</div><div class="credit-detail-fact-value">${fmt.format(Number(c.original_amount))}</div></div>` : ''}
       <div><div class="credit-detail-fact-label">${labels.monthly}</div><div class="credit-detail-fact-value">${fmt.format(Number(c.monthly_payment))}</div></div>
+      ${remainingTerm ? `<div><div class="credit-detail-fact-label">Осталось платить</div><div class="credit-detail-fact-value">${remainingTerm}</div></div>` : ''}
       ${c.interest_rate != null ? `<div><div class="credit-detail-fact-label">Ставка</div><div class="credit-detail-fact-value">${formatPercent(Number(c.interest_rate))}</div></div>` : ''}
       ${c.next_payment_date ? `<div><div class="credit-detail-fact-label">Следующий платёж</div><div class="credit-detail-fact-value">${formatDateHuman(c.next_payment_date)}</div></div>` : ''}
       ${c.planned_end_date ? `<div><div class="credit-detail-fact-label">Плановое окончание</div><div class="credit-detail-fact-value">${formatDateHuman(c.planned_end_date)}</div></div>` : ''}
