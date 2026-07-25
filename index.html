@@ -1006,6 +1006,40 @@
     .credit-detail-facts { grid-template-columns: 1fr 1fr; }
   }
 
+  /* Цели (2026-07-25, этап 2): экран прогноза накопления. */
+  .goal-selector-row select { min-height: 44px; }
+  .goal-hero-panel { display: flex; flex-direction: column; gap: 12px; }
+  .goal-hero-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+  .goal-hero-name { font-size: 19px; font-weight: 700; color: var(--text-primary); margin-bottom: 6px; }
+  .goal-type-badge { margin-right: 6px; }
+  .goal-status-badge.status-active { background: var(--income-bg); color: var(--income-accent); }
+  .goal-status-badge.status-paused { background: var(--warning-bg); color: var(--warning); }
+  .goal-status-badge.status-completed { background: var(--purple-bg); color: var(--purple); }
+  .goal-progress-track { height: 10px; border-radius: 999px; background: var(--bg-secondary); overflow: hidden; }
+  .goal-progress-fill { height: 100%; border-radius: 999px; background: var(--btn-primary); transition: width .2s; }
+  .goal-hero-facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px 14px; }
+  .goal-hero-fact-label { font-size: 11.5px; color: var(--text-secondary); }
+  .goal-hero-fact-value { font-size: 15px; font-weight: 700; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+  .goal-hero-desired { font-size: 13px; padding: 10px 12px; border-radius: var(--radius-sm); background: var(--bg-secondary); }
+  .goal-hero-desired.on-track { background: var(--income-bg); color: var(--income-accent); }
+  .goal-hero-desired.off-track { background: var(--warning-bg); color: var(--warning); }
+  .goal-scenarios-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+  .goal-scenario-card {
+    display: flex; flex-direction: column; gap: 6px;
+    padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+    background: var(--card-bg);
+  }
+  .goal-scenario-card.is-base { border-color: var(--btn-primary); background: var(--info-bg); }
+  .goal-scenario-card.unreachable { opacity: .6; }
+  .goal-scenario-label { font-size: 12.5px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: .02em; }
+  .goal-scenario-percent { font-size: 12px; color: var(--text-secondary); }
+  .goal-scenario-months { font-size: 20px; font-weight: 700; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+  .goal-scenario-date { font-size: 12.5px; color: var(--text-secondary); }
+  @media (max-width: 640px) {
+    .goal-scenarios-grid { grid-template-columns: 1fr; }
+    .goal-hero-facts { grid-template-columns: 1fr 1fr; }
+  }
+
   .page-tabs { display: flex; gap: 8px; margin-bottom: 20px; }
   .app-header .page-tabs { margin-bottom: 0; }
   /* ТЗ 2026-07-18: экран «Аналитика» + краткая карточка-тизер на главной */
@@ -1901,6 +1935,7 @@
     <button type="button" class="page-tab-btn" id="tabCreditsBtn">Кредиты</button>
     <button type="button" class="page-tab-btn" id="tabShoppingBtn">Покупки</button>
     <button type="button" class="page-tab-btn" id="tabIncomeBtn">Доходы</button>
+    <button type="button" class="page-tab-btn" id="tabGoalsBtn">Цели</button>
   </div>
   <div class="month-picker">
     <div class="view-toggle">
@@ -2052,6 +2087,16 @@
     </h2>
     <div id="homeCreditsBody"></div>
     <button type="button" class="btn-ghost compact-detail-btn" id="homeCreditsDetailBtn">Подробнее</button>
+  </div>
+
+  <!-- Цели (2026-07-25, этап 2): компактная сводка — прогресс и базовый прогноз одной цели. -->
+  <div class="panel compact-feature-panel" id="homeGoalsPanel">
+    <h2 style="justify-content:space-between;">
+      <span>Цели</span>
+      <span class="badge-info badge-normalcase" id="homeGoalsBadge"></span>
+    </h2>
+    <div id="homeGoalsBody"></div>
+    <button type="button" class="btn-ghost compact-detail-btn" id="homeGoalsDetailBtn">Подробнее</button>
   </div>
 
   <!-- Сверка операций (ТЗ §14): справочное расхождение, не главное предупреждение страницы. -->
@@ -2609,6 +2654,155 @@
             <button type="button" class="btn-ghost" id="creditsRetryBtn">Повторить</button>
           </div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Цели (2026-07-25, этап 2): накопление на крупную покупку (сейчас — «Автомобиль»).
+       Тот же паттерн входа, что у «Кредитов»/«Аналитики» — верхняя вкладка + карточка на
+       главной, без кнопки в нижней навигации. -->
+  <div id="goalsView" style="display:none;">
+    <div class="empty-note" id="goalsEmptyNote">
+      <div class="credits-empty-title">Целей пока нет</div>
+      <div>Добавьте цель — например, накопление на автомобиль — чтобы увидеть прогноз, сколько
+        месяцев понадобится при разном темпе откладывания.</div>
+      <button type="button" class="btn-primary" id="goalsEmptyAddBtn" style="margin-top:12px;">Добавить цель</button>
+    </div>
+    <div class="credits-error" id="goalsErrorNote" style="display:none;">
+      <span>Не удалось загрузить цели</span>
+      <button type="button" class="btn-ghost" id="goalsRetryBtn">Повторить</button>
+    </div>
+
+    <div id="goalsContent" style="display:none;">
+      <div class="form-row goal-selector-row" id="goalSelectorRow" style="display:none;">
+        <label>Цель</label>
+        <select id="goalSelectorInput"></select>
+      </div>
+
+      <div class="panel goal-hero-panel">
+        <div class="goal-hero-head">
+          <div>
+            <div class="goal-hero-name" id="goalHeroName">—</div>
+            <span class="cat-badge goal-type-badge" id="goalHeroType"></span>
+            <span class="cat-badge goal-status-badge" id="goalHeroStatus"></span>
+          </div>
+          <button type="button" class="btn-ghost" id="goalAddNewBtn">+ Новая цель</button>
+        </div>
+        <div class="goal-progress-track"><div class="goal-progress-fill" id="goalHeroProgressFill"></div></div>
+        <div class="goal-hero-facts">
+          <div><div class="goal-hero-fact-label">Отложено</div><div class="goal-hero-fact-value" id="goalHeroReserved">—</div></div>
+          <div><div class="goal-hero-fact-label">Цель</div><div class="goal-hero-fact-value" id="goalHeroTarget">—</div></div>
+          <div><div class="goal-hero-fact-label">Осталось накопить</div><div class="goal-hero-fact-value" id="goalHeroRemaining">—</div></div>
+        </div>
+        <div class="goal-hero-desired" id="goalHeroDesired" style="display:none;"></div>
+      </div>
+
+      <div class="panel">
+        <h2>Сценарии накопления</h2>
+        <div class="goal-scenarios-grid" id="goalScenariosGrid"></div>
+        <div class="chart-box" id="goalScenariosChartBox" style="height:140px; margin-top:14px;"><canvas id="goalScenariosChart"></canvas></div>
+      </div>
+
+      <div class="panel">
+        <h2>Из чего складывается свободный остаток</h2>
+        <div id="goalBreakdownBody"></div>
+      </div>
+
+      <div class="panel">
+        <h2 style="justify-content:space-between;">
+          <span>Влияние кредитов</span>
+          <span class="badge-info badge-normalcase" id="goalCreditsImpactBadge"></span>
+        </h2>
+        <div id="goalCreditsImpactBody"></div>
+      </div>
+    </div>
+
+    <!-- Форма живёт вне goalsContent: она нужна и когда целей ещё нет (создание первой),
+         и когда список не пуст (редактирование выбранной / добавление ещё одной). Стоит после
+         hero/сценариев/разбивки — пользователь сначала видит прогноз, потом при желании тонко
+         настраивает вводные. -->
+    <div class="panel add-form-panel" id="goalFormPanel" style="display:none;">
+      <h2 style="justify-content:space-between;">
+        <span id="goalFormPanelTitle">Настройки цели</span>
+        <button type="button" class="btn-ghost" id="goalDeleteBtn" style="display:none;">Удалить</button>
+      </h2>
+      <!-- GOAL FORM — переиспользуется и для добавления, и для редактирования (state.goalFormMode). -->
+      <button type="button" class="btn-primary add-form-toggle" data-open-label="Изменить цель" data-close-label="Свернуть" id="goalFormToggleBtn" onclick="toggleAddForm('goalFormBody', this)">Изменить цель</button>
+      <div id="goalFormBody" class="add-form-body" style="display:none;">
+        <div class="form-row">
+          <label>Название цели</label>
+          <input type="text" id="goalNameInput" placeholder="Например: Новый автомобиль">
+        </div>
+        <div class="form-row">
+          <label>Тип цели</label>
+          <select id="goalTypeInput">
+            <option value="car">Автомобиль</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label>Сумма цели, ₽</label>
+          <input type="text" inputmode="numeric" id="goalTargetAmountInput" placeholder="0">
+        </div>
+        <div class="form-row">
+          <label>Уже отложено, ₽</label>
+          <input type="text" inputmode="numeric" id="goalReservedAmountInput" placeholder="0">
+        </div>
+        <div class="form-row">
+          <label>Желаемая дата (необязательно)</label>
+          <input type="date" id="goalDesiredDateInput" min="2020-01-01" max="2099-12-31">
+        </div>
+        <div class="form-row">
+          <label>Период анализа доходов/расходов</label>
+          <select id="goalAnalysisPeriodInput">
+            <option value="3">3 месяца</option>
+            <option value="6">6 месяцев</option>
+            <option value="12">12 месяцев</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label class="recurring-check-label">
+            <input type="checkbox" id="goalIncludeCreditsInput" checked>
+            Учитывать платежи по кредитам
+          </label>
+          <div class="credit-form-hint">Учитываются кредиты из раздела «Кредиты» с отмеченной галочкой «Учитывать кредит при расчёте финансовых целей».</div>
+        </div>
+        <div class="form-row">
+          <label>Комфортный темп, % от свободного остатка</label>
+          <input type="number" id="goalComfortablePercentInput" min="0" max="100" step="1" placeholder="50">
+        </div>
+        <div class="form-row">
+          <label>Базовый темп, % от свободного остатка</label>
+          <input type="number" id="goalBasePercentInput" min="0" max="100" step="1" placeholder="70">
+        </div>
+        <div class="form-row">
+          <label>Ускоренный темп, % от свободного остатка</label>
+          <input type="number" id="goalAcceleratedPercentInput" min="0" max="100" step="1" placeholder="90">
+        </div>
+        <div class="form-row">
+          <label>Свой месячный доход, ₽ (необязательно)</label>
+          <input type="text" inputmode="numeric" id="goalIncomeOverrideInput" placeholder="Оставьте пустым для среднего по истории">
+        </div>
+        <div class="form-row">
+          <label>Свои переменные расходы в месяц, ₽ (необязательно)</label>
+          <input type="text" inputmode="numeric" id="goalVariableOverrideInput" placeholder="Оставьте пустым для среднего по истории">
+        </div>
+        <div class="form-row">
+          <label>Свои обязательные расходы в месяц, ₽ (необязательно)</label>
+          <input type="text" inputmode="numeric" id="goalMandatoryOverrideInput" placeholder="Оставьте пустым для суммы регулярных расходов и подписок">
+        </div>
+        <div class="form-row">
+          <label>Статус</label>
+          <select id="goalStatusInput">
+            <option value="active">Активна</option>
+            <option value="paused">На паузе</option>
+            <option value="completed">Достигнута</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label>Примечание (необязательно)</label>
+          <input type="text" id="goalNotesInput">
+        </div>
+        <button class="btn-primary" id="goalSubmitBtn">Добавить цель</button>
       </div>
     </div>
   </div>
@@ -3228,6 +3422,12 @@ let state = {
   selectedCreditId: null,
   editingCreditId: null,      // задан во время редактирования — creditFormBody переиспользуется и для добавления, и для правки
   markingPaymentCreditId: null,
+  // Раздел «Цели» (2026-07-25): финансовые цели (накопления, например на авто) — отдельно от «Кредитов».
+  financialGoals: [],
+  financialGoalsLoaded: false,
+  financialGoalsLoadError: false,
+  selectedGoalId: null,     // цель, чей прогноз/форма сейчас показаны на экране «Цели»
+  goalFormMode: 'edit',     // 'edit' — форма отражает selectedGoal(); 'create' — форма пустая, ждёт новую цель
 };
 
 // Порог показа справочного расхождения между операциями и остатками (ТЗ §8). Меньше — не показываем.
@@ -4018,6 +4218,8 @@ async function loadAll() {
     // только реальному пользователю (RLS), анонимный/демо-режим видит пустой список.
     const creditsQuery = supabaseClient.from('credits').select('*').order('created_at', { ascending: true });
     const creditPaymentsQuery = supabaseClient.from('credit_payments').select('*').order('payment_date', { ascending: false });
+    // Цели (2026-07-25): та же схема — доступны только реальному пользователю (RLS).
+    const goalsQuery = supabaseClient.from('financial_goals').select('*').order('created_at', { ascending: true });
     if (currentUser) {
       txQuery.eq('user_id', currentUser.id);
       debtQuery.eq('user_id', currentUser.id);
@@ -4031,6 +4233,7 @@ async function loadAll() {
       dayChecksQuery.eq('user_id', currentUser.id);
       creditsQuery.eq('user_id', currentUser.id);
       creditPaymentsQuery.eq('user_id', currentUser.id);
+      goalsQuery.eq('user_id', currentUser.id);
     } else {
       txQuery.is('user_id', null);
       debtQuery.is('user_id', null);
@@ -4044,9 +4247,10 @@ async function loadAll() {
       dayChecksQuery.is('user_id', null);
       creditsQuery.is('user_id', null);
       creditPaymentsQuery.is('user_id', null);
+      goalsQuery.is('user_id', null);
     }
 
-    const [{ data: cats, error: catErr }, { data: txs, error: txErr }, { data: debts, error: debtErr }, { data: shopping, error: shoppingErr }, { data: income, error: incomeErr }, { data: notes, error: notesErr }, { data: rules, error: rulesErr }, { data: subs, error: subsErr }, { data: dpays, error: dpErr }, { data: snaps, error: snapErr }, { data: dayChecks, error: dayChecksErr }, { data: credits, error: creditsErr }, { data: creditPays, error: creditPaysErr }] = await withTimeout(Promise.all([
+    const [{ data: cats, error: catErr }, { data: txs, error: txErr }, { data: debts, error: debtErr }, { data: shopping, error: shoppingErr }, { data: income, error: incomeErr }, { data: notes, error: notesErr }, { data: rules, error: rulesErr }, { data: subs, error: subsErr }, { data: dpays, error: dpErr }, { data: snaps, error: snapErr }, { data: dayChecks, error: dayChecksErr }, { data: credits, error: creditsErr }, { data: creditPays, error: creditPaysErr }, { data: goals, error: goalsErr }] = await withTimeout(Promise.all([
       supabaseClient.from('categories').select('*').order('created_at'),
       txQuery,
       debtQuery,
@@ -4060,6 +4264,7 @@ async function loadAll() {
       dayChecksQuery,
       creditsQuery,
       creditPaymentsQuery,
+      goalsQuery,
     ]), 15000, 'Сервер не отвечает — проверьте интернет-соединение');
     const loadErrors = [
       [catErr, 'категорий'], [txErr, 'операций'], [debtErr, 'долгов'],
@@ -4097,6 +4302,13 @@ async function loadAll() {
       state.credits = credits || [];
       state.creditPayments = creditPays || [];
       state.creditsLoaded = true;
+    }
+    // Цели: та же схема graceful-деградации — ошибка загрузки не блокирует остальное
+    // приложение, раздел «Цели» сам покажет состояние ошибки с кнопкой «Повторить».
+    state.financialGoalsLoadError = !!goalsErr;
+    if (!goalsErr) {
+      state.financialGoals = goals || [];
+      state.financialGoalsLoaded = true;
     }
 
     if (!state.selectedMonth) {
@@ -4136,6 +4348,7 @@ document.getElementById('tabBudgetBtn').addEventListener('click', () => switchPa
 document.getElementById('tabAnalyticsBtn').addEventListener('click', () => switchPageTab('analytics'));
 document.getElementById('tabDebtsBtn').addEventListener('click', () => switchPageTab('debts'));
 document.getElementById('tabCreditsBtn').addEventListener('click', () => switchPageTab('credits'));
+document.getElementById('tabGoalsBtn').addEventListener('click', () => switchPageTab('goals'));
 document.getElementById('tabShoppingBtn').addEventListener('click', () => switchPageTab('shopping'));
 document.getElementById('tabIncomeBtn').addEventListener('click', () => switchPageTab('income'));
 
@@ -4211,6 +4424,10 @@ function switchPageTab(tab) {
   // только верхняя вкладка (десктоп) + вход с главной.
   document.getElementById('creditsView').style.display = tab === 'credits' ? '' : 'none';
   document.getElementById('tabCreditsBtn').classList.toggle('active', tab === 'credits');
+  // Цели (2026-07-25, этап 2): та же схема, что «Кредиты» — нет кнопки в нижней навигации,
+  // только верхняя вкладка (десктоп) + вход с главной.
+  document.getElementById('goalsView').style.display = tab === 'goals' ? '' : 'none';
+  document.getElementById('tabGoalsBtn').classList.toggle('active', tab === 'goals');
   const av = document.getElementById('analyticsView');
   if (av) av.style.display = tab === 'analytics' ? '' : 'none';
   const tb = document.getElementById('tabAnalyticsBtn');
@@ -6988,6 +7205,490 @@ function calculateCreditSummary() {
   return { totalRemainingCreditDebt, totalMonthlyCreditPayments, monthlyPaymentsNotAlreadyCounted, activeCredits, nearestPayment, includedInGoalForecast };
 }
 
+/* ====== Раздел «Цели» (2026-07-25, этап 2): расчёт прогноза накопления ======
+   §141 (аудит): «обязательные» расходы для прогноза — те же данные, что и в «Ближайшие
+   платежи» (§11): шаблоны активных регулярных расходов (getActiveRecurringGroups) + активные
+   подписки, а не историческое усреднение — это устраняет риск двойного счёта с «переменными»
+   расходами (историческая выборка ниже явно исключает t.is_recurring). Кредиты считаются
+   отдельным срезом (goalMonthlyCreditPayments), чтобы платёж, уже включённый в обязательные
+   расходы (payment_already_counted_in_mandatory), не удваивался. */
+
+const GOAL_TYPE_LABELS = { car: 'Автомобиль' };
+// Архитектурно допускаются другие значения goal_type (см. схему БД), но интерфейс сейчас
+// предлагает только «Автомобиль» — неизвестный тип не должен ломать рендер, поэтому запасной ярлык.
+function goalTypeLabel(goal) {
+  return GOAL_TYPE_LABELS[goal.goal_type] || 'Цель';
+}
+const GOAL_STATUS_LABELS = { active: 'Активна', completed: 'Достигнута', paused: 'На паузе' };
+function goalStatusLabel(goal) {
+  return GOAL_STATUS_LABELS[goal.status] || goal.status;
+}
+// Прогресс накопления в % — доля уже отложенной суммы от цели, зажатая в [0, 100].
+function goalProgressPercent(goal) {
+  const target = Number(goal.target_amount);
+  if (!target || target <= 0) return 0;
+  return Math.max(0, Math.min(100, Math.round(Number(goal.reserved_amount || 0) / target * 100)));
+}
+// Прибавляет N календарных месяцев к строке YYYY-MM-DD тем же безопасным зажимом по длине
+// месяца, что и addOneMonthClamped — переиспользуем проверенный шаг вместо новой арифметики дат.
+function addMonthsToDateStr(dateStr, months) {
+  let d = dateStr;
+  for (let i = 0; i < months; i++) d = addOneMonthClamped(d);
+  return d;
+}
+// Ежемесячная сумма «обязательных» расходов-шаблонов: активные регулярные расходы + подписки.
+function goalMonthlyMandatoryTemplate() {
+  const recurringTotal = getActiveRecurringGroups().reduce((s, g) => s + Number(g.amount || 0), 0);
+  const subsTotal = state.subscriptions.filter(s => s.is_active).reduce((s, sub) => s + Number(sub.amount || 0), 0);
+  return recurringTotal + subsTotal;
+}
+// Средние доход/переменные расходы за N завершившихся месяцев (текущий незавершённый месяц не
+// включается — как и остальная сравнительная аналитика приложения, §7/§9). Переменные расходы —
+// операции-расходы без is_recurring (регулярные уже учтены в goalMonthlyMandatoryTemplate).
+function goalHistoricalMonthlyAverages(months) {
+  const now = new Date();
+  const monthKeys = [];
+  for (let i = 1; i <= months; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    monthKeys.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+  }
+  let income = 0, variableExpense = 0;
+  state.transactions.forEach(t => {
+    if (!hasHappened(t) || !monthKeys.includes(monthKey(t.date))) return;
+    if (t.kind === 'income') income += Number(t.amount || 0);
+    else if (t.kind === 'expense' && !t.is_recurring) variableExpense += Number(t.amount || 0);
+  });
+  const n = monthKeys.length || 1;
+  return { avgMonthlyIncome: income / n, avgMonthlyVariableExpense: variableExpense / n };
+}
+// Ежемесячная нагрузка по кредитам, которую нужно вычесть из свободного остатка при расчёте
+// цели: только активные, явно включённые пользователем (include_in_goal_forecast) и ещё не
+// учтённые в обязательных расходах (иначе платёж посчитается дважды).
+function goalMonthlyCreditPayments() {
+  return state.credits
+    .filter(c => c.status === 'active' && c.include_in_goal_forecast && !c.payment_already_counted_in_mandatory)
+    .reduce((s, c) => s + Number(c.monthly_payment || 0), 0);
+}
+// Единственная функция расчёта прогноза цели — переиспользуется и «живой» карточкой (по
+// сохранённым полям цели), и simulateGoalScenario (по временно подменённым полям, без записи в
+// БД). Каждый из трёх сценариев (comfortable/base/accelerated) — своя доля свободного остатка,
+// направляемая на цель ежемесячно.
+function calculateGoalForecast(goal) {
+  const months = Number(goal.analysis_period_months) || 3;
+  const { avgMonthlyIncome, avgMonthlyVariableExpense } = goalHistoricalMonthlyAverages(months);
+  const usingIncomeOverride = goal.monthly_income_override != null;
+  const usingVariableOverride = goal.monthly_variable_expense_override != null;
+  const usingMandatoryOverride = goal.monthly_mandatory_expense_override != null;
+
+  const monthlyIncome = usingIncomeOverride ? Number(goal.monthly_income_override) : avgMonthlyIncome;
+  const monthlyVariableExpense = usingVariableOverride ? Number(goal.monthly_variable_expense_override) : avgMonthlyVariableExpense;
+  const monthlyMandatoryExpense = usingMandatoryOverride ? Number(goal.monthly_mandatory_expense_override) : goalMonthlyMandatoryTemplate();
+  const monthlyCreditPayments = goal.include_credits ? goalMonthlyCreditPayments() : 0;
+
+  const freeCashFlow = Math.max(0, monthlyIncome - monthlyMandatoryExpense - monthlyVariableExpense - monthlyCreditPayments);
+  const remainingAmount = Math.max(0, Number(goal.target_amount || 0) - Number(goal.reserved_amount || 0));
+  const today = todayStr();
+
+  const scenarioPercents = {
+    comfortable: Number(goal.comfortable_allocation_percent),
+    base: Number(goal.base_allocation_percent),
+    accelerated: Number(goal.accelerated_allocation_percent),
+  };
+  const scenarios = {};
+  Object.entries(scenarioPercents).forEach(([key, percent]) => {
+    const monthlyAllocation = freeCashFlow * (percent / 100);
+    const reachable = monthlyAllocation > 0;
+    const monthsNeeded = remainingAmount <= 0 ? 0 : (reachable ? Math.ceil(remainingAmount / monthlyAllocation) : null);
+    scenarios[key] = {
+      percent, monthlyAllocation, reachable, monthsNeeded,
+      projectedDate: monthsNeeded == null ? null : addMonthsToDateStr(today, monthsNeeded),
+    };
+  });
+
+  let desiredDateComparison = null;
+  if (goal.desired_date) {
+    const base = scenarios.base;
+    if (base.monthsNeeded == null) {
+      desiredDateComparison = { onTrack: false, deltaMonths: null };
+    } else {
+      const desiredMonthsAway = Math.ceil(daysDiffDateStr(today, goal.desired_date) / 30.44);
+      desiredDateComparison = { onTrack: base.projectedDate <= goal.desired_date, deltaMonths: base.monthsNeeded - desiredMonthsAway };
+    }
+  }
+
+  return {
+    monthlyIncome, monthlyMandatoryExpense, monthlyVariableExpense, monthlyCreditPayments, freeCashFlow,
+    remainingAmount, scenarios, desiredDateComparison,
+    usingOverrides: { income: usingIncomeOverride, variable: usingVariableOverride, mandatory: usingMandatoryOverride },
+  };
+}
+// «Что если»: пересчитывает прогноз с временно подменёнными полями цели, не затрагивая
+// сохранённую запись — используется слайдерами/переключателями сценариев в UI до сохранения.
+function simulateGoalScenario(goal, overrides) {
+  return calculateGoalForecast(Object.assign({}, goal, overrides));
+}
+
+function pluralMonths(n) {
+  const a = Math.abs(n) % 100, b = a % 10;
+  if (a > 10 && a < 20) return 'месяцев';
+  if (b === 1) return 'месяц';
+  if (b >= 2 && b <= 4) return 'месяца';
+  return 'месяцев';
+}
+function pluralGoal(n) {
+  const a = Math.abs(n) % 100, b = a % 10;
+  if (a > 10 && a < 20) return 'целей';
+  if (b === 1) return 'цель';
+  if (b >= 2 && b <= 4) return 'цели';
+  return 'целей';
+}
+const GOAL_SCENARIO_META = {
+  comfortable: { key: 'comfortable', label: 'Комфортный' },
+  base: { key: 'base', label: 'Базовый' },
+  accelerated: { key: 'accelerated', label: 'Ускоренный' },
+};
+// Выбранная цель для полноэкранного разбора: state.selectedGoalId, если такая цель ещё
+// существует, иначе — первая активная, иначе — первая любая (список никогда не бывает
+// одновременно непустым и без выбора).
+function selectedGoal() {
+  if (!state.financialGoals.length) return null;
+  return state.financialGoals.find(g => g.id === state.selectedGoalId)
+    || state.financialGoals.find(g => g.status === 'active')
+    || state.financialGoals[0];
+}
+
+function renderGoalsView() {
+  const emptyNote = document.getElementById('goalsEmptyNote');
+  const errorNote = document.getElementById('goalsErrorNote');
+  const content = document.getElementById('goalsContent');
+  const formPanel = document.getElementById('goalFormPanel');
+  const formTitle = document.getElementById('goalFormPanelTitle');
+  const deleteBtn = document.getElementById('goalDeleteBtn');
+  if (!emptyNote || !errorNote || !content || !formPanel) return;
+
+  if (state.financialGoalsLoadError) {
+    emptyNote.style.display = 'none'; content.style.display = 'none'; formPanel.style.display = 'none';
+    errorNote.style.display = '';
+    return;
+  }
+  errorNote.style.display = 'none';
+
+  if (!state.financialGoals.length) {
+    content.style.display = 'none';
+    if (state.goalFormMode === 'create') {
+      emptyNote.style.display = 'none';
+      formPanel.style.display = '';
+      formTitle.textContent = 'Новая цель';
+      deleteBtn.style.display = 'none';
+    } else {
+      emptyNote.style.display = '';
+      formPanel.style.display = 'none';
+    }
+    return;
+  }
+
+  emptyNote.style.display = 'none'; content.style.display = ''; formPanel.style.display = '';
+
+  const goal = selectedGoal();
+  state.selectedGoalId = goal.id;
+
+  const selectorRow = document.getElementById('goalSelectorRow');
+  const selectorInput = document.getElementById('goalSelectorInput');
+  if (state.financialGoals.length > 1) {
+    selectorRow.style.display = '';
+    selectorInput.innerHTML = state.financialGoals
+      .map(g => `<option value="${g.id}" ${g.id === goal.id ? 'selected' : ''}>${escapeHtml(g.name)}</option>`).join('');
+  } else {
+    selectorRow.style.display = 'none';
+  }
+
+  const forecast = calculateGoalForecast(goal);
+  renderGoalHero(goal, forecast);
+  renderGoalScenarios(forecast);
+  renderGoalBreakdown(forecast);
+  renderGoalCreditsImpact(goal);
+
+  if (state.goalFormMode === 'create') {
+    formTitle.textContent = 'Новая цель';
+    deleteBtn.style.display = 'none';
+  } else {
+    formTitle.textContent = 'Настройки цели';
+    deleteBtn.style.display = '';
+    populateGoalForm(goal);
+  }
+}
+
+function renderGoalHero(goal, forecast) {
+  document.getElementById('goalHeroName').textContent = goal.name;
+  document.getElementById('goalHeroType').textContent = goalTypeLabel(goal);
+  const statusBadge = document.getElementById('goalHeroStatus');
+  statusBadge.textContent = goalStatusLabel(goal);
+  statusBadge.className = `cat-badge goal-status-badge status-${goal.status}`;
+  document.getElementById('goalHeroProgressFill').style.width = goalProgressPercent(goal) + '%';
+  document.getElementById('goalHeroReserved').textContent = fmt.format(Number(goal.reserved_amount || 0));
+  document.getElementById('goalHeroTarget').textContent = fmt.format(Number(goal.target_amount || 0));
+  document.getElementById('goalHeroRemaining').textContent = fmt.format(forecast.remainingAmount);
+
+  const desiredEl = document.getElementById('goalHeroDesired');
+  const cmp = forecast.desiredDateComparison;
+  if (goal.desired_date && cmp) {
+    desiredEl.style.display = '';
+    desiredEl.classList.toggle('on-track', !!cmp.onTrack);
+    desiredEl.classList.toggle('off-track', !cmp.onTrack);
+    const desiredLabel = formatDateHuman(goal.desired_date);
+    if (cmp.onTrack) {
+      desiredEl.textContent = `При базовом темпе вы успеваете к желаемой дате (${desiredLabel}).`;
+    } else if (cmp.deltaMonths != null) {
+      desiredEl.textContent = `При базовом темпе цель будет достигнута позже желаемой даты (${desiredLabel}) — примерно на ${cmp.deltaMonths} ${pluralMonths(cmp.deltaMonths)}.`;
+    } else {
+      desiredEl.textContent = `При текущих доходах и расходах цель к желаемой дате (${desiredLabel}) недостижима — свободного остатка не хватает.`;
+    }
+  } else {
+    desiredEl.style.display = 'none';
+  }
+}
+
+function renderGoalScenarios(forecast) {
+  const grid = document.getElementById('goalScenariosGrid');
+  if (!grid) return;
+  grid.innerHTML = Object.values(GOAL_SCENARIO_META).map(meta => {
+    const sc = forecast.scenarios[meta.key];
+    const monthsText = !forecast.remainingAmount ? 'Цель достигнута'
+      : sc.reachable ? `${sc.monthsNeeded} ${pluralMonths(sc.monthsNeeded)}` : 'Недостижимо';
+    const dateText = sc.projectedDate ? formatDateHuman(sc.projectedDate) : 'При текущем свободном остатке — никогда';
+    return `
+      <div class="goal-scenario-card ${meta.key === 'base' ? 'is-base' : ''} ${!sc.reachable && forecast.remainingAmount ? 'unreachable' : ''}">
+        <div class="goal-scenario-label">${meta.label}</div>
+        <div class="goal-scenario-percent">${sc.percent}% свободного остатка · ${fmt.format(sc.monthlyAllocation)}/мес.</div>
+        <div class="goal-scenario-months">${monthsText}</div>
+        <div class="goal-scenario-date">${sc.reachable || !forecast.remainingAmount ? dateText : ''}</div>
+      </div>`;
+  }).join('');
+  renderGoalScenariosChart(forecast);
+}
+
+let goalScenariosChartInstance = null;
+function renderGoalScenariosChart(forecast) {
+  const canvas = document.getElementById('goalScenariosChart');
+  if (!canvas || typeof Chart === 'undefined') return;
+  const metas = Object.values(GOAL_SCENARIO_META);
+  const labels = metas.map(m => m.label);
+  const data = metas.map(m => {
+    const sc = forecast.scenarios[m.key];
+    if (!forecast.remainingAmount) return 0;
+    return sc.reachable ? sc.monthsNeeded : null;
+  });
+  if (goalScenariosChartInstance) goalScenariosChartInstance.destroy();
+  goalScenariosChartInstance = new Chart(canvas, {
+    type: 'bar',
+    data: { labels, datasets: [{ data, backgroundColor: ['#98A2B3', '#4F7DF3', '#3FA477'], borderRadius: 6 }] },
+    options: {
+      indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: {
+        label: item => item.parsed.x == null ? 'Недостижимо' : `${item.parsed.x} ${pluralMonths(item.parsed.x)}` } } },
+      scales: { x: { ticks: { precision: 0 }, title: { display: true, text: 'Месяцев до цели' } } },
+    },
+  });
+}
+
+function renderGoalBreakdown(forecast) {
+  const body = document.getElementById('goalBreakdownBody');
+  if (!body) return;
+  const o = forecast.usingOverrides;
+  const row = (label, value, overridden) => `
+    <div class="cfp-row"><span class="cfp-label">${label}${overridden ? ' <span class="badge-info badge-normalcase" style="padding:1px 6px;font-size:10.5px;">своё значение</span>' : ''}</span><span class="cfp-value">${fmt.format(value)}</span></div>`;
+  body.innerHTML = `
+    ${row('Средний доход в месяц', forecast.monthlyIncome, o.income)}
+    ${row('Обязательные расходы в месяц', forecast.monthlyMandatoryExpense, o.mandatory)}
+    ${row('Переменные расходы в месяц', forecast.monthlyVariableExpense, o.variable)}
+    ${forecast.monthlyCreditPayments ? row('Платежи по кредитам', forecast.monthlyCreditPayments, false) : ''}
+    <div class="cfp-row" style="border-top:1px solid var(--border); margin-top:6px; padding-top:8px;">
+      <span class="cfp-label" style="font-weight:700; color:var(--text-primary);">Свободный остаток в месяц</span>
+      <span class="cfp-value" style="font-size:15px;">${fmt.format(forecast.freeCashFlow)}</span>
+    </div>`;
+}
+
+function renderGoalCreditsImpact(goal) {
+  const badge = document.getElementById('goalCreditsImpactBadge');
+  const body = document.getElementById('goalCreditsImpactBody');
+  if (!body) return;
+  if (!goal.include_credits) {
+    if (badge) badge.textContent = 'Не учитываются';
+    body.innerHTML = '<div class="empty-note">Кредиты не учитываются в этой цели — включите «Учитывать платежи по кредитам» в настройках.</div>';
+    return;
+  }
+  const counted = state.credits.filter(c => c.status === 'active' && c.include_in_goal_forecast && !c.payment_already_counted_in_mandatory);
+  if (badge) badge.textContent = counted.length ? `${counted.length} ${pluralCredit(counted.length)}` : '';
+  if (!counted.length) {
+    body.innerHTML = '<div class="empty-note">Нет кредитов, учитываемых при расчёте цели. Включите галочку «Учитывать кредит при расчёте финансовых целей» в разделе «Кредиты».</div>';
+    return;
+  }
+  body.innerHTML = counted.map(c => `
+    <div class="cfp-row"><span class="cfp-label">${escapeHtml(c.name)}</span><span class="cfp-value">${fmt.format(Number(c.monthly_payment))}/мес.</span></div>`).join('');
+}
+
+function renderHomeGoalsWidget() {
+  const badge = document.getElementById('homeGoalsBadge');
+  const body = document.getElementById('homeGoalsBody');
+  if (!body) return;
+  if (badge) badge.textContent = state.financialGoals.length ? `${state.financialGoals.length} ${pluralGoal(state.financialGoals.length)}` : '';
+  if (!state.financialGoals.length) { body.innerHTML = '<div class="empty-note">Цели не добавлены</div>'; return; }
+  const goal = state.financialGoals.find(g => g.status === 'active') || state.financialGoals[0];
+  const forecast = calculateGoalForecast(goal);
+  const base = forecast.scenarios.base;
+  const monthsText = !forecast.remainingAmount ? 'Цель достигнута'
+    : base.reachable ? `${base.monthsNeeded} ${pluralMonths(base.monthsNeeded)}` : 'недостижимо при текущем темпе';
+  body.innerHTML = `
+    <div class="cfp-row"><span class="cfp-label">${escapeHtml(goal.name)}</span><span class="cfp-value">${goalProgressPercent(goal)}%</span></div>
+    <div class="cfp-row"><span class="cfp-label">Осталось накопить</span><span class="cfp-value">${fmt.format(forecast.remainingAmount)}</span></div>
+    <div class="cfp-row"><span class="cfp-label">При базовом темпе</span><span class="cfp-value">${monthsText}</span></div>`;
+}
+
+/* ---- Форма добавления/редактирования цели ---- */
+let goalFormInFlight = false;
+function resetGoalForm() {
+  document.getElementById('goalNameInput').value = '';
+  document.getElementById('goalTypeInput').value = 'car';
+  document.getElementById('goalTargetAmountInput').value = '';
+  document.getElementById('goalReservedAmountInput').value = '';
+  document.getElementById('goalDesiredDateInput').value = '';
+  document.getElementById('goalAnalysisPeriodInput').value = '3';
+  document.getElementById('goalIncludeCreditsInput').checked = true;
+  document.getElementById('goalComfortablePercentInput').value = 50;
+  document.getElementById('goalBasePercentInput').value = 70;
+  document.getElementById('goalAcceleratedPercentInput').value = 90;
+  document.getElementById('goalIncomeOverrideInput').value = '';
+  document.getElementById('goalVariableOverrideInput').value = '';
+  document.getElementById('goalMandatoryOverrideInput').value = '';
+  document.getElementById('goalStatusInput').value = 'active';
+  document.getElementById('goalNotesInput').value = '';
+  document.getElementById('goalSubmitBtn').textContent = 'Добавить цель';
+}
+// Заполняет форму текущими значениями выбранной цели — вызывается при каждом рендере экрана
+// в режиме 'edit', чтобы форма не отставала от сохранённых данных после переключения между
+// целями или после фоновых обновлений (не трогается в режиме 'create' — иначе стёрла бы то,
+// что пользователь уже успел ввести для новой цели).
+function populateGoalForm(goal) {
+  document.getElementById('goalNameInput').value = goal.name || '';
+  document.getElementById('goalTypeInput').value = goal.goal_type || 'car';
+  document.getElementById('goalTargetAmountInput').value = goal.target_amount != null ? Math.round(Number(goal.target_amount)) : '';
+  document.getElementById('goalReservedAmountInput').value = goal.reserved_amount != null ? Math.round(Number(goal.reserved_amount)) : '';
+  document.getElementById('goalDesiredDateInput').value = goal.desired_date || '';
+  document.getElementById('goalAnalysisPeriodInput').value = String(goal.analysis_period_months || 3);
+  document.getElementById('goalIncludeCreditsInput').checked = goal.include_credits !== false;
+  document.getElementById('goalComfortablePercentInput').value = goal.comfortable_allocation_percent != null ? Number(goal.comfortable_allocation_percent) : 50;
+  document.getElementById('goalBasePercentInput').value = goal.base_allocation_percent != null ? Number(goal.base_allocation_percent) : 70;
+  document.getElementById('goalAcceleratedPercentInput').value = goal.accelerated_allocation_percent != null ? Number(goal.accelerated_allocation_percent) : 90;
+  document.getElementById('goalIncomeOverrideInput').value = goal.monthly_income_override != null ? Math.round(Number(goal.monthly_income_override)) : '';
+  document.getElementById('goalVariableOverrideInput').value = goal.monthly_variable_expense_override != null ? Math.round(Number(goal.monthly_variable_expense_override)) : '';
+  document.getElementById('goalMandatoryOverrideInput').value = goal.monthly_mandatory_expense_override != null ? Math.round(Number(goal.monthly_mandatory_expense_override)) : '';
+  document.getElementById('goalStatusInput').value = goal.status || 'active';
+  document.getElementById('goalNotesInput').value = goal.notes || '';
+  document.getElementById('goalSubmitBtn').textContent = 'Сохранить изменения';
+}
+document.getElementById('goalsEmptyAddBtn').addEventListener('click', () => {
+  state.goalFormMode = 'create';
+  resetGoalForm();
+  renderGoalsView();
+  const body = document.getElementById('goalFormBody');
+  const toggleBtn = document.getElementById('goalFormToggleBtn');
+  if (getComputedStyle(body).display === 'none') { body.style.display = 'block'; toggleBtn.textContent = toggleBtn.dataset.closeLabel; toggleBtn.classList.add('is-open'); }
+});
+document.getElementById('goalAddNewBtn').addEventListener('click', () => {
+  state.goalFormMode = 'create';
+  resetGoalForm();
+  renderGoalsView();
+  const body = document.getElementById('goalFormBody');
+  const toggleBtn = document.getElementById('goalFormToggleBtn');
+  if (getComputedStyle(body).display === 'none') { body.style.display = 'block'; toggleBtn.textContent = toggleBtn.dataset.closeLabel; toggleBtn.classList.add('is-open'); }
+  document.getElementById('goalFormPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
+document.getElementById('goalSelectorInput').addEventListener('change', (e) => {
+  state.selectedGoalId = e.target.value;
+  state.goalFormMode = 'edit';
+  renderGoalsView();
+});
+document.getElementById('goalsRetryBtn').addEventListener('click', () => loadAll());
+document.getElementById('goalSubmitBtn').addEventListener('click', async () => {
+  if (goalFormInFlight) return;
+  if (!isConfigured) { toast('Сначала подключите базу данных'); return; }
+  const name = document.getElementById('goalNameInput').value.trim();
+  if (!name) { toast('Введите название цели'); return; }
+  const targetRaw = document.getElementById('goalTargetAmountInput').value;
+  if (targetRaw.trim() === '') { toast('Укажите сумму цели'); return; }
+  const targetAmount = parseMoneyInput(targetRaw);
+  if (!targetAmount || targetAmount <= 0) { toast('Сумма цели должна быть больше нуля'); return; }
+  const reservedRaw = document.getElementById('goalReservedAmountInput').value;
+  const reservedAmount = reservedRaw.trim() === '' ? 0 : parseMoneyInput(reservedRaw);
+  if (reservedAmount < 0) { toast('Отложенная сумма не может быть отрицательной'); return; }
+  const comfortable = parseFloat(document.getElementById('goalComfortablePercentInput').value);
+  const base = parseFloat(document.getElementById('goalBasePercentInput').value);
+  const accelerated = parseFloat(document.getElementById('goalAcceleratedPercentInput').value);
+  if ([comfortable, base, accelerated].some(p => isNaN(p) || p < 0 || p > 100)) { toast('Темпы накопления должны быть от 0 до 100%'); return; }
+  if (!(comfortable <= base && base <= accelerated)) { toast('Комфортный темп должен быть не больше базового, а базовый — не больше ускоренного'); return; }
+
+  const payload = {
+    name, goal_type: document.getElementById('goalTypeInput').value,
+    target_amount: targetAmount,
+    reserved_amount: reservedAmount,
+    desired_date: document.getElementById('goalDesiredDateInput').value || null,
+    analysis_period_months: parseInt(document.getElementById('goalAnalysisPeriodInput').value, 10),
+    include_credits: document.getElementById('goalIncludeCreditsInput').checked,
+    comfortable_allocation_percent: comfortable,
+    base_allocation_percent: base,
+    accelerated_allocation_percent: accelerated,
+    monthly_income_override: parseOptionalMoneyInput(document.getElementById('goalIncomeOverrideInput').value),
+    monthly_variable_expense_override: parseOptionalMoneyInput(document.getElementById('goalVariableOverrideInput').value),
+    monthly_mandatory_expense_override: parseOptionalMoneyInput(document.getElementById('goalMandatoryOverrideInput').value),
+    status: document.getElementById('goalStatusInput').value,
+    notes: document.getElementById('goalNotesInput').value.trim() || null,
+  };
+  const btn = document.getElementById('goalSubmitBtn');
+  goalFormInFlight = true; btn.disabled = true;
+  try {
+    if (state.goalFormMode === 'create') {
+      payload.user_id = currentUser ? currentUser.id : null;
+      const { error } = await insertWithRetry('financial_goals', [payload]);
+      if (error) { toast('Не удалось сохранить цель'); return; } // форма не закрывается, значения остаются
+      toast('Цель добавлена');
+      // insertWithRetry не возвращает вставленную строку (insert без .select()) — после
+      // перезагрузки экран покажет первую активную цель; если целей несколько, новую можно
+      // открыть через выпадающий список над карточкой.
+      state.selectedGoalId = null;
+      state.goalFormMode = 'edit';
+    } else {
+      const goal = selectedGoal();
+      const { error } = await supabaseClient.from('financial_goals').update({ ...payload, updated_at: new Date().toISOString() }).eq('id', goal.id);
+      if (error) { toast('Не удалось сохранить цель'); return; }
+      toast('Цель обновлена');
+    }
+    document.getElementById('goalFormBody').style.display = 'none';
+    document.getElementById('goalFormToggleBtn').textContent = document.getElementById('goalFormToggleBtn').dataset.openLabel;
+    document.getElementById('goalFormToggleBtn').classList.remove('is-open');
+    await loadAll();
+  } finally {
+    goalFormInFlight = false; btn.disabled = false;
+  }
+});
+let goalActionInFlight = false;
+document.getElementById('goalDeleteBtn').addEventListener('click', async () => {
+  if (goalActionInFlight) return;
+  const goal = selectedGoal();
+  if (!goal) return;
+  if (!(await confirmDialog(`Удалить цель «${goal.name}»?`, { confirmLabel: 'Удалить' }))) return;
+  goalActionInFlight = true;
+  try {
+    const { error } = await supabaseClient.from('financial_goals').delete().eq('id', goal.id);
+    if (error) { toast('Ошибка: ' + error.message); return; }
+    toast('Цель удалена');
+    state.selectedGoalId = null;
+    await loadAll();
+  } finally {
+    goalActionInFlight = false;
+  }
+});
+document.getElementById('homeGoalsDetailBtn').addEventListener('click', () => switchPageTab('goals'));
+
 function renderCreditsKpis() {
   const s = calculateCreditSummary();
   document.getElementById('creditsKpiRemaining').textContent = fmt.format(s.totalRemainingCreditDebt);
@@ -7329,6 +8030,9 @@ async function toggleCreditGoalForecast(id, checked) {
   const { error } = await supabaseClient.from('credits').update({ include_in_goal_forecast: checked, updated_at: new Date().toISOString() }).eq('id', id);
   if (error) toast('Не удалось сохранить кредит');
   renderHomeCreditsWidget(); renderCreditsKpis();
+  // Этот флаг напрямую влияет на прогноз цели (goalMonthlyCreditPayments) — обновляем экран
+  // «Цели» и его карточку на главной тем же оптимистичным путём, без полной перезагрузки.
+  renderGoalsView(); renderHomeGoalsWidget();
 }
 
 /* ---- Отметить платёж (§20-22): НЕ создаёт расход автоматически ---- */
@@ -9462,6 +10166,8 @@ function renderEverything() {
   renderCreditsList();
   renderHomeCreditsWidget();
   if (state.selectedCreditId && document.getElementById('creditDetailOverlay').classList.contains('visible')) renderCreditDetail(state.selectedCreditId);
+  renderGoalsView();                  // Цели (2026-07-25, этап 2)
+  renderHomeGoalsWidget();
   lucide.createIcons();
   applyAmountMasking();
 }
