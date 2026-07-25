@@ -1000,6 +1000,13 @@
   .credit-history-date { font-size: 13px; color: var(--text-secondary); }
   .credit-history-amount { font-size: 14px; font-weight: 700; color: var(--text-primary); font-variant-numeric: tabular-nums; }
   .credit-history-remaining { font-size: 11.5px; color: var(--text-secondary); }
+  .credit-history-type-badge {
+    display: inline-block; margin-top: 3px; font-size: 10.5px; font-weight: 700; padding: 1px 7px;
+    border-radius: 999px; background: var(--purple-bg, var(--bg-secondary)); color: var(--purple);
+  }
+  .credit-card-extra-note, .credit-detail-extra-note {
+    font-size: 12px; color: var(--purple); margin-top: 6px;
+  }
 
   @media (max-width: 480px) {
     .credit-card-facts { grid-template-columns: 1fr 1fr; }
@@ -3373,6 +3380,20 @@
     <button type="button" class="bottom-sheet-close" id="creditPaymentCloseBtn" aria-label="Закрыть"><i data-lucide="x"></i></button>
     <div class="panel">
       <h3 style="margin:0 0 14px;">Отметить платёж</h3>
+      <div class="form-row">
+        <label>Тип платежа</label>
+        <select id="creditPaymentTypeInput">
+          <option value="scheduled">Обычный платёж (по графику)</option>
+          <option value="extra">Досрочное погашение (доп. платёж)</option>
+        </select>
+      </div>
+      <div class="form-row" id="creditPaymentClosesRow">
+        <label class="recurring-check-label" style="cursor:pointer;">
+          <input type="checkbox" id="creditPaymentClosesInput" checked>
+          Закрывает ожидаемый платёж за этот период
+        </label>
+        <div class="credit-form-hint">Сдвигает дату следующего платежа на месяц вперёд. Снимите галочку, если это лишь часть обычного платежа.</div>
+      </div>
       <div class="form-row"><label>Дата платежа</label><input type="date" id="creditPaymentDateInput" min="2000-01-01" max="2099-12-31"></div>
       <div class="form-row"><label>Сумма платежа, ₽</label><input type="text" inputmode="numeric" id="creditPaymentAmountInput"></div>
       <div class="form-row">
@@ -4743,7 +4764,7 @@ document.getElementById('incomeRecurringCheckbox').addEventListener('change', (e
 function populateIncomeCategorySelect() {
   const sel = document.getElementById('incomeCategorySelect');
   const prev = sel.value;
-  const list = state.categories.filter(c => c.kind === 'income');
+  const list = allCategoriesOfKind('income');
   sel.innerHTML = '';
   list.forEach(c => {
     const opt = document.createElement('option');
@@ -4773,12 +4794,25 @@ function generateMonthlyDates(startDateStr, endDateStr) {
   return dates;
 }
 
+// §192: единая точка правды «allCategories vs manualEntryCategories» — «Кредит» существует как
+// категория (для иконок/группировки/отображения истории), но не выбирается вручную нигде: ни в
+// обычном/регулярном расходе, ни в «Недавних категориях», ни в «Повторить недавний расход».
+// Единственный способ создать операцию с этой категорией — «Отметить платёж» на вкладке Кредиты
+// (RPC record_credit_payment, простановка credit_id). Раньше это исключение было продублировано
+// как инлайн-условие в трёх местах — теперь один источник правды.
+function allCategoriesOfKind(kind) {
+  return state.categories.filter(c => c.kind === kind);
+}
+function isManualEntryCategory(kind, name) {
+  return !(kind === 'expense' && name === 'Кредит');
+}
+function manualEntryCategories(kind) {
+  return allCategoriesOfKind(kind).filter(c => isManualEntryCategory(kind, c.name));
+}
+
 function populateCategorySelect() {
   const sel = document.getElementById('categorySelect');
-  // «Кредит» — не выбирается вручную ни в обычном, ни в регулярном расходе (тот же чекбокс
-  // «Ежемесячный» в этой форме): единственный способ создать операцию с этой категорией —
-  // «Отметить платёж» на вкладке Кредиты (RPC record_credit_payment, простановка credit_id).
-  const list = state.categories.filter(c => c.kind === state.kind && !(state.kind === 'expense' && c.name === 'Кредит'));
+  const list = manualEntryCategories(state.kind);
   sel.innerHTML = '';
   list.forEach(c => {
     const opt = document.createElement('option');
@@ -5217,7 +5251,7 @@ function getRecentCategories(kind, n) {
   const seen = [];
   for (const t of state.transactions) {
     if (t.kind !== kind || !t.category) continue;
-    if (kind === 'expense' && t.category === 'Кредит') continue; // не выбирается вручную, см. populateCategorySelect
+    if (!isManualEntryCategory(kind, t.category)) continue;
     if (!seen.includes(t.category)) seen.push(t.category);
     if (seen.length >= n) break;
   }
@@ -5266,7 +5300,7 @@ function getRepeatExpenseCandidates() {
   const seenKeys = new Set();
   for (const t of state.transactions) {
     if (t.kind !== 'expense') continue;
-    if (t.category === 'Кредит') continue; // повторяется только через «Отметить платёж» на Кредитах
+    if (!isManualEntryCategory('expense', t.category)) continue;
     const key = repeatExpenseKey(t);
     if (seenKeys.has(key)) continue;
     seenKeys.add(key);
@@ -7353,6 +7387,28 @@ function creditPaymentDueStatus(dateStr) {
   if (diff <= 7) return { cls: 'soon', text: `Платёж через ${diff} ${pluralDays(diff)}` };
   return null;
 }
+// Доп. ТЗ 2026-07-25 (record_credit_payment §22): «ожидаемый» платёж (monthly_payment +
+// next_payment_date) и «фактический» (credit_payments) учитываются по отдельности — обычный
+// закрывающий платёж сразу сдвигает next_payment_date на месяц вперёд, поэтому due-статус выше
+// всегда актуален для СЛЕДУЮЩЕГО ожидаемого платежа. Досрочные (extra) платежи дату не сдвигают
+// и не входят в бюджетную ежемесячную нагрузку — это отдельная, дополнительная сумма, которую
+// нужно показать явно, иначе она «теряется» между историей и статусом. Зеркалит серверную защиту
+// от двойной отметки: обычный закрывающий платёж уже есть в текущем календарном месяце.
+function creditScheduledClosingPaymentThisMonth(creditId, dateStr) {
+  const monthK = (dateStr || appTodayStr()).slice(0, 7);
+  return state.creditPayments.find(p =>
+    p.credit_id === creditId && (p.payment_type || 'scheduled') !== 'extra' && p.closes_scheduled_payment !== false &&
+    (p.payment_date || '').slice(0, 7) === monthK) || null;
+}
+// Сумма досрочных (extra) платежей за текущий календарный месяц — информационная добавка к
+// стандартному due-статусу, не подменяет и не пересчитывает next_payment_date/monthly_payment.
+function creditExtraPaidThisMonth(creditId) {
+  const monthK = appTodayStr().slice(0, 7);
+  return state.creditPayments
+    .filter(p => p.credit_id === creditId && p.payment_type === 'extra' && (p.payment_date || '').slice(0, 7) === monthK)
+    .reduce((s, p) => s + Number(p.amount || 0), 0);
+}
+
 // §16: прогресс погашения — только если первоначальная сумма известна, не нулевая и не меньше остатка.
 function creditProgressPercent(c) {
   const original = Number(c.original_amount);
@@ -7392,11 +7448,16 @@ function creditRemainingTermLabel(totalMonths) {
 function calculateCreditSummary() {
   const activeCredits = state.credits.filter(c => c.status === 'active');
   const totalRemainingCreditDebt = activeCredits.reduce((s, c) => s + Number(c.remaining_amount || 0), 0);
+  // Бюджетная ежемесячная нагрузка — фиксированная сумма monthly_payment, НЕ зависит от фактических
+  // credit_payments (обычных или досрочных). Досрочные (extra) платежи — отдельная сумма
+  // (totalExtraPaidThisMonth), которая никогда не подмешивается сюда: иначе один и тот же месяц
+  // считал бы платёж дважды — как часть «нагрузки» и как «доп. платёж» (доп. ТЗ 2026-07-25 §22).
   const totalMonthlyCreditPayments = activeCredits.reduce((s, c) => s + Number(c.monthly_payment || 0), 0);
+  const totalExtraPaidThisMonth = activeCredits.reduce((s, c) => s + creditExtraPaidThisMonth(c.id), 0);
   const withDate = activeCredits.filter(c => c.next_payment_date).sort((a, b) => a.next_payment_date.localeCompare(b.next_payment_date));
   const nearestPayment = withDate[0] || null;
   const includedInGoalForecast = activeCredits.filter(c => c.include_in_goal_forecast);
-  return { totalRemainingCreditDebt, totalMonthlyCreditPayments, activeCredits, nearestPayment, includedInGoalForecast };
+  return { totalRemainingCreditDebt, totalMonthlyCreditPayments, totalExtraPaidThisMonth, activeCredits, nearestPayment, includedInGoalForecast };
 }
 
 /* ====== Раздел «Цели» (2026-07-25, этап 2): расчёт прогноза накопления ======
@@ -8803,6 +8864,7 @@ function creditCardHtml(c) {
   const progress = creditProgressPercent(c);
   const labels = creditFieldLabels(c.credit_type);
   const remainingTerm = creditRemainingTermLabel(creditMonthsRemaining(c));
+  const extraPaid = c.status === 'active' ? creditExtraPaidThisMonth(c.id) : 0;
   const statusBadge = c.status === 'paid'
     ? `<span class="credit-card-status-badge credit-card-status-paid">Погашен</span>`
     : (due ? `<span class="credit-card-status-badge credit-card-status-${due.cls}">${due.text}</span>` : '');
@@ -8810,6 +8872,7 @@ function creditCardHtml(c) {
     creditTypeLabel(c.credit_type), c.name, `остаток ${fmt.format(Number(c.remaining_amount))} рублей`,
     c.next_payment_date ? `следующий платёж ${formatDateHuman(c.next_payment_date)}` : 'дата следующего платежа не указана',
     c.status === 'paid' ? 'кредит погашен' : (due ? due.text : ''),
+    extraPaid > 0 ? `досрочно в этом месяце ${fmt.format(extraPaid)} рублей` : '',
   ].filter(Boolean);
   return `
     <div class="credit-card" data-id="${c.id}" role="button" tabindex="0" aria-label="${escapeHtml(ariaParts.join(', '))}">
@@ -8835,6 +8898,7 @@ function creditCardHtml(c) {
           <div class="credit-card-progress-track"><div class="credit-card-progress-fill ${typeCls}" style="width:${progress}%; background:currentColor;"></div></div>
           <div class="credit-card-progress-label">Погашено ${progress}%</div>
         </div>` : ''}
+      ${extraPaid > 0 ? `<div class="credit-card-extra-note">Досрочно в этом месяце: ${fmt.format(extraPaid)}</div>` : ''}
     </div>`;
 }
 
@@ -8873,7 +8937,8 @@ function renderHomeCreditsWidget() {
   body.innerHTML = `
     <div class="cfp-row"><span class="cfp-label">Осталось</span><span class="cfp-value">${fmt.format(s.totalRemainingCreditDebt)}</span></div>
     <div class="cfp-row"><span class="cfp-label">В месяц</span><span class="cfp-value">${fmt.format(s.totalMonthlyCreditPayments)}</span></div>
-    ${s.nearestPayment ? `<div class="cfp-row"><span class="cfp-label">Ближайший платёж</span><span class="cfp-value">${formatDateHuman(s.nearestPayment.next_payment_date)}</span></div>` : ''}`;
+    ${s.nearestPayment ? `<div class="cfp-row"><span class="cfp-label">Ближайший платёж</span><span class="cfp-value">${formatDateHuman(s.nearestPayment.next_payment_date)}</span></div>` : ''}
+    ${s.totalExtraPaidThisMonth > 0 ? `<div class="cfp-row"><span class="cfp-label">Досрочно в этом месяце</span><span class="cfp-value">${fmt.format(s.totalExtraPaidThisMonth)}</span></div>` : ''}`;
 }
 function pluralCredit(n) {
   const a = Math.abs(n) % 100, b = a % 10;
@@ -9057,11 +9122,16 @@ function renderCreditDetail(id) {
   const due = c.status === 'active' ? creditPaymentDueStatus(c.next_payment_date) : null;
   const remainingTerm = creditRemainingTermLabel(creditMonthsRemaining(c));
   const history = creditPaymentHistory(id);
+  const extraPaid = creditExtraPaidThisMonth(id);
+  // §189: тип платежа виден в истории — «Досрочно» (extra) или, для обычного, не закрывшего
+  // период («не закрыл период») — иначе оба типа неотличимы, хотя ведут себя по-разному
+  // (доп. ТЗ §22: extra никогда не двигает next_payment_date).
   const historyHtml = history.length
     ? history.slice(0, 20).map(p => `
       <div class="credit-history-item">
         <div>
           <div class="credit-history-date">${formatDateHuman(p.payment_date)}</div>
+          ${p.payment_type === 'extra' ? `<div class="credit-history-type-badge">Досрочно</div>` : (p.closes_scheduled_payment === false ? `<div class="credit-history-type-badge">Не закрыл период</div>` : '')}
           ${p.notes ? `<div class="credit-history-remaining">${escapeHtml(p.notes)}</div>` : ''}
         </div>
         <div style="text-align:right;">
@@ -9088,6 +9158,7 @@ function renderCreditDetail(id) {
       ${c.next_payment_date ? `<div><div class="credit-detail-fact-label">Следующий платёж</div><div class="credit-detail-fact-value">${formatDateHuman(c.next_payment_date)}</div></div>` : ''}
       ${c.planned_end_date ? `<div><div class="credit-detail-fact-label">Плановое окончание</div><div class="credit-detail-fact-value">${formatDateHuman(c.planned_end_date)}</div></div>` : ''}
     </div>
+    ${extraPaid > 0 ? `<div class="credit-detail-extra-note">Досрочно в этом месяце: ${fmt.format(extraPaid)}</div>` : ''}
     ${c.notes ? `<div class="form-row"><label>Примечание</label><div>${escapeHtml(c.notes)}</div></div>` : ''}
     <div class="credit-detail-goal-strategy">${escapeHtml(creditGoalStrategyLabel(c))}</div>
     <div class="form-row">
@@ -9128,10 +9199,20 @@ async function toggleCreditGoalForecast(id, checked) {
    единственный способ внести платёж по кредиту; создаёт credit_payments и связанную расходную
    операцию (credit_id) за одну транзакцию БД, обновляет остаток и next_payment_date. ---- */
 let creditPaymentInFlight = false;
+// §190: «закрывает ожидаемый платёж» имеет смысл только для обычного (scheduled) платежа —
+// extra никогда не закрывает период и не двигает next_payment_date (доп. ТЗ §22).
+function updateCreditPaymentTypeVisibility() {
+  const isScheduled = document.getElementById('creditPaymentTypeInput').value === 'scheduled';
+  document.getElementById('creditPaymentClosesRow').style.display = isScheduled ? '' : 'none';
+}
+document.getElementById('creditPaymentTypeInput').addEventListener('change', updateCreditPaymentTypeVisibility);
 function openCreditPaymentForm(creditId) {
   const c = state.credits.find(x => x.id === creditId);
   if (!c) return;
   state.markingPaymentCreditId = creditId;
+  document.getElementById('creditPaymentTypeInput').value = 'scheduled';
+  document.getElementById('creditPaymentClosesInput').checked = true;
+  updateCreditPaymentTypeVisibility();
   document.getElementById('creditPaymentDateInput').value = appTodayStr();
   document.getElementById('creditPaymentAmountInput').value = Math.round(Number(c.monthly_payment));
   document.getElementById('creditPaymentRemainingInput').value = '';
@@ -9160,6 +9241,19 @@ document.getElementById('creditPaymentSubmitBtn').addEventListener('click', asyn
   if (!amount || amount <= 0) { toast('Сумма платежа должна быть больше нуля'); return; }
   const remainingAfter = parseOptionalMoneyInput(document.getElementById('creditPaymentRemainingInput').value);
   const comment = document.getElementById('creditPaymentCommentInput').value.trim();
+  const paymentType = document.getElementById('creditPaymentTypeInput').value === 'extra' ? 'extra' : 'scheduled';
+  const closesScheduledPayment = paymentType === 'scheduled' && document.getElementById('creditPaymentClosesInput').checked;
+
+  // §190/§22: зеркалим серверную защиту от двойной отметки обычного закрывающего платежа за один
+  // календарный месяц — подсказываем решение (доп. платёж / снять галочку), не просто показываем
+  // сырую ошибку сервера.
+  if (closesScheduledPayment) {
+    const dup = creditScheduledClosingPaymentThisMonth(creditId, paymentDate);
+    if (dup) {
+      toast(`Обычный платёж за этот месяц уже отмечен (${formatDateHuman(dup.payment_date)}). Если это доп. платёж — выберите «Досрочное погашение».`);
+      return;
+    }
+  }
 
   const btn = document.getElementById('creditPaymentSubmitBtn');
   creditPaymentInFlight = true; btn.disabled = true;
@@ -9167,13 +9261,22 @@ document.getElementById('creditPaymentSubmitBtn').addEventListener('click', asyn
     const { error } = await withTimeout(
       supabaseClient.rpc('record_credit_payment', {
         p_credit_id: creditId, p_payment_date: paymentDate, p_amount: amount,
+        p_payment_type: paymentType, p_closes_scheduled_payment: closesScheduledPayment,
         p_remaining_amount_after: remainingAfter, p_comment: comment || null,
       }),
       15000,
       'Сервер не отвечает — проверьте интернет-соединение'
     ).catch(err => ({ error: err }));
-    if (error) { toast('Не удалось сохранить платёж: ' + error.message); return; } // §37: значения не очищаем
-    toast('Платёж отмечен и добавлен в расходы');
+    if (error) {
+      // §22: гонка (двойной клик/два устройства) может проскочить клиентскую проверку выше —
+      // сервер всё равно защищён, здесь только дружелюбно переформулируем его отказ.
+      const msg = String(error.message || '').includes('ALREADY_MARKED_THIS_PERIOD')
+        ? 'Обычный платёж за этот месяц уже отмечен. Если это доп. платёж — выберите «Досрочное погашение».'
+        : 'Не удалось сохранить платёж: ' + error.message;
+      toast(msg);
+      return; // §37: значения не очищаем
+    }
+    toast(paymentType === 'extra' ? 'Досрочный платёж отмечен и добавлен в расходы' : 'Платёж отмечен и добавлен в расходы');
     document.getElementById('creditPaymentOverlay').classList.remove('visible');
     // RPC всегда создаёт расходную операцию — инвалидируем проверку дня, как при обычном расходе.
     await invalidateExpenseDayChecks(paymentDate, 'expense_created');
@@ -9293,10 +9396,16 @@ async function invalidateExpenseDayChecks(dates, reason = 'expense_updated') {
 async function deleteTx(id) {
   const tx = state.transactions.find(t => t.id === id);
   const confirmMsg = tx && tx.credit_id
-    ? 'Удалить эту операцию? Связанный платёж по кредиту тоже будет удалён из истории.'
+    ? 'Удалить эту операцию? Связанный платёж по кредиту тоже будет удалён из истории, а остаток долга и дата следующего платежа откатятся к значениям до этого платежа.'
     : 'Удалить эту операцию?';
   if (!(await confirmDialog(confirmMsg))) return;
-  const { error } = await supabaseClient.from('transactions').delete().eq('id', id);
+  // §189 (доп. ТЗ, delete_credit_payment RPC): прямое удаление из transactions уносило
+  // credit_payments каскадом, но НЕ откатывало credits.remaining_amount/next_payment_date — долг
+  // оставался «уменьшенным», хотя платёж отменён. Кредитный платёж всегда удаляется через RPC.
+  const linkedPayment = tx && tx.credit_id ? state.creditPayments.find(p => p.transaction_id === id) : null;
+  const { error } = linkedPayment
+    ? await supabaseClient.rpc('delete_credit_payment', { p_payment_id: linkedPayment.id })
+    : await supabaseClient.from('transactions').delete().eq('id', id);
   if (error) { toast('Ошибка: ' + error.message); return; }
   toast('Удалено');
   if (tx && tx.kind === 'expense') await invalidateExpenseDayChecks(tx.date, 'expense_deleted');
