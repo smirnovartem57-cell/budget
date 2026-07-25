@@ -1090,6 +1090,12 @@
   .goal-basis-completeness-high { color: var(--income-accent); }
   .goal-basis-completeness-medium { color: var(--warning); }
   .goal-basis-completeness-low { color: var(--warning); }
+  /* Доп. к ТЗ 2026-07-25 «Исправление расчёта свободного остатка»: детализация состава сумм. */
+  .goal-breakdown-hint { font-size: 11.5px; color: var(--text-secondary); padding: 0 0 6px; line-height: 1.4; }
+  .goal-breakdown-sub-list { padding: 0 0 4px 10px; }
+  .goal-breakdown-sub-row { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--text-secondary); padding: 2px 0; }
+  .goal-breakdown-sub-row.is-counted-elsewhere { color: var(--text-tertiary, var(--text-secondary)); font-style: italic; }
+  .goal-breakdown-duplicate-warning { font-size: 12px; color: var(--warning); background: var(--warning-bg); padding: 6px 10px; border-radius: var(--radius-sm); margin: 2px 0 6px; }
   @media (max-width: 640px) {
     .goal-queue-item { flex-wrap: wrap; }
     .goal-queue-item-actions { flex-direction: row; }
@@ -2676,7 +2682,7 @@
               <input type="checkbox" id="creditCountedInMandatoryInput">
               Платёж уже учтён в обязательных расходах
             </label>
-            <div class="credit-form-hint">Включите, если этот платёж уже добавлен в раздел обязательных расходов.</div>
+            <div class="credit-form-hint">Включите, если этот платёж уже добавлен в приложении как регулярный ежемесячный расход. Иначе он будет учтён отдельно.</div>
           </div>
           <div class="form-row">
             <label>Как учитывать кредит при цели на автомобиль</label>
@@ -2784,7 +2790,7 @@
       </div>
 
       <div class="panel">
-        <h2>Из чего складывается свободный остаток</h2>
+        <h2>Из чего складывается свободная сумма</h2>
         <div id="goalBreakdownBody"></div>
       </div>
 
@@ -2922,12 +2928,12 @@
           <button type="button" class="btn-ghost goal-override-reset-btn" id="goalIncomeOverrideResetBtn">Вернуть автоматический расчёт</button>
         </div>
         <div class="form-row">
-          <label id="goalVariableOverrideLabel">Свои переменные расходы в месяц, ₽ (необязательно)</label>
+          <label id="goalVariableOverrideLabel">Свои повседневные расходы в месяц, ₽ (необязательно)</label>
           <input type="text" inputmode="numeric" id="goalVariableOverrideInput" placeholder="Оставьте пустым для автоматического расчёта">
           <button type="button" class="btn-ghost goal-override-reset-btn" id="goalVariableOverrideResetBtn">Вернуть автоматический расчёт</button>
         </div>
         <div class="form-row">
-          <label>Свои обязательные расходы в месяц, ₽ (необязательно)</label>
+          <label>Свои регулярные расходы в месяц, ₽ (необязательно)</label>
           <input type="text" inputmode="numeric" id="goalMandatoryOverrideInput" placeholder="Оставьте пустым для суммы регулярных расходов и подписок">
           <button type="button" class="btn-ghost goal-override-reset-btn" id="goalMandatoryOverrideResetBtn">Вернуть автоматический расчёт</button>
         </div>
@@ -7926,6 +7932,18 @@ function pluralMonths(n) {
   if (b >= 2 && b <= 4) return 'месяца';
   return 'месяцев';
 }
+function pluralOperationsPhrase(n) {
+  const mod10 = n % 10, mod100 = n % 100;
+  if (mod10 === 1 && mod100 !== 11) return 'операция';
+  if ([2, 3, 4].includes(mod10) && ![12, 13, 14].includes(mod100)) return 'операции';
+  return 'операций';
+}
+function pluralActivePaymentsPhrase(n) {
+  const mod10 = n % 10, mod100 = n % 100;
+  if (mod10 === 1 && mod100 !== 11) return 'активный платёж';
+  if ([2, 3, 4].includes(mod10) && ![12, 13, 14].includes(mod100)) return 'активных платежа';
+  return 'активных платежей';
+}
 function pluralGoal(n) {
   const a = Math.abs(n) % 100, b = a % 10;
   if (a > 10 && a < 20) return 'целей';
@@ -7998,7 +8016,7 @@ function renderGoalsView() {
   renderGoalStages(goal, forecast);
   renderGoalCalculationBasis(goal, forecast);
   renderGoalScenarios(goal, forecast);
-  renderGoalBreakdown(forecast);
+  renderGoalBreakdown(goal, forecast);
   renderGoalLoadGrowth(goal, forecast);
   renderGoalPayoffQueue(goal, forecast);
   renderGoalParallelCredits(goal, forecast);
@@ -8217,8 +8235,8 @@ function renderGoalCalculationBasis(goal, forecast) {
     if (badge) badge.textContent = 'Вручную';
     body.innerHTML = `
       ${row('Доход за месяц', forecast.monthlyIncome, o.income)}
-      ${row('Обычные расходы', forecast.monthlyVariableExpense, o.variable)}
-      ${row('Обязательные расходы', forecast.monthlyMandatoryExpense, o.mandatory)}`;
+      ${row('Повседневные расходы', forecast.monthlyVariableExpense, o.variable)}
+      ${row('Регулярные расходы', forecast.monthlyMandatoryExpense, o.mandatory)}`;
     return;
   }
 
@@ -8227,8 +8245,8 @@ function renderGoalCalculationBasis(goal, forecast) {
     if (badge) badge.textContent = `Среднее за ${months} мес.`;
     body.innerHTML = `
       ${row('Средний доход в месяц', forecast.monthlyIncome, o.income)}
-      ${row('Средние обычные расходы', forecast.monthlyVariableExpense, o.variable)}
-      ${row('Обязательные расходы', forecast.monthlyMandatoryExpense, o.mandatory)}`;
+      ${row('Средние повседневные расходы', forecast.monthlyVariableExpense, o.variable)}
+      ${row('Регулярные расходы', forecast.monthlyMandatoryExpense, o.mandatory)}`;
     return;
   }
 
@@ -8243,11 +8261,11 @@ function renderGoalCalculationBasis(goal, forecast) {
        <div class="goal-basis-subrow"><span>Получено</span><span>${fmt.format(ref.referenceMonthIncomeReceived)}</span></div>
        ${ref.referenceMonthIncomeFutureEntered ? `<div class="goal-basis-subrow"><span>Запланировано до конца месяца</span><span>${fmt.format(ref.referenceMonthIncomeFutureEntered)}</span></div>` : ''}`;
 
-  const variableRows = o.variable ? row('Обычные расходы', forecast.monthlyVariableExpense, true) : `
-       <div class="cfp-row"><span class="cfp-label">Обычные расходы внесено</span><span class="cfp-value">${fmt.format(ref.actualVariableExpensesToDate)}</span></div>
+  const variableRows = o.variable ? row('Повседневные расходы', forecast.monthlyVariableExpense, true) : `
+       <div class="cfp-row"><span class="cfp-label">Повседневные расходы внесено</span><span class="cfp-value">${fmt.format(ref.actualVariableExpensesToDate)}</span></div>
        ${!ref.skipProjection ? `
        <div class="goal-basis-subrow"><span>Ожидается до конца месяца</span><span>ещё ${fmt.format(ref.projectedRemainingVariableExpenses)}</span></div>
-       <div class="cfp-row"><span class="cfp-label" style="font-weight:700;">Прогноз обычных расходов за ${monthName.toLowerCase()}</span><span class="cfp-value" style="font-weight:700;">${fmt.format(ref.projectedVariableExpenses)}</span></div>` : ''}`;
+       <div class="cfp-row"><span class="cfp-label" style="font-weight:700;">Прогноз повседневных расходов за ${monthName.toLowerCase()}</span><span class="cfp-value" style="font-weight:700;">${fmt.format(ref.projectedVariableExpenses)}</span></div>` : ''}`;
 
   const completenessLabel = ref.completenessLevel === 'high'
     ? `Данные подтверждены на ${ref.completionPercent}%`
@@ -8265,7 +8283,7 @@ function renderGoalCalculationBasis(goal, forecast) {
     <div class="cfp-row"><span class="cfp-label">Расчётный месяц</span><span class="cfp-value">${monthName}</span></div>
     ${incomeRow}
     ${variableRows}
-    ${row('Обязательные расходы', forecast.monthlyMandatoryExpense, o.mandatory)}
+    ${row('Регулярные расходы', forecast.monthlyMandatoryExpense, o.mandatory)}
     ${forecast.monthlyCreditPayments ? row('Минимальные платежи по кредитам', forecast.monthlyCreditPayments, false) : ''}
     ${forecast.debtAccelerationMode === 'fixed_monthly' && forecast.plannedMonthlyLoad.plannedExtraDebtPayment ? row('Дополнительно на кредиты', forecast.plannedMonthlyLoad.plannedExtraDebtPayment, false) : ''}
     <div class="cfp-row" style="border-top:1px solid var(--border); margin-top:6px; padding-top:8px;">
@@ -8276,20 +8294,98 @@ function renderGoalCalculationBasis(goal, forecast) {
     ${warnings.map(w => `<div class="goal-load-underfunded-warning">${escapeHtml(w)}</div>`).join('')}`;
 }
 
-function renderGoalBreakdown(forecast) {
+// Операции, реально формирующие «Повседневные расходы» отображаемого прогноза — используются
+// только для показа состава (категории/количество), сама сумма считается в
+// resolveGoalIncomeAndExpenses/calculateReferenceMonthData и здесь не пересчитывается.
+function goalEverydayExpenseTransactions(goal, resolved) {
+  const basis = resolved.basis;
+  if (basis === 'completed_months_average') {
+    const months = Number(goal.analysis_period_months) || 3;
+    const now = new Date();
+    const monthKeys = [];
+    for (let i = 1; i <= months; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      monthKeys.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+    }
+    return state.transactions.filter(t => t.kind === 'expense' && !t.is_recurring && hasHappened(t) && monthKeys.includes(monthKey(t.date)));
+  }
+  if (basis === 'manual' || !resolved.referenceMonthData) return [];
+  const ref = resolved.referenceMonthData;
+  const today = appTodayStr();
+  return state.transactions.filter(t => t.kind === 'expense' && !t.is_recurring && monthKey(t.date) === ref.monthKeyStr && t.date <= today);
+}
+
+// §15 ТЗ 2026-07-25 «Исправление расчёта свободного остатка»: совпадение суммы кредитного платежа
+// с активной регулярной группой — это ТОЛЬКО повод показать предупреждение, не основание для
+// автослияния (нет надёжной связи transactions↔credits, см. §14 — запрещено сопоставлять по
+// названию/категории/банку).
+function creditMandatoryAmountMatches(credit) {
+  const amount = Number(credit.monthly_payment || 0);
+  if (!amount) return false;
+  return getActiveRecurringGroups().some(g => Number(g.amount || 0) === amount);
+}
+
+// Доп. к ТЗ 2026-07-25 «Исправление расчёта свободного остатка, убрать двойной учёт кредитов»:
+// пять независимых статей — ни одна операция не должна попасть в две строки одновременно.
+// Кредит с payment_already_counted_in_mandatory=true уже сидит внутри «Регулярных расходов»
+// (это гарантируется галочкой в форме кредита, а не подбором по transactions — см. §14) и здесь
+// показывается только справочно, без повторного вычитания. Итог — plannedMonthlyLoad.remainingAfterPlan,
+// который уже включает доплату по кредитам (в отличие от forecast.freeCashFlow, используемого
+// только для авто-сценариев §10/§11).
+function renderGoalBreakdown(goal, forecast) {
   const body = document.getElementById('goalBreakdownBody');
   if (!body) return;
   const o = forecast.usingOverrides;
+  const load = forecast.plannedMonthlyLoad;
   const row = (label, value, overridden) => `
     <div class="cfp-row"><span class="cfp-label">${label}${overridden ? ' <span class="badge-info badge-normalcase" style="padding:1px 6px;font-size:10.5px;">своё значение</span>' : ''}</span><span class="cfp-value">${fmt.format(value)}</span></div>`;
+
+  // --- Повседневные расходы: состав по категориям ---
+  const everydayTx = goalEverydayExpenseTransactions(goal, load.resolved);
+  const everydayByCategory = {};
+  everydayTx.forEach(t => { everydayByCategory[t.category] = (everydayByCategory[t.category] || 0) + Number(t.amount || 0); });
+  const topEverydayCategories = Object.entries(everydayByCategory).sort((a, b) => b[1] - a[1]).slice(0, 3);
+  const everydayHint = `${everydayTx.length ? `${everydayTx.length} ${pluralOperationsPhrase(everydayTx.length)}` : 'Нет операций за период'}${topEverydayCategories.length ? `: ${topEverydayCategories.map(([c, a]) => `${c} ${fmt.format(a)}`).join(', ')}` : ''}. Без регулярных платежей и кредитов.`;
+
+  // --- Регулярные расходы: активные группы + подписки + «уже учтённые» кредиты справочно ---
+  const activeGroups = getActiveRecurringGroups();
+  const activeSubs = state.subscriptions.filter(s => s.is_active);
+  const alreadyCountedCredits = state.credits.filter(c => c.status === 'active' && c.include_in_goal_forecast && c.payment_already_counted_in_mandatory);
+  const regularSubRows = [
+    ...activeGroups.map(g => `<div class="goal-breakdown-sub-row"><span>${escapeHtml(g.subcategory ? `${g.category} · ${g.subcategory}` : g.category)}</span><span>${fmt.format(g.amount)}</span></div>`),
+    ...activeSubs.map(s => `<div class="goal-breakdown-sub-row"><span>${escapeHtml(s.name || 'Подписка')}</span><span>${fmt.format(Number(s.amount))}</span></div>`),
+  ].join('');
+  const alreadyCountedRows = alreadyCountedCredits.map(c => `<div class="goal-breakdown-sub-row is-counted-elsewhere"><span>${escapeHtml(c.name)} — уже учтено в регулярных расходах</span><span>${fmt.format(Number(c.monthly_payment || 0))}</span></div>`).join('');
+  const totalActivePayments = activeGroups.length + activeSubs.length;
+  const regularHint = `${totalActivePayments} ${pluralActivePaymentsPhrase(totalActivePayments)}`;
+
+  // --- Минимальные платежи по кредитам: только те, что НЕ учтены выше (флаг = false) ---
+  const separateCredits = state.credits.filter(c => c.status === 'active' && c.include_in_goal_forecast && !c.payment_already_counted_in_mandatory);
+  const separateCreditRows = separateCredits.map(c => {
+    const dup = creditMandatoryAmountMatches(c);
+    return `<div class="goal-breakdown-sub-row"><span>${escapeHtml(c.name)} — учитывается отдельно</span><span>${fmt.format(Number(c.monthly_payment || 0))}</span></div>
+      ${dup ? `<div class="goal-breakdown-duplicate-warning">В регулярных расходах найден платёж с такой же суммой. Проверьте, не учитывается ли кредит «${escapeHtml(c.name)}» дважды.</div>` : ''}`;
+  }).join('');
+
+  const isFixedMode = forecast.debtAccelerationMode === 'fixed_monthly';
+  const extraRow = isFixedMode && load.plannedExtraDebtPayment > 0
+    ? row('Дополнительно на кредиты', load.plannedExtraDebtPayment, false) : '';
+  const extraHint = isFixedMode && load.plannedExtraDebtPayment > 0
+    ? `<div class="goal-breakdown-hint">Плановая доплата сверх минимальных платежей.${load.unfundedExtraDebtPayment > 0 ? ` Не обеспечено доходом ещё ${fmt.format(load.unfundedExtraDebtPayment)}.` : ''}</div>` : '';
+
   body.innerHTML = `
-    ${row('Средний доход в месяц', forecast.monthlyIncome, o.income)}
-    ${row('Обязательные расходы в месяц', forecast.monthlyMandatoryExpense, o.mandatory)}
-    ${row('Переменные расходы в месяц', forecast.monthlyVariableExpense, o.variable)}
-    ${forecast.monthlyCreditPayments ? row('Платежи по кредитам', forecast.monthlyCreditPayments, false) : ''}
+    ${row('Доход за месяц', forecast.monthlyIncome, o.income)}
+    ${row('Повседневные расходы', forecast.monthlyVariableExpense, o.variable)}
+    <div class="goal-breakdown-hint">${escapeHtml(everydayHint)}</div>
+    ${row('Регулярные расходы', forecast.monthlyMandatoryExpense, o.mandatory)}
+    <div class="goal-breakdown-hint">${escapeHtml(regularHint)}</div>
+    <div class="goal-breakdown-sub-list">${regularSubRows}${alreadyCountedRows}</div>
+    ${row('Минимальные платежи по кредитам', forecast.monthlyCreditPayments, false)}
+    ${separateCreditRows ? `<div class="goal-breakdown-sub-list">${separateCreditRows}</div>` : ''}
+    ${extraRow}${extraHint}
     <div class="cfp-row" style="border-top:1px solid var(--border); margin-top:6px; padding-top:8px;">
-      <span class="cfp-label" style="font-weight:700; color:var(--text-primary);">Свободный остаток в месяц</span>
-      <span class="cfp-value" style="font-size:15px;">${fmt.format(forecast.freeCashFlow)}</span>
+      <span class="cfp-label" style="font-weight:700; color:var(--text-primary);">Свободная сумма после всех расходов</span>
+      <span class="cfp-value" style="font-size:15px;">${fmt.format(load.remainingAfterPlan)}</span>
     </div>`;
 }
 
