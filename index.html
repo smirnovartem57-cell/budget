@@ -717,6 +717,15 @@
   .debts-compact-count { font-size: 12.5px; color: var(--text-secondary); }
   .debts-detail-link { background: none; border: none; color: var(--btn-primary); font-size: 12.5px; font-weight: 600; cursor: pointer; padding: 6px 2px; min-height: 44px; }
 
+  /* Итоговая сводка по выбранному человеку (клик по карточке в «Долги по людям»). */
+  .debt-person-summary { display: flex; gap: 10px; margin: 12px 0 0; padding: 12px 14px; background: var(--bg-secondary); border-radius: var(--radius-sm); flex-wrap: wrap; }
+  .debt-person-summary .dps-item { flex: 1 1 90px; min-width: 90px; }
+  .debt-person-summary .dps-label { font-size: 11.5px; color: var(--text-secondary); margin-bottom: 2px; }
+  .debt-person-summary .dps-value { font-family: 'Manrope', sans-serif; font-weight: 800; font-size: 15.5px; font-variant-numeric: tabular-nums; }
+  .debt-person-summary .dps-borrowed .dps-value { color: var(--text-primary); }
+  .debt-person-summary .dps-paid .dps-value { color: var(--income-accent); }
+  .debt-person-summary .dps-remaining .dps-value { color: var(--warning); }
+
   /* Форма сверки — предпросмотр расчёта */
   .rb-form-preview { background: var(--info-bg); border-radius: 12px; padding: 12px 14px; margin: 6px 0 16px; }
   .rb-form-preview .rb-break-row { color: var(--text-primary); }
@@ -2563,6 +2572,20 @@
         <div class="panel">
           <h2>Долги по людям</h2>
           <div id="debtsByPersonGrid" class="summary-grid" style="margin-bottom:0;"></div>
+          <div id="debtPersonSummary" class="debt-person-summary" style="display:none;">
+            <div class="dps-item dps-borrowed">
+              <div class="dps-label">Занял</div>
+              <div class="dps-value" id="dpsBorrowed">—</div>
+            </div>
+            <div class="dps-item dps-paid">
+              <div class="dps-label">Погасил</div>
+              <div class="dps-value" id="dpsPaid">—</div>
+            </div>
+            <div class="dps-item dps-remaining">
+              <div class="dps-label">Осталось</div>
+              <div class="dps-value" id="dpsRemaining">—</div>
+            </div>
+          </div>
         </div>
 
         <div style="height:20px;"></div>
@@ -5671,6 +5694,23 @@ function computeUnpaidDebtsTotal() {
   return state.debts.filter(d => !d.is_paid).reduce((s, d) => s + debtRemaining(d), 0);
 }
 
+// Занял / Погасил / Осталось for one person, across all their debts (paid + unpaid).
+function computePersonDebtTotals(name) {
+  const debts = state.debts.filter(d => d.debtor_name === name);
+  let borrowed = 0, paid = 0, remaining = 0;
+  debts.forEach(d => {
+    borrowed += Number(d.amount) || 0;
+    if (d.is_paid) {
+      paid += Number(d.amount) || 0;
+    } else {
+      const rem = debtRemaining(d);
+      paid += (Number(d.amount) || 0) - rem;
+      remaining += rem;
+    }
+  });
+  return { borrowed, paid, remaining };
+}
+
 function renderDebtsSummary() {
   const currentMonthKey = todayStr().slice(0, 7);
   const curMonths = activeMonths();
@@ -5736,6 +5776,17 @@ function renderDebts() {
     filterBadge.textContent = `${state.debtsPersonFilter} ✕`;
   } else {
     filterBadge.style.display = 'none';
+  }
+
+  const personSummary = document.getElementById('debtPersonSummary');
+  if (state.debtsPersonFilter) {
+    const totals = computePersonDebtTotals(state.debtsPersonFilter);
+    document.getElementById('dpsBorrowed').textContent = fmt.format(totals.borrowed);
+    document.getElementById('dpsPaid').textContent = fmt.format(totals.paid);
+    document.getElementById('dpsRemaining').textContent = fmt.format(totals.remaining);
+    personSummary.style.display = '';
+  } else {
+    personSummary.style.display = 'none';
   }
 
   const tbody = document.getElementById('debtsTableBody');
