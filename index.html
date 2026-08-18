@@ -253,6 +253,9 @@
   /* Collapsible add-forms (A6 2026-07-15) */
   .add-form-toggle { width: 100%; }
   .add-form-toggle.is-open { background: var(--bg-secondary); color: var(--text-primary); box-shadow: none; }
+  /* Форма операции (2026-08-18): та же collapsible-механика (toggleAddForm), но кнопка компактнее
+     основного «Добавить» — advanced-поля второстепенны, не должны визуально спорить с сумма/чипами. */
+  .tx-advanced-toggle { margin: 2px 0 14px; min-height: 38px; font-size: 13.5px; }
   .add-form-body { margin-top: 14px; }
   .action-menu-item {
     display: flex; align-items: center; gap: 10px;
@@ -2254,25 +2257,45 @@
           <input type="number" id="amountInput" class="sheet-amount-input" placeholder="0" min="0" step="1" inputmode="decimal">
           <button type="button" class="mic-btn" id="txAmountMicBtn" title="Голосом" aria-label="Добавить голосом"><i data-lucide="mic"></i></button>
         </div>
+        <!-- Упрощение формы (2026-08-18): инлайн-подсказка автокатегории — не блокирующий шаг.
+             Показывается только когда ИИ предположил категорию с низкой уверенностью и она ЕЩЁ
+             НЕ применена (см. showCatSuggestion/applySuggestionByConfidenceTier); тап по чипу
+             недавней категории применяет категорию сразу и скрывает эту подсказку. -->
+        <div class="cat-suggestion" id="catSuggestion" style="display:none;">
+          <span id="catSuggestionText"></span>
+          <button type="button" class="btn-tiny" id="catSuggestionAcceptBtn">Верно</button>
+          <button type="button" class="btn-tiny" id="catSuggestionDismissBtn">Изменить</button>
+        </div>
       </div>
 
       <!-- ТЗ №2 (2026-07-24) §5: «Недавние категории» — последние уникальные категории расходов,
-           только для расхода. Быстрый путь: тап по карточке выбирает категорию в обычном списке
-           ниже, не сохраняет операцию автоматически. -->
+           только для расхода. Упрощение формы (2026-08-18): тап по чипу применяет категорию
+           МГНОВЕННО (без отдельного шага подтверждения) — сумма уже введена рядом, «Добавить»
+           видна без скролла сразу под этим блоком. -->
       <div class="form-row" id="frequentCatBlock">
         <label>Недавние категории</label>
         <div class="quick-cat-row" id="quickCatRow"></div>
-        <div class="quick-cat-hint" id="quickCatHint">Коснитесь категории, чтобы выбрать её — сумму и сохранение введите ниже</div>
+        <div class="quick-cat-hint" id="quickCatHint">Коснитесь категории, чтобы выбрать её</div>
       </div>
 
-      <!-- ТЗ №2 §7: «Повторить недавний расход» — до 3 последних уникальных расходов. Переносит
-           категорию/название/комментарий, НЕ переносит сумму и дату (дата = сегодня). -->
-      <div class="form-row" id="repeatExpenseBlock" style="display:none;">
-        <label>Повторить недавний расход</label>
-        <div class="repeat-expense-row" id="repeatExpenseRow"></div>
-      </div>
+      <!-- Упрощение формы (2026-08-18): advanced-блок, свёрнут по умолчанию при каждом открытии
+           формы (openTxSheet ничего не делает с этим display, значения полей внутри не теряются
+           при сворачивании/разворачивании — переключает только toggleAddForm, index.html~3754).
+           Быстрый путь (тип + сумма + чип категории + «Добавить») не требует его открытия и
+           не требует скролла на iPhone 12 (390×844), т.к. свёрнутый блок не занимает высоты. -->
+      <button type="button" class="btn-ghost add-form-toggle tx-advanced-toggle" id="txAdvancedToggleBtn"
+              data-open-label="Ещё поля" data-close-label="Свернуть"
+              onclick="toggleAddForm('sheetFullFields', this)">Ещё поля</button>
 
-      <div id="sheetFullFields">
+      <div id="sheetFullFields" class="add-form-body" style="display:none;">
+        <!-- ТЗ №2 §7: «Повторить недавний расход» — до 3 последних уникальных расходов. Переносит
+             категорию/название/комментарий, НЕ переносит сумму и дату (дата = сегодня).
+             Упрощение формы (2026-08-18): перенесено в advanced — не мешает быстрому пути. -->
+        <div class="form-row" id="repeatExpenseBlock" style="display:none;">
+          <label>Повторить недавний расход</label>
+          <div class="repeat-expense-row" id="repeatExpenseRow"></div>
+        </div>
+
         <div class="form-row">
           <label>Категория</label>
           <select id="categorySelect"></select>
@@ -2287,11 +2310,6 @@
               <input type="text" id="newNameInput" placeholder="Например: Ипотека">
               <button type="button" class="btn-secondary" id="newNameSave">+</button>
             </div>
-          </div>
-          <div class="cat-suggestion" id="catSuggestion" style="display:none;">
-            <span id="catSuggestionText"></span>
-            <button type="button" class="btn-tiny" id="catSuggestionAcceptBtn">Подтвердить</button>
-            <button type="button" class="btn-tiny" id="catSuggestionDismissBtn">Не сейчас</button>
           </div>
         </div>
 
@@ -4854,6 +4872,10 @@ function populateCategorySelect() {
   // toggle Название sub-select
   sel.onchange = () => {
     categoryManuallySet = true;
+    // Категория уже выбрана (вручную, чипом или через applyCategorySuggestion) — блокирующая
+    // инлайн-подсказка больше не актуальна визуально. pendingSuggestion НЕ трогаем: submitTxSheet
+    // использует его для лога «принята/исправлена» (см. комментарий у applySuggestionByConfidenceTier).
+    hideCatSuggestion();
     if (sel.value === '__new__') {
       document.getElementById('newCatInline').classList.add('visible');
       document.getElementById('nameRow').classList.remove('visible');
@@ -5030,7 +5052,7 @@ function labelForSuggestion(s) {
   return s.category + (s.subcategory ? ' · ' + s.subcategory : '');
 }
 function showCatSuggestion(s) {
-  document.getElementById('catSuggestionText').textContent = `Предполагаемая категория: ${labelForSuggestion(s)}`;
+  document.getElementById('catSuggestionText').textContent = `Похоже, это ${labelForSuggestion(s)} —`;
   document.getElementById('catSuggestion').style.display = 'flex';
 }
 function hideCatSuggestion() {
@@ -5056,6 +5078,13 @@ document.getElementById('catSuggestionAcceptBtn').addEventListener('click', () =
 document.getElementById('catSuggestionDismissBtn').addEventListener('click', () => {
   pendingSuggestion = null;
   hideCatSuggestion();
+  // «Изменить» — раскрывает advanced-блок (категория живёт там) и переводит фокус на неё,
+  // чтобы отклонение подсказки реально вело к возможности выбрать категорию вручную.
+  const body = document.getElementById('sheetFullFields');
+  if (getComputedStyle(body).display === 'none') {
+    toggleAddForm('sheetFullFields', document.getElementById('txAdvancedToggleBtn'));
+  }
+  document.getElementById('categorySelect').focus();
 });
 
 const aiAutoCatToggle = document.getElementById('aiAutoCatToggle');
