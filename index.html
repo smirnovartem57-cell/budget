@@ -848,26 +848,6 @@
   .repeat-expense-btn .rp-last { font-size: 11.5px; color: var(--text-secondary); font-weight: 500; flex-shrink: 0; }
   .sheet-save-row { display: flex; flex-direction: column; gap: 8px; }
   .sheet-save-row .btn-primary, .sheet-save-row .btn-secondary { min-height: 48px; }
-  .cat-suggestion {
-    margin-top: 8px;
-    padding: 8px 10px;
-    background: var(--info-bg);
-    border-radius: 8px;
-    font-size: 12.5px;
-    color: var(--text-primary);
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 6px 10px;
-  }
-  .cat-suggestion span { flex: 1; min-width: 140px; }
-  .ai-toggle-label {
-    display: flex; align-items: center; gap: 5px;
-    font-size: 11.5px; font-weight: 600; color: var(--text-secondary);
-    cursor: pointer; white-space: nowrap;
-  }
-  .ai-toggle-label input[type=checkbox] { width: 14px; height: 14px; accent-color: var(--info-accent); cursor: pointer; }
-
   .ai-summary-toggle { display: flex; gap: 8px; margin-bottom: 10px; }
   .ai-summary-toggle button {
     flex: 1; padding: 8px; border-radius: var(--radius-sm); border: 1px solid var(--border);
@@ -2241,11 +2221,8 @@
     <div class="bottom-sheet-handle"></div>
     <button type="button" class="bottom-sheet-close" id="txSheetCloseBtn" aria-label="Закрыть"><i data-lucide="x"></i></button>
     <div class="panel" id="txSheetPanel">
-      <h2 style="justify-content:space-between;">
+      <h2>
         <span id="txSheetTitle">Новая операция</span>
-        <label class="ai-toggle-label" title="Подсказывать категорию по правилам, истории и словарю">
-          <input type="checkbox" id="aiAutoCatToggle"> <i data-lucide="sparkles" style="width:14px;height:14px;vertical-align:-2px;"></i> Автокатегория
-        </label>
       </h2>
       <div class="kind-toggle">
         <button type="button" id="btnKindIncome" class="active income-active">Доход</button>
@@ -2257,15 +2234,6 @@
         <div class="sheet-amount-row">
           <input type="number" id="amountInput" class="sheet-amount-input" placeholder="0" min="0" step="1" inputmode="decimal">
           <button type="button" class="mic-btn" id="txAmountMicBtn" title="Голосом" aria-label="Добавить голосом"><i data-lucide="mic"></i></button>
-        </div>
-        <!-- Упрощение формы (2026-08-18): инлайн-подсказка автокатегории — не блокирующий шаг.
-             Показывается только когда ИИ предположил категорию с низкой уверенностью и она ЕЩЁ
-             НЕ применена (см. showCatSuggestion/applySuggestionByConfidenceTier); тап по чипу
-             недавней категории применяет категорию сразу и скрывает эту подсказку. -->
-        <div class="cat-suggestion" id="catSuggestion" style="display:none;">
-          <span id="catSuggestionText"></span>
-          <button type="button" class="btn-tiny" id="catSuggestionAcceptBtn">Верно</button>
-          <button type="button" class="btn-tiny" id="catSuggestionDismissBtn">Изменить</button>
         </div>
       </div>
 
@@ -3693,7 +3661,6 @@ const BALANCE_DISCREPANCY_THRESHOLD = 500;
 
 let currentUser = null;
 let categoryManuallySet = false;
-let pendingSuggestion = null;
 
 function toast(msg, duration = 2200) {
   const t = document.getElementById('toast');
@@ -5098,8 +5065,6 @@ function setKind(kind) {
   state.operationFormMode = (state.operationFormMode === 'repeat-expense' && kind === 'expense')
     ? 'repeat-expense' : (kind === 'income' ? 'create-income' : 'create-expense');
   categoryManuallySet = false;
-  pendingSuggestion = null;
-  hideCatSuggestion();
   document.getElementById('btnKindIncome').classList.toggle('active', kind === 'income');
   document.getElementById('btnKindIncome').classList.toggle('income-active', kind === 'income');
   document.getElementById('btnKindExpense').classList.toggle('active', kind === 'expense');
@@ -5204,10 +5169,6 @@ function populateCategorySelect() {
   // toggle Название sub-select
   sel.onchange = () => {
     categoryManuallySet = true;
-    // Категория уже выбрана (вручную, чипом или через applyCategorySuggestion) — блокирующая
-    // инлайн-подсказка больше не актуальна визуально. pendingSuggestion НЕ трогаем: submitTxSheet
-    // использует его для лога «принята/исправлена» (см. комментарий у applySuggestionByConfidenceTier).
-    hideCatSuggestion();
     if (sel.value === '__new__') {
       document.getElementById('newCatInline').classList.add('visible');
       document.getElementById('nameRow').classList.remove('visible');
@@ -5281,94 +5242,9 @@ function normalizeText(s) {
     .trim();
 }
 
-function getAiSettings() {
-  try {
-    const raw = localStorage.getItem('aiSettings');
-    return Object.assign({ autoCategorize: true, confidenceThreshold: 0.9 }, raw ? JSON.parse(raw) : {});
-  } catch (e) { return { autoCategorize: true, confidenceThreshold: 0.9 }; }
-}
-function setAiSettings(patch) {
-  try {
-    localStorage.setItem('aiSettings', JSON.stringify(Object.assign(getAiSettings(), patch)));
-  } catch (e) { /* localStorage unavailable — not critical */ }
-}
-
-// Priority 1: an explicit rule the user previously taught (or confirmed) for
-// this exact comment text.
-function findRuleMatch(normalizedComment, kind) {
-  const rule = state.categoryRules.find(r => r.kind === kind && normalizedComment.includes(r.normalized_value));
-  if (!rule) return null;
-  return { category: rule.category, subcategory: rule.subcategory || null, confidence: 0.95, source: 'user_rule' };
-}
-
-// Priority 2: past transactions with a similar comment — the more of them
-// agree on the same category, the higher the confidence.
-function findHistoryMatch(normalizedComment, kind) {
-  if (normalizedComment.length < 3) return null;
-  const matches = state.transactions.filter(t =>
-    t.kind === kind && t.comment && normalizeText(t.comment).includes(normalizedComment)
-  );
-  if (!matches.length) return null;
-  const counts = {};
-  matches.forEach(t => {
-    const key = t.category + '|' + (t.subcategory || '');
-    counts[key] = (counts[key] || 0) + 1;
-  });
-  const [bestKey, bestCount] = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
-  const [category, subcategory] = bestKey.split('|');
-  const agreement = bestCount / matches.length;
-  // More matching history and stronger agreement across it both raise confidence.
-  const confidence = Math.min(0.5 + agreement * 0.25 + Math.min(matches.length, 5) * 0.03, 0.89);
-  return { category, subcategory: subcategory || null, confidence, source: 'history' };
-}
-
-// Priority 3: a small built-in keyword dictionary, matched only against
-// categories that actually exist for this user — never invents a category.
-const CATEGORY_KEYWORD_DICTIONARY = [
-  { keywords: ['магазин', 'супермаркет', 'продукт', 'магнум', 'магнит', 'ашан', 'пятерочка', 'пятёрочка'], categoryHint: 'продукт' },
-  { keywords: ['азс', 'бензин', 'топливо', 'заправка'], categoryHint: 'авто' },
-  { keywords: ['кафе', 'ресторан', 'доставка еды', 'wolt', 'кофе'], categoryHint: 'ресторан' },
-  { keywords: ['школа', 'садик', 'секция', 'кружок'], categoryHint: 'дет' },
-  { keywords: ['аптека', 'лекарств', 'витамин'], categoryHint: 'аптек' },
-  { keywords: ['коммуналк', 'электричеств', 'интернет', 'квартплат'], categoryHint: 'обязательн' },
-  { keywords: ['кредит', 'ипотек', 'рассрочк'], categoryHint: 'кредит' },
-];
-function findDictionaryMatch(normalizedComment, kind) {
-  const entry = CATEGORY_KEYWORD_DICTIONARY.find(e => e.keywords.some(kw => normalizedComment.includes(kw)));
-  if (!entry) return null;
-  const cats = state.categories.filter(c => c.kind === kind && c.name.toLowerCase().includes(entry.categoryHint));
-  if (!cats.length) return null;
-  return { category: cats[0].name, subcategory: null, confidence: 0.75, source: 'dictionary' };
-}
-
-function suggestCategoryForComment(comment, kind) {
-  const normalized = normalizeText(comment);
-  if (!normalized) return null;
-  return findRuleMatch(normalized, kind) || findHistoryMatch(normalized, kind) || findDictionaryMatch(normalized, kind);
-}
-
-// Priority 4: only reached when rules/history/dictionary found nothing.
-// Calls the categorize-operation Supabase Edge Function, which holds the
-// Anthropic key server-side (never exposed to the browser) and is asked to
-// pick strictly from the categories that already exist — it returns
-// { error: 'ai_not_configured' } gracefully if no key has been set yet.
-async function callAiCategorization(comment, kind) {
-  if (!isConfigured || !supabaseClient) return null;
-  try {
-    const { data, error } = await withTimeout(
-      supabaseClient.functions.invoke('categorize-operation', {
-        body: { comment, kind, categories: state.categories, subcategories: state.categories },
-      }),
-      8000,
-      'Сервер ИИ не отвечает'
-    );
-    if (error || !data || data.error || !data.category || typeof data.confidence !== 'number') return null;
-    return { category: data.category, subcategory: data.subcategory || null, confidence: data.confidence, source: 'ai' };
-  } catch (e) {
-    return null;
-  }
-}
-
+// Автокатегория (подсказка/автовыбор категории по комментарию — rule/history/dictionary/AI)
+// убрана из формы создания расхода (2026-08-18) по запросу пользователя. logAiAction оставлена —
+// её использует не связанная с этим фича «ИИ-сводка» (см. ниже).
 async function logAiAction(actionType, entityType, entityId, requestData, responseData, confidence, status) {
   if (!isConfigured || !supabaseClient) return;
   try {
@@ -5379,100 +5255,6 @@ async function logAiAction(actionType, entityType, entityId, requestData, respon
     });
   } catch (e) { /* logging must never block the actual user action */ }
 }
-
-function labelForSuggestion(s) {
-  return s.category + (s.subcategory ? ' · ' + s.subcategory : '');
-}
-function showCatSuggestion(s) {
-  document.getElementById('catSuggestionText').textContent = `Похоже, это ${labelForSuggestion(s)} —`;
-  document.getElementById('catSuggestion').style.display = 'flex';
-}
-function hideCatSuggestion() {
-  document.getElementById('catSuggestion').style.display = 'none';
-}
-function applyCategorySuggestion(s) {
-  const sel = document.getElementById('categorySelect');
-  if (![...sel.options].some(o => o.value === s.category)) return;
-  sel.value = s.category;
-  sel.dispatchEvent(new Event('change'));
-  categoryManuallySet = false;
-  if (s.subcategory) {
-    const nameSel = document.getElementById('nameSelect');
-    if ([...nameSel.options].some(o => o.value === s.subcategory)) nameSel.value = s.subcategory;
-  }
-}
-
-document.getElementById('catSuggestionAcceptBtn').addEventListener('click', () => {
-  if (pendingSuggestion) applyCategorySuggestion(pendingSuggestion);
-  pendingSuggestion = null;
-  hideCatSuggestion();
-});
-document.getElementById('catSuggestionDismissBtn').addEventListener('click', () => {
-  pendingSuggestion = null;
-  hideCatSuggestion();
-  // «Изменить» — раскрывает advanced-блок (категория живёт там) и переводит фокус на неё,
-  // чтобы отклонение подсказки реально вело к возможности выбрать категорию вручную.
-  const body = document.getElementById('sheetFullFields');
-  if (getComputedStyle(body).display === 'none') {
-    toggleAddForm('sheetFullFields', document.getElementById('txAdvancedToggleBtn'));
-  }
-  document.getElementById('categorySelect').focus();
-});
-
-const aiAutoCatToggle = document.getElementById('aiAutoCatToggle');
-aiAutoCatToggle.checked = getAiSettings().autoCategorize;
-aiAutoCatToggle.addEventListener('change', () => {
-  setAiSettings({ autoCategorize: aiAutoCatToggle.checked });
-  if (!aiAutoCatToggle.checked) { pendingSuggestion = null; hideCatSuggestion(); }
-});
-
-function applySuggestionByConfidenceTier(suggestion, settings) {
-  const sel = document.getElementById('categorySelect');
-  const currentCat = sel.value;
-  const currentSub = document.getElementById('nameRow').classList.contains('visible')
-    ? document.getElementById('nameSelect').value : null;
-  if (suggestion.category === currentCat && (suggestion.subcategory || null) === (currentSub || null)) {
-    hideCatSuggestion();
-    return;
-  }
-
-  // pendingSuggestion is kept set (not cleared) after an auto-apply too — the
-  // submit handler needs it to log whether the applied category was actually
-  // kept (accepted) or changed again before saving (corrected).
-  pendingSuggestion = suggestion;
-  if (!categoryManuallySet && suggestion.confidence >= settings.confidenceThreshold) {
-    applyCategorySuggestion(suggestion);
-    toast(`Категория определена: ${labelForSuggestion(suggestion)}`);
-  } else if (!categoryManuallySet && suggestion.confidence >= 0.70) {
-    applyCategorySuggestion(suggestion);
-    toast(`Похоже на «${labelForSuggestion(suggestion)}» — проверьте категорию`, 3500);
-  } else {
-    showCatSuggestion(suggestion);
-  }
-}
-
-document.getElementById('commentInput').addEventListener('blur', async () => {
-  // Note: pendingSuggestion is intentionally NOT cleared unconditionally here.
-  // A redundant re-blur (e.g. the user refocuses the comment then clicks away
-  // again without changing it) must not wipe out a still-relevant suggestion
-  // the submit handler hasn't logged yet.
-  const settings = getAiSettings();
-  if (!settings.autoCategorize) { hideCatSuggestion(); return; }
-  const comment = document.getElementById('commentInput').value.trim();
-  if (comment.length < 3) { hideCatSuggestion(); return; }
-  const kind = state.kind;
-
-  let suggestion = suggestCategoryForComment(comment, kind);
-  if (!suggestion) {
-    suggestion = await callAiCategorization(comment, kind);
-    // The user may have edited/cleared the comment or submitted the form
-    // while the AI call was in flight — a stale suggestion must not land.
-    if (document.getElementById('commentInput').value.trim() !== comment || state.kind !== kind) return;
-  }
-  if (!suggestion || suggestion.confidence < 0.5) { hideCatSuggestion(); return; }
-
-  applySuggestionByConfidenceTier(suggestion, settings);
-});
 
 /* ---------------- AI SUMMARY (Function #2) ----------------
    All numbers below are computed by regular code from state.transactions.
@@ -5628,6 +5410,11 @@ function syncQuickCatButtons() {
   });
 }
 
+// Категории, скрытые из чипов «Недавние категории» при создании операции (2026-08-18, по
+// запросу пользователя) — только визуально в этом ряду чипов; в базе, в полном списке категорий
+// (advanced-блок) и в истории операций они остаются без изменений.
+const QUICK_CAT_HIDDEN = ['Пиво', 'Сигареты', 'Ипотека'];
+
 // ТЗ №2 (2026-07-24) §5: «Недавние категории» — только для расхода, только по РЕЦЕНТНОСТИ
 // (не по частоте): проходим уже загруженные транзакции от новых к старым, собираем уникальные
 // категории до лимита. Никакого нового запроса к Supabase, никакого рейтинга по частоте.
@@ -5636,6 +5423,7 @@ function getRecentCategories(kind, n) {
   for (const t of state.transactions) {
     if (t.kind !== kind || !t.category) continue;
     if (!isManualEntryCategory(kind, t.category)) continue;
+    if (QUICK_CAT_HIDDEN.includes(t.category)) continue;
     if (!seen.includes(t.category)) seen.push(t.category);
     if (seen.length >= n) break;
   }
@@ -5818,8 +5606,6 @@ function resetSheetFieldsForAddAnother() {
   document.getElementById('nameSelect').innerHTML = '';
   document.getElementById('nameRow').classList.remove('visible');
   document.getElementById('newCatInline').classList.remove('visible');
-  hideCatSuggestion();
-  pendingSuggestion = null;
   syncQuickCatButtons();
   renderFrequentCats();
   renderRepeatExpenseBlock();
@@ -5892,29 +5678,12 @@ async function submitTxSheet(keepOpen) {
       needsRecheckNotice = !isRecurring && transitioned.length > 0;
     }
 
-    if (comment) {
-      const normalized = normalizeText(comment);
-      if (pendingSuggestion) {
-        const wasAccepted = pendingSuggestion.category === category && (pendingSuggestion.subcategory || null) === subcategory;
-        logAiAction('categorization', 'transaction', null, { comment, kind: state.kind }, pendingSuggestion, pendingSuggestion.confidence, wasAccepted ? 'accepted' : 'corrected');
-      }
-      const hasRule = state.categoryRules.some(r => r.kind === state.kind && r.normalized_value === normalized);
-      if (!hasRule && normalized.length >= 3 && confirm(`Запомнить категорию «${category}${subcategory ? ' · ' + subcategory : ''}» для «${comment}»?`)) {
-        const { error: ruleErr } = await supabaseClient.from('category_rules').insert({
-          user_id: userId, kind: state.kind, match_type: 'contains', match_value: comment, normalized_value: normalized, category, subcategory,
-        });
-        if (ruleErr) toast('Не удалось сохранить правило: ' + ruleErr.message);
-      }
-    }
-    pendingSuggestion = null;
-
     if (isRecurring) toast(`Добавлено платежей: ${payloads.length}`);
     else if (needsRecheckNotice) toast('Расходы за этот день изменились — проверьте день снова', 3200);
     else toast(state.kind === 'expense' ? 'Расход добавлен' : 'Операция добавлена');
 
     document.getElementById('recurringCheckbox').checked = false;
     document.getElementById('recurringEndDateRow').style.display = 'none';
-    hideCatSuggestion();
 
     if (keepOpen) {
       await loadAll();
