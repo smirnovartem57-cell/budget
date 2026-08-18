@@ -253,6 +253,9 @@
   /* Collapsible add-forms (A6 2026-07-15) */
   .add-form-toggle { width: 100%; }
   .add-form-toggle.is-open { background: var(--bg-secondary); color: var(--text-primary); box-shadow: none; }
+  /* Форма операции (2026-08-18): та же collapsible-механика (toggleAddForm), но кнопка компактнее
+     основного «Добавить» — advanced-поля второстепенны, не должны визуально спорить с сумма/чипами. */
+  .tx-advanced-toggle { margin: 2px 0 14px; min-height: 38px; font-size: 13.5px; }
   .add-form-body { margin-top: 14px; }
   .action-menu-item {
     display: flex; align-items: center; gap: 10px;
@@ -2002,6 +2005,7 @@
         <div class="profile-menu-status" id="profileMenuStatus">Демо-режим</div>
         <button type="button" class="header-btn profile-item" id="pushBtn" style="display:none;"><i data-lucide="bell"></i> <span id="pushBtnLabel">Напоминания</span></button>
         <button type="button" class="header-btn profile-item" id="pinBtn" style="display:none;"><i data-lucide="lock"></i> PIN и Face ID</button>
+        <button type="button" class="header-btn profile-item" id="settingsBtn"><i data-lucide="settings"></i> Настройки</button>
         <button type="button" class="header-btn profile-item" id="authBtn">Войти</button>
       </div>
     </div>
@@ -2254,25 +2258,45 @@
           <input type="number" id="amountInput" class="sheet-amount-input" placeholder="0" min="0" step="1" inputmode="decimal">
           <button type="button" class="mic-btn" id="txAmountMicBtn" title="Голосом" aria-label="Добавить голосом"><i data-lucide="mic"></i></button>
         </div>
+        <!-- Упрощение формы (2026-08-18): инлайн-подсказка автокатегории — не блокирующий шаг.
+             Показывается только когда ИИ предположил категорию с низкой уверенностью и она ЕЩЁ
+             НЕ применена (см. showCatSuggestion/applySuggestionByConfidenceTier); тап по чипу
+             недавней категории применяет категорию сразу и скрывает эту подсказку. -->
+        <div class="cat-suggestion" id="catSuggestion" style="display:none;">
+          <span id="catSuggestionText"></span>
+          <button type="button" class="btn-tiny" id="catSuggestionAcceptBtn">Верно</button>
+          <button type="button" class="btn-tiny" id="catSuggestionDismissBtn">Изменить</button>
+        </div>
       </div>
 
       <!-- ТЗ №2 (2026-07-24) §5: «Недавние категории» — последние уникальные категории расходов,
-           только для расхода. Быстрый путь: тап по карточке выбирает категорию в обычном списке
-           ниже, не сохраняет операцию автоматически. -->
+           только для расхода. Упрощение формы (2026-08-18): тап по чипу применяет категорию
+           МГНОВЕННО (без отдельного шага подтверждения) — сумма уже введена рядом, «Добавить»
+           видна без скролла сразу под этим блоком. -->
       <div class="form-row" id="frequentCatBlock">
         <label>Недавние категории</label>
         <div class="quick-cat-row" id="quickCatRow"></div>
-        <div class="quick-cat-hint" id="quickCatHint">Коснитесь категории, чтобы выбрать её — сумму и сохранение введите ниже</div>
+        <div class="quick-cat-hint" id="quickCatHint">Коснитесь категории, чтобы выбрать её</div>
       </div>
 
-      <!-- ТЗ №2 §7: «Повторить недавний расход» — до 3 последних уникальных расходов. Переносит
-           категорию/название/комментарий, НЕ переносит сумму и дату (дата = сегодня). -->
-      <div class="form-row" id="repeatExpenseBlock" style="display:none;">
-        <label>Повторить недавний расход</label>
-        <div class="repeat-expense-row" id="repeatExpenseRow"></div>
-      </div>
+      <!-- Упрощение формы (2026-08-18): advanced-блок, свёрнут по умолчанию при каждом открытии
+           формы (openTxSheet ничего не делает с этим display, значения полей внутри не теряются
+           при сворачивании/разворачивании — переключает только toggleAddForm, index.html~3754).
+           Быстрый путь (тип + сумма + чип категории + «Добавить») не требует его открытия и
+           не требует скролла на iPhone 12 (390×844), т.к. свёрнутый блок не занимает высоты. -->
+      <button type="button" class="btn-ghost add-form-toggle tx-advanced-toggle" id="txAdvancedToggleBtn"
+              data-open-label="Ещё поля" data-close-label="Свернуть"
+              onclick="toggleAddForm('sheetFullFields', this)">Ещё поля</button>
 
-      <div id="sheetFullFields">
+      <div id="sheetFullFields" class="add-form-body" style="display:none;">
+        <!-- ТЗ №2 §7: «Повторить недавний расход» — до 3 последних уникальных расходов. Переносит
+             категорию/название/комментарий, НЕ переносит сумму и дату (дата = сегодня).
+             Упрощение формы (2026-08-18): перенесено в advanced — не мешает быстрому пути. -->
+        <div class="form-row" id="repeatExpenseBlock" style="display:none;">
+          <label>Повторить недавний расход</label>
+          <div class="repeat-expense-row" id="repeatExpenseRow"></div>
+        </div>
+
         <div class="form-row">
           <label>Категория</label>
           <select id="categorySelect"></select>
@@ -2287,11 +2311,6 @@
               <input type="text" id="newNameInput" placeholder="Например: Ипотека">
               <button type="button" class="btn-secondary" id="newNameSave">+</button>
             </div>
-          </div>
-          <div class="cat-suggestion" id="catSuggestion" style="display:none;">
-            <span id="catSuggestionText"></span>
-            <button type="button" class="btn-tiny" id="catSuggestionAcceptBtn">Подтвердить</button>
-            <button type="button" class="btn-tiny" id="catSuggestionDismissBtn">Не сейчас</button>
           </div>
         </div>
 
@@ -3294,6 +3313,58 @@
   </div>
 </div>
 
+<!-- Настройки → Резервное копирование (2026-08-18): экспорт/восстановление всех данных
+     пользователя одним JSON-файлом. Раздела «Настройки» как отдельного экрана раньше не было —
+     добавлен пункт меню профиля (см. #settingsBtn), сам раздел — единственная секция, поэтому
+     реализован как этот же bottom-sheet-modal, без отдельной вкладки/страницы. -->
+<div class="bottom-sheet-overlay bottom-sheet-modal" id="backupSheetOverlay">
+  <div class="bottom-sheet">
+    <div class="bottom-sheet-handle"></div>
+    <button type="button" class="bottom-sheet-close" id="backupSheetCloseBtn" aria-label="Закрыть"><i data-lucide="x"></i></button>
+    <div class="panel">
+      <h2>Резервное копирование</h2>
+      <p class="rb-field-hint" style="margin:-4px 0 14px;">Скачайте копию своих данных, чтобы не потерять их. Восстановить можно в любой момент из этого же раздела.</p>
+
+      <div class="form-row" id="backupLoginHint" style="display:none;">
+        <div class="empty-note">Войдите в аккаунт, чтобы пользоваться резервным копированием — оно привязано к вашей учётной записи.</div>
+      </div>
+
+      <div id="backupActionsSection">
+        <div class="form-row">
+          <button type="button" class="btn-primary" id="backupExportBtn" style="width:100%;">Скачать резервную копию</button>
+          <div class="quick-cat-hint" id="backupLastExportNote"></div>
+        </div>
+
+        <div class="form-row" style="border-top:1px solid var(--border); padding-top:14px;">
+          <button type="button" class="btn-secondary" id="backupRestoreBtn" style="width:100%;">Восстановить из резервной копии</button>
+          <input type="file" id="backupFileInput" accept="application/json,.json" style="display:none;">
+        </div>
+      </div>
+
+      <!-- Превью бэкапа — показывается после выбора файла, перед необратимой записью в БД. -->
+      <div id="backupPreview" style="display:none; margin-top:6px; border-top:1px solid var(--border); padding-top:14px;">
+        <p class="rb-field-hint" id="backupPreviewMeta" style="margin:0 0 10px;"></p>
+        <div id="backupPreviewCounts" style="font-size:13px; color:var(--text-secondary); margin-bottom:14px; line-height:1.6;"></div>
+        <div class="form-row">
+          <label>Режим восстановления</label>
+          <label style="display:flex; align-items:flex-start; gap:8px; font-weight:500; margin-bottom:8px; cursor:pointer;">
+            <input type="radio" name="backupRestoreMode" id="backupModeReplace" value="replace" checked style="margin-top:3px;">
+            <span>Полная замена — текущие данные удаляются, вместо них записываются данные из копии</span>
+          </label>
+          <label style="display:flex; align-items:flex-start; gap:8px; font-weight:500; cursor:pointer;">
+            <input type="radio" name="backupRestoreMode" id="backupModeMerge" value="merge" style="margin-top:3px;">
+            <span>Слияние — данные из копии добавляются к текущим (возможны повторы операций)</span>
+          </label>
+        </div>
+        <div class="sheet-save-row">
+          <button type="button" class="btn-secondary" id="backupPreviewCancelBtn">Отмена</button>
+          <button type="button" class="btn-danger" id="backupPreviewConfirmBtn">Восстановить</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Сверка реального остатка семьи (ТЗ 2026-07-24) -->
 <div class="bottom-sheet-overlay bottom-sheet-modal" id="balanceSheetOverlay">
   <div class="bottom-sheet">
@@ -3698,6 +3769,285 @@ function openActionMenu(items, title) {
 }
 document.getElementById('actionMenuOverlay').addEventListener('click', (e) => {
   if (e.target.id === 'actionMenuOverlay') e.currentTarget.classList.remove('visible');
+});
+
+/* ==================== РЕЗЕРВНОЕ КОПИРОВАНИЕ (2026-08-18) ====================
+   Экспорт/восстановление данных пользователя в один JSON-файл — доступно из Настроек
+   (профиль → Настройки), без обращения к штатным Supabase-бэкапам (недоступны на текущем
+   тарифе). Работает через тот же supabaseClient/RLS, что и остальное приложение: экспорт видит
+   ровно те строки, что видит текущий пользователь; восстановление может писать только в свои же
+   строки (та же RLS-политика user_id = auth.uid()).
+
+   Явные решения по составу бэкапа (сверено с реальной схемой БД, не только с документами):
+   - Экспортируются user-scoped таблицы + общий для всей семьи справочник categories.
+   - usernames НЕ включена — это таблица авторизации (логин по username → email), а не
+     пользовательские финансовые данные; отдельной таблицы «участник семьи» в реальной схеме нет.
+   - ai_actions (диагностический лог ИИ), push_subscriptions (push-токены конкретного браузера)
+     и gmail_receipts (кэш сырых писем, чувствительные данные) НЕ включены — не являются
+     финансовыми записями пользователя и не имеют смысла при восстановлении на другом устройстве. */
+const BACKUP_VERSION = 1;
+// Порядок вставки при восстановлении = порядок прямых внешних ключей между таблицами набора:
+// credits ← transactions ← credit_payments; debts ← debt_payments; transactions ← expected_income
+// и transactions ← shopping_list. Родитель всегда раньше ребёнка. categories — отдельно, до цикла.
+const BACKUP_ENTITY_ORDER = [
+  'credits', 'transactions', 'credit_payments', 'debts', 'debt_payments',
+  'expected_income', 'shopping_list', 'shopping_notes', 'subscriptions',
+  'financial_goals', 'balance_snapshots', 'expense_day_checks', 'category_rules',
+];
+// Порядок удаления при «Полной замене» — обратный (дети раньше родителей), чтобы не упереться
+// в FK-ограничения независимо от того, настроен ли ON DELETE CASCADE в БД.
+const BACKUP_DELETE_ORDER = [
+  'credit_payments', 'debt_payments', 'shopping_list', 'expected_income',
+  'transactions', 'credits', 'debts', 'shopping_notes', 'subscriptions',
+  'financial_goals', 'balance_snapshots', 'expense_day_checks', 'category_rules',
+];
+// FK-поля, которые в режиме «Слияние» указывают на СТАРЫЕ id родительской таблицы из файла —
+// их нужно переписать на новые id, полученные при вставке (см. insertBackupTable/idMap).
+// В режиме «Полная замена» переписывать не нужно: строки вставляются с оригинальными id.
+const BACKUP_FK_MAP = {
+  transactions: { credit_id: 'credits' },
+  credit_payments: { credit_id: 'credits', transaction_id: 'transactions' },
+  debt_payments: { debt_id: 'debts' },
+  expected_income: { linked_transaction_id: 'transactions' },
+  shopping_list: { linked_transaction_id: 'transactions' },
+};
+const BACKUP_TABLE_LABELS = {
+  categories: 'Категории', transactions: 'Операции', credits: 'Кредиты',
+  credit_payments: 'Платежи по кредитам', debts: 'Долги', debt_payments: 'Платежи по долгам',
+  expected_income: 'Ожидаемые доходы', shopping_list: 'Список покупок',
+  shopping_notes: 'Заметки списка покупок', subscriptions: 'Подписки',
+  financial_goals: 'Цели', balance_snapshots: 'Сверки остатка',
+  expense_day_checks: 'Проверки дней', category_rules: 'Правила категоризации',
+};
+
+async function collectBackupData() {
+  const uid = currentUser.id;
+  const scoped = (table) => supabaseClient.from(table).select('*').eq('user_id', uid);
+  const keys = ['categories', ...BACKUP_ENTITY_ORDER];
+  const queries = keys.map(key => key === 'categories'
+    ? supabaseClient.from('categories').select('*')
+    // category_rules — БЕЗ фильтра is_active (в отличие от loadAll): бэкап должен покрывать
+    // 100% строк таблицы, а не только те, что показывает обычный экран приложения.
+    : scoped(key));
+  const results = await Promise.all(queries);
+  const errors = results.map(r => r.error).filter(Boolean);
+  if (errors.length) throw errors[0];
+  const tables = {};
+  keys.forEach((key, i) => { tables[key] = results[i].data || []; });
+  return tables;
+}
+
+function renderBackupLastExportNote() {
+  const el = document.getElementById('backupLastExportNote');
+  if (!el) return;
+  const iso = localStorage.getItem('lastBackupExportAt');
+  if (!iso) { el.textContent = 'Резервная копия ещё не создавалась'; return; }
+  const d = new Date(iso);
+  const daysAgo = Math.floor((Date.now() - d.getTime()) / 86400000);
+  const dateLabel = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' }).format(d);
+  el.textContent = daysAgo >= 14
+    ? `Последний раз: ${dateLabel} — стоит обновить`
+    : `Последний раз: ${dateLabel}`;
+}
+
+async function exportBackup() {
+  if (!currentUser) { toast('Войдите в аккаунт, чтобы скачать резервную копию'); return; }
+  const btn = document.getElementById('backupExportBtn');
+  const prevText = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Готовим файл…';
+  try {
+    const tables = await collectBackupData();
+    const payload = {
+      backupVersion: BACKUP_VERSION,
+      createdAt: new Date().toISOString(),
+      appTimezone: APP_TIMEZONE,
+      tables,
+    };
+    const json = JSON.stringify(payload, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `budget-backup-${appTodayStr()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    localStorage.setItem('lastBackupExportAt', new Date().toISOString());
+    renderBackupLastExportNote();
+    toast('Резервная копия скачана');
+  } catch (err) {
+    toast('Не удалось создать резервную копию: ' + (err && err.message ? err.message : 'ошибка'), 4000);
+  } finally {
+    btn.disabled = false; btn.textContent = prevText;
+  }
+}
+
+// Категории — общий для всей семьи справочник без user_id: НИКОГДА не удаляются и не
+// дублируются восстановлением. Для каждой категории из копии ищем совпадение по
+// (kind, name, parent_category) и создаём только недостающие — одинаково в обоих режимах.
+async function ensureBackupCategoriesExist(categories) {
+  if (!categories || !categories.length) return;
+  const { data: existing, error } = await supabaseClient.from('categories').select('kind,name,parent_category');
+  if (error) throw error;
+  const key = c => `${c.kind}|${c.name}|${c.parent_category || ''}`;
+  const existingKeys = new Set((existing || []).map(key));
+  const missing = categories.filter(c => !existingKeys.has(key(c)));
+  if (!missing.length) return;
+  const payloads = missing.map(c => ({
+    kind: c.kind, name: c.name, parent_category: c.parent_category || null,
+    default_amount: c.default_amount ?? null,
+  }));
+  const { error: insErr } = await supabaseClient.from('categories').insert(payloads);
+  if (insErr) throw insErr;
+}
+
+async function performBackupRestore(backup, mode) {
+  const uid = currentUser.id;
+  const tables = backup.tables || {};
+
+  await ensureBackupCategoriesExist(tables.categories);
+
+  if (mode === 'replace') {
+    for (const table of BACKUP_DELETE_ORDER) {
+      const { error } = await supabaseClient.from(table).delete().eq('user_id', uid);
+      if (error) throw new Error(`Не удалось очистить «${BACKUP_TABLE_LABELS[table] || table}» перед заменой: ${error.message}`);
+    }
+  }
+
+  // Ручной откат при ошибке посередине (у Supabase REST нет клиентских транзакций через
+  // несколько таблиц): копим { table, ids } уже вставленных строк и, если один из следующих
+  // шагов упадёт, удаляем всё вставленное на этом заходе — БД не остаётся в частичном состоянии.
+  const insertedSoFar = [];
+  const idMap = {}; // table -> { oldId: newId }, нужен только для FK-переписывания в merge-режиме
+
+  async function insertBackupTable(table, rows) {
+    if (!rows || !rows.length) return;
+    const fkMap = BACKUP_FK_MAP[table] || {};
+    const payloads = rows.map(row => {
+      const { id, ...rest } = row;
+      rest.user_id = uid; // всегда текущий пользователь — id из файла мог принадлежать другому логину
+      if (mode === 'merge') {
+        for (const [field, parentTable] of Object.entries(fkMap)) {
+          if (rest[field]) rest[field] = (idMap[parentTable] && idMap[parentTable][rest[field]]) || null;
+        }
+      }
+      return mode === 'replace' ? { id, ...rest } : rest;
+    });
+    const { data, error } = await supabaseClient.from(table).insert(payloads).select('id');
+    if (error) throw new Error(`Не удалось восстановить «${BACKUP_TABLE_LABELS[table] || table}»: ${error.message}`);
+    const newIds = (data || []).map(r => r.id);
+    insertedSoFar.push({ table, ids: newIds });
+    if (mode === 'merge') {
+      idMap[table] = {};
+      rows.forEach((row, i) => { idMap[table][row.id] = newIds[i]; });
+    }
+  }
+
+  try {
+    for (const table of BACKUP_ENTITY_ORDER) {
+      await insertBackupTable(table, tables[table]);
+    }
+  } catch (err) {
+    for (let i = insertedSoFar.length - 1; i >= 0; i--) {
+      const { table, ids } = insertedSoFar[i];
+      if (ids.length) await supabaseClient.from(table).delete().in('id', ids);
+    }
+    throw err;
+  }
+}
+
+function renderBackupPreview(backup) {
+  document.getElementById('backupPreview').style.display = 'block';
+  const d = new Date(backup.createdAt);
+  const dateLabel = isNaN(d)
+    ? String(backup.createdAt)
+    : new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(d);
+  document.getElementById('backupPreviewMeta').textContent = `Копия от ${dateLabel} (формат v${backup.backupVersion})`;
+  const keys = ['categories', ...BACKUP_ENTITY_ORDER];
+  document.getElementById('backupPreviewCounts').innerHTML = keys.map(key => {
+    const n = Array.isArray(backup.tables[key]) ? backup.tables[key].length : 0;
+    return `${escapeHtml(BACKUP_TABLE_LABELS[key] || key)}: ${n}`;
+  }).join('<br>');
+  document.getElementById('backupModeReplace').checked = true;
+}
+
+let pendingBackup = null;
+
+function openBackupSheet() {
+  document.getElementById('backupLoginHint').style.display = currentUser ? 'none' : '';
+  document.getElementById('backupActionsSection').style.display = currentUser ? '' : 'none';
+  pendingBackup = null;
+  document.getElementById('backupPreview').style.display = 'none';
+  renderBackupLastExportNote();
+  document.getElementById('backupSheetOverlay').classList.add('visible');
+}
+function closeBackupSheet() {
+  document.getElementById('backupSheetOverlay').classList.remove('visible');
+}
+document.getElementById('settingsBtn').addEventListener('click', openBackupSheet);
+document.getElementById('backupSheetCloseBtn').addEventListener('click', closeBackupSheet);
+document.getElementById('backupSheetOverlay').addEventListener('click', (e) => {
+  if (e.target.id === 'backupSheetOverlay') closeBackupSheet();
+});
+document.getElementById('backupExportBtn').addEventListener('click', exportBackup);
+
+document.getElementById('backupRestoreBtn').addEventListener('click', () => {
+  if (!currentUser) { toast('Войдите в аккаунт, чтобы восстановить данные'); return; }
+  document.getElementById('backupFileInput').click();
+});
+document.getElementById('backupFileInput').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  e.target.value = ''; // позволяет выбрать тот же файл ещё раз (иначе change не сработает повторно)
+  if (!file) return;
+  let parsed;
+  try {
+    parsed = JSON.parse(await file.text());
+  } catch (err) {
+    toast('Файл повреждён или не является резервной копией (не JSON)', 4000);
+    return;
+  }
+  if (!parsed || typeof parsed !== 'object' || !parsed.tables || typeof parsed.backupVersion !== 'number') {
+    toast('Файл не похож на резервную копию этого приложения', 4000);
+    return;
+  }
+  if (parsed.backupVersion > BACKUP_VERSION) {
+    toast(`Эта копия сделана более новой версией приложения (формат v${parsed.backupVersion}) — обновите приложение перед восстановлением`, 5500);
+    return;
+  }
+  pendingBackup = parsed;
+  renderBackupPreview(parsed);
+});
+document.getElementById('backupPreviewCancelBtn').addEventListener('click', () => {
+  pendingBackup = null;
+  document.getElementById('backupPreview').style.display = 'none';
+});
+document.getElementById('backupPreviewConfirmBtn').addEventListener('click', async () => {
+  if (!pendingBackup || !currentUser) return;
+  const mode = document.querySelector('input[name="backupRestoreMode"]:checked').value;
+  const ok = await confirmDialog(
+    mode === 'replace'
+      ? 'Текущие данные будут удалены и заменены данными из резервной копии.'
+      : 'Данные из резервной копии будут добавлены к текущим данным — возможны повторы операций.',
+    { submessage: 'Это действие нельзя отменить.', confirmLabel: 'Восстановить', cancelLabel: 'Отмена' }
+  );
+  if (!ok) return;
+  const btn = document.getElementById('backupPreviewConfirmBtn');
+  const prevText = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Восстановление…';
+  try {
+    await performBackupRestore(pendingBackup, mode);
+    pendingBackup = null;
+    document.getElementById('backupPreview').style.display = 'none';
+    closeBackupSheet();
+    await loadAll();
+    renderEverything();
+    toast('Данные восстановлены');
+  } catch (err) {
+    toast('Восстановление не удалось: ' + (err && err.message ? err.message : 'ошибка') + ' — изменения отменены', 5500);
+  } finally {
+    btn.disabled = false; btn.textContent = prevText;
+  }
 });
 
 // F1 (2026-07-17): свайп по карточке-строке списка открывает меню действий этой строки
@@ -4854,6 +5204,10 @@ function populateCategorySelect() {
   // toggle Название sub-select
   sel.onchange = () => {
     categoryManuallySet = true;
+    // Категория уже выбрана (вручную, чипом или через applyCategorySuggestion) — блокирующая
+    // инлайн-подсказка больше не актуальна визуально. pendingSuggestion НЕ трогаем: submitTxSheet
+    // использует его для лога «принята/исправлена» (см. комментарий у applySuggestionByConfidenceTier).
+    hideCatSuggestion();
     if (sel.value === '__new__') {
       document.getElementById('newCatInline').classList.add('visible');
       document.getElementById('nameRow').classList.remove('visible');
@@ -5030,7 +5384,7 @@ function labelForSuggestion(s) {
   return s.category + (s.subcategory ? ' · ' + s.subcategory : '');
 }
 function showCatSuggestion(s) {
-  document.getElementById('catSuggestionText').textContent = `Предполагаемая категория: ${labelForSuggestion(s)}`;
+  document.getElementById('catSuggestionText').textContent = `Похоже, это ${labelForSuggestion(s)} —`;
   document.getElementById('catSuggestion').style.display = 'flex';
 }
 function hideCatSuggestion() {
@@ -5056,6 +5410,13 @@ document.getElementById('catSuggestionAcceptBtn').addEventListener('click', () =
 document.getElementById('catSuggestionDismissBtn').addEventListener('click', () => {
   pendingSuggestion = null;
   hideCatSuggestion();
+  // «Изменить» — раскрывает advanced-блок (категория живёт там) и переводит фокус на неё,
+  // чтобы отклонение подсказки реально вело к возможности выбрать категорию вручную.
+  const body = document.getElementById('sheetFullFields');
+  if (getComputedStyle(body).display === 'none') {
+    toggleAddForm('sheetFullFields', document.getElementById('txAdvancedToggleBtn'));
+  }
+  document.getElementById('categorySelect').focus();
 });
 
 const aiAutoCatToggle = document.getElementById('aiAutoCatToggle');
