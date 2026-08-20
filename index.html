@@ -362,18 +362,6 @@
   .growth-indicator.partial { color: var(--text-muted); font-weight: 500; font-style: italic; }
   /* A3 (2026-07-17): фраза-прогноз в hero, компактный ряд метрик, лента «Предстоит» */
   .hero-forecast { font-size: 12.5px; color: rgba(255,255,255,0.92); margin-top: 8px; line-height: 1.35; }
-  /* §6.4/§6.5 (2026-07-18): крупные карточки Доход/Расход + строка «Долги» */
-  .io-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
-  .io-card { text-align: left; background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius-sm); box-shadow: var(--shadow-soft); padding: 14px; cursor: pointer; }
-  .io-label { font-size: 13px; color: var(--text-secondary); font-weight: 600; margin-bottom: 4px; }
-  .io-value { font-family: 'Manrope', sans-serif; font-weight: 800; font-size: 20px; font-variant-numeric: tabular-nums; white-space: nowrap; }
-  .io-income .io-value { color: var(--income-accent); }
-  .io-expense .io-value { color: var(--expense-accent); }
-  .debts-row { display: flex; align-items: center; justify-content: space-between; width: 100%; background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius-sm); box-shadow: var(--shadow-soft); padding: 0 14px; min-height: 52px; margin-bottom: 22px; cursor: pointer; }
-  .debts-row-label { font-size: 14px; font-weight: 600; color: var(--text-primary); }
-  .debts-row-right { display: flex; align-items: center; gap: 6px; }
-  .debts-row-value { font-family: 'Manrope', sans-serif; font-weight: 800; font-size: 16px; font-variant-numeric: tabular-nums; color: var(--warning); }
-  .debts-row-right svg { width: 18px; height: 18px; color: var(--text-muted); }
 
   /* §Compact (2026-08-19): KPI-строка текущего месяца — заменяет прежние отдельные крупные
      карточки «Долги»/«Этот месяц» (ТЗ §3.2). 2×2 по умолчанию (мобильный/узкий планшет), 4 в ряд
@@ -716,8 +704,6 @@
   .discrepancy-note .dn-btn.dn-primary { background: var(--btn-primary); border-color: var(--btn-primary); color: #fff; }
 
   /* ===================== ГЛАВНАЯ ВОКРУГ ОСТАТКА (ТЗ 2026-07-24) ===================== */
-  /* «Этот месяц» — компактный блок фактических расходов/доходов + текстовое сравнение. */
-  .month-summary-panel h2 { margin-bottom: 12px; }
   .month-compare-note { font-size: 12.5px; color: var(--text-secondary); margin-top: 10px; line-height: 1.4; }
   .month-compare-note .mc-up { color: var(--expense-accent); font-weight: 600; }
   .month-compare-note .mc-down { color: var(--income-accent); font-weight: 600; }
@@ -759,13 +745,6 @@
   .ec-is-today .ec-day-dow, .ec-is-today .ec-day-num { color: var(--btn-primary); }
   .ec-is-today { box-shadow: inset 0 0 0 1.5px var(--btn-primary); }
   .expense-check-summary { font-size: 12.5px; color: var(--text-secondary); margin-bottom: 4px; }
-
-  /* «Долги» — компактная сводка (кнопка-строка + count/«Подробнее» под ней). */
-  .debts-compact-panel { margin-bottom: 22px; }
-  .debts-compact-panel .debts-row { margin-bottom: 0; }
-  .debts-compact-footer { display: flex; align-items: center; justify-content: space-between; padding: 8px 2px 0; }
-  .debts-compact-count { font-size: 12.5px; color: var(--text-secondary); }
-  .debts-detail-link { background: none; border: none; color: var(--btn-primary); font-size: 12.5px; font-weight: 600; cursor: pointer; padding: 6px 2px; min-height: 44px; }
 
   /* Итоговая сводка по выбранному человеку (клик по карточке в «Долги по людям»). */
   .debt-person-summary { display: flex; gap: 10px; margin: 12px 0 0; padding: 12px 14px; background: var(--bg-secondary); border-radius: var(--radius-sm); flex-wrap: wrap; }
@@ -2227,7 +2206,8 @@
 
   <!-- §6.9: краткая аналитическая карточка → ведёт на экран «Аналитика». Разметка не менялась
        (2026-08-19) — постоянно скрыта на главной (ТЗ §5 «Аналитика не должна жить на главной»),
-       см. CSS-правило рядом с .home-col-right (теперь безусловное, не только ≥900px). -->
+       см. правило `#analyticsTeaser, #aiSummaryPanel { display: none; }` в <style> (теперь
+       безусловное, не только ≥900px). -->
   <button type="button" class="panel analytics-teaser" id="analyticsTeaser">
     <h2 style="margin-bottom:6px;"><i data-lucide="bar-chart-3" style="width:18px;height:18px;vertical-align:-3px;"></i> Аналитика месяца</h2>
     <div class="analytics-teaser-text" id="analyticsTeaserText"></div>
@@ -10682,8 +10662,6 @@ function renderSummary() {
   setKpi('sumIncomeMonth', fmt.format(incomePeriod));
   setKpi('sumExpenseMonth', fmt.format(expensePeriod));
   setKpi('debtsMonthTotal', fmt.format(computeUnpaidDebtsTotal()));
-  const unpaidDebtsCount = state.debts.filter(d => !d.is_paid).length;
-  setKpi('debtsMonthCount', unpaidDebtsCount ? `${unpaidDebtsCount} ${pluralDolg(unpaidDebtsCount)}` : '');
   // Главный показатель остатка — карточка «Реальный остаток семьи» (renderRealBalance).
   // «Баланс месяца» (доход − расход за период, §Compact 2026-08-19, ТЗ §3.2) — четвёртая KPI-плитка
   // рядом с Доходы/Расходы/Долги; тот же расчёт, что уже был у расшифровки kind='balance'
