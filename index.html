@@ -374,6 +374,41 @@
   .debts-row-right { display: flex; align-items: center; gap: 6px; }
   .debts-row-value { font-family: 'Manrope', sans-serif; font-weight: 800; font-size: 16px; font-variant-numeric: tabular-nums; color: var(--warning); }
   .debts-row-right svg { width: 18px; height: 18px; color: var(--text-muted); }
+
+  /* §Compact (2026-08-19): KPI-строка текущего месяца — заменяет прежние отдельные крупные
+     карточки «Долги»/«Этот месяц» (ТЗ §3.2). 2×2 по умолчанию (мобильный/узкий планшет), 4 в ряд
+     от 640px — тот же брейкпоинт-подход, что и у .summary-grid (repeat(auto-fit)) в проекте,
+     здесь фиксированное число колонок, т.к. плиток ровно 4. */
+  .home-kpi-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  @media (min-width: 640px) { .home-kpi-row { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+  .home-kpi-tile { text-align: left; background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius-sm); box-shadow: var(--shadow-soft); padding: 12px 14px; cursor: pointer; }
+  .home-kpi-label { font-size: 12px; color: var(--text-secondary); font-weight: 600; margin-bottom: 4px; }
+  .home-kpi-value { font-family: 'Manrope', sans-serif; font-weight: 800; font-size: 17px; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* Быстрые действия — компактная строка вместо крупной красной полосы (ТЗ §3.3). 2×2 на мобильном,
+     4 в ряд от 480px (действия короче KPI-подписей, помещаются раньше). */
+  .home-quick-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 12px; }
+  @media (min-width: 480px) { .home-quick-actions { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+  .home-qa-btn {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    min-height: 44px; border-radius: var(--radius-sm); border: 1px solid var(--border);
+    background: var(--card-bg); color: var(--text-primary); font-weight: 700; font-size: 13.5px;
+    cursor: pointer;
+  }
+  .home-qa-btn svg { width: 17px; height: 17px; }
+  .home-qa-btn.home-qa-expense { background: var(--expense-bg); border-color: transparent; color: var(--expense-accent); }
+
+  /* Основной контрольный блок — три фиксированные колонки (ТЗ §3.4): каждая — обычный .panel,
+     компактный список внутри (макс. 4-5 строк — ограничение уже в JS, не в CSS) и одна ссылка
+     «Все … →» внизу вместо отдельной кнопки «Подробнее». */
+  .home-control-col h2 { margin-bottom: 10px; }
+  .home-col-link { display: block; margin-top: 10px; font-size: 12.5px; font-weight: 600; color: var(--btn-primary); cursor: pointer; }
+
+  /* Компактная строка карточек-переходов в разделы (ТЗ §3.5) — переиспользует существующий
+     .compact-feature-panel/.cfp-row (те же классы, что были у панелей «Покупки»/«Подписки» и
+     раньше), .home-shortcut-card добавляет только отсутствие нижнего margin внутри ряда. */
+  .home-shortcut-card { margin-bottom: 0; }
+
   .upcoming-row { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--border); }
   .upcoming-row:last-child { border-bottom: none; }
   .upcoming-ico { width: 30px; height: 30px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
@@ -460,6 +495,7 @@
   .kpi-break-updated { font-size: 11.5px; color: var(--text-muted, var(--text-secondary)); margin-top: 14px; }
   .kpi-break-ul { margin: 0 0 4px; padding-left: 18px; }
   .kpi-break-ul li { font-size: 13px; color: var(--text-primary); line-height: 1.5; }
+  .kpi-break-link { background: none; border: none; color: var(--btn-primary); font-size: 13px; font-weight: 700; cursor: pointer; padding: 0; margin-top: 16px; display: block; }
 
   .container {
     max-width: 1180px;
@@ -467,50 +503,61 @@
     padding: 28px 20px 60px;
   }
 
-  /* §IA (2026-07-24, ред. «главная вокруг остатка»); §Masonry (2026-08-18, устранение пустот в
-     колонках десктопа). Обёртки-колонки прозрачны на мобильном (<900px — одна колонка, порядок
-     блоков в исходном HTML = мобильный порядок, без JS). 900px+ — .home-top-pinned (остаток семьи
-     + «Добавить расход», самые приоритетные блоки — см. 05_DESIGN_SYSTEM.md) закреплён на всю
-     ширину НАД колонками, а не внутри них, чтобы не потеряться при перебалансировке; .home-masonry
-     оборачивает home-col-left/center/right и раскладывает их содержимое CSS-колонками
-     (column-count), а не CSS Grid — у Grid все элементы в одном grid-row делят одну высоту строки
-     по самому высокому среди них (раньше это и создавало гигантские пустые пролёты под короткими
-     левой/центральной колонками, пока в грид-ряду сидела длинная правая колонка), у column-count
-     колонки балансируются по фактической суммарной высоте контента, никакой общей «строки» нет.
-     .home-col остаётся display:contents (как и раньше) — это «растворяет» обёртки home-col-left/
-     center/right, так что их карточки становятся обычными элементами потока для column-count,
-     сохраняя при этом порядок DOM (колонки CSS columns заполняются последовательно по DOM-порядку,
-     поэтому «Долги»→«Этот месяц»→«Последние операции»→«Проверка расходов»→… остаются наверху).
-     .home-col-center-lower (тяжёлые таблицы/аналитика — DOM-порядок и структура ВНУТРИ неё не
-     менялись, см. initAnalyticsScreen(), index.html~4964) остаётся отдельным блоком на всю ширину
-     ПОСЛЕ .home-masonry — как и раньше, тяжёлые таблицы визуально в самом низу. */
-  .home-col, .home-top-pinned, .home-masonry { display: contents; }
+  /* §Compact (2026-08-19): главная — короткая панель контроля из пяти уровней (остаток → 4 KPI →
+     быстрые действия → 3 контрольные колонки → 4 карточки-переходы), см. 10_CHANGELOG.md.
+     Заменяет предыдущую §Masonry-раскладку (2026-08-18) — там решалась другая задача (сбалансировать
+     произвольное число разновысоких карточек по CSS-колонкам); теперь ролей всего 3+4, они
+     СЕМАНТИЧЕСКИ фиксированы (не взаимозаменяемы), поэтому это обычный CSS Grid с явным числом
+     колонок на брейкпоинт, без column-count-балансировки.
+     Мобильный (<900px): все обёртки прозрачны (display:contents), порядок блоков в исходном HTML
+     — уже мобильный порядок (ТЗ §9: Последние операции → Требует внимания → Впереди → shortcuts),
+     без JS. .home-col-center-lower (тяжёлые блоки, вынесенные с главной — таблица операций,
+     аналитика по категориям, календарь проверки расходов; relocateHomeOnlyPanels()/
+     initAnalyticsScreen() переносят их на вкладку «Аналитика»/«Покупки» при инициализации,
+     см. index.html~4958) остаётся пустой оболочкой на любой ширине — реального контента в ней
+     после переноса нет, кроме модалки формы операции. */
+  .home-col, .home-top-pinned, .home-control-grid { display: contents; }
+  /* Тизер «Аналитика месяца» и ИИ-сводка дублируют вкладку «Аналитика» — на главной не нужны ни на
+     какой ширине (ТЗ §5 «Аналитика не должна жить на главной»); сама разметка не удалена (она же
+     используется в initAnalyticsScreen() как источник relocation), просто всегда скрыта здесь. */
+  #analyticsTeaser, #aiSummaryPanel { display: none; }
+  /* Карточки-переходы (ТЗ §3.5) — 2×2 уже на мобильном (ТЗ §9), не только с планшета, поэтому
+     .home-shortcuts-row — обычный grid на любой ширине (в отличие от .home-control-grid, который
+     на мобильном — display:contents, чтобы 3 колонки стали последовательными блоками в нужном
+     мобильном порядке: Последние операции → Требует внимания → Впереди). */
+  .home-shortcuts-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 16px; }
+  .home-shortcuts-row > .panel { margin-bottom: 0; }
 
   /* Общие правила дашборда (планшет + десктоп): информационная иерархия. */
   @media (min-width: 900px) {
-    /* «Аналитика месяца»-тизер и ИИ-сводка не дублируют центр/аналитику на дашборде. Селектор
-       матчит #analyticsTeaser/#aiSummaryPanel и через display:contents-родителя (потомок в DOM
-       остаётся тем же, contents не убирает элемент из дерева — только не создаёт для родителя бокс). */
-    .home-col-right #analyticsTeaser,
-    .home-col-right #aiSummaryPanel { display: none; }
-    .home-top-pinned { display: block; margin-bottom: 20px; }
-    .home-top-pinned > .summary-grid { margin-bottom: 20px; } /* было 26px по умолчанию — держим прежний десктопный ритм */
-    .home-masonry { display: block; column-gap: 20px; }
-    .home-masonry .panel, .home-masonry .debts-compact-panel { break-inside: avoid; -webkit-column-break-inside: avoid; }
-    .home-col-center-lower { display: block; margin-top: 20px; }
+    .home-top-pinned { display: block; margin-bottom: 16px; }
+    .home-top-pinned > .summary-grid { margin-bottom: 12px; }
+    .home-control-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      margin-bottom: 16px;
+      align-items: start;
+    }
+    /* Планшет (2+1): третья колонка «Впереди» занимает вторую строку на всю ширину. */
+    .home-control-col:nth-child(3) { grid-column: 1 / -1; }
+    .home-shortcuts-row { gap: 14px; margin-top: 0; }
+    .home-control-col.panel { margin-bottom: 0; }
+    .home-col-center-lower { display: block; margin-top: 16px; }
   }
 
-  /* Планшет и малый десктоп: 2 колонки. */
+  /* Планшет и малый десктоп: контрольный блок 2+1, shortcuts 2×2 (ТЗ §8). */
   @media (min-width: 900px) and (max-width: 1099px) {
     .container { max-width: 1040px; }
-    .home-masonry { column-count: 2; }
     .home-col-center-lower .main-grid { grid-template-columns: 1fr; }
   }
 
-  /* Широкий десктоп: 3 колонки. */
+  /* Широкий десктоп: контрольный блок и shortcuts — по 3/4 колонки в ряд (ТЗ §7). */
   @media (min-width: 1100px) {
     .container { max-width: 1240px; }
-    .home-masonry { column-count: 3; }
+    .home-control-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .home-control-col:nth-child(3) { grid-column: auto; }
+    .home-shortcuts-row { grid-template-columns: repeat(4, minmax(0, 1fr)); }
     /* в узкой центральной колонке «Новая операция» встаёт над таблицей «Операции» */
     .home-col-center-lower .main-grid { grid-template-columns: 1fr; }
   }
@@ -632,6 +679,18 @@
   .rb-break-row .rb-pos { color: #B8F5D0; }
   .rb-history-link { background: none; border: none; color: rgba(255,255,255,0.92); font-size: 12.5px;
     font-weight: 600; text-decoration: underline; cursor: pointer; padding: 10px 0 0; display: block; }
+
+  /* §Compact (2026-08-19): компактный «Текущий остаток семьи» (ТЗ §3.1) — тот же renderRealBalance(),
+     только статус и кнопка «Сверить»/«Обновить» встали в одну строку вместо кнопки на всю ширину,
+     а «История остатков →» переехала внутрь раскрываемой расшифровки (не добавляет высоты, пока
+     свёрнуто). Целевая высота на desktop — примерно 100–125px в обычном состоянии. */
+  .summary-card.hero.compact { padding: 14px 18px; }
+  .summary-card.hero.compact .rb-amount { font-size: 26px; margin-top: 6px; }
+  .summary-card.hero.compact .rb-status-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 8px; flex-wrap: wrap; }
+  .summary-card.hero.compact .rb-status { margin-top: 0; }
+  .summary-card.hero.compact .rb-update-btn { margin-top: 0; width: auto; min-height: 32px; padding: 0 14px; font-size: 13px; flex-shrink: 0; }
+  .summary-card.hero.compact .rb-details-toggle { padding-top: 6px; }
+  .summary-card.hero.compact .rb-history-link { padding-top: 8px; }
 
   /* Пустое состояние (первый запуск) */
   .rb-empty-title { color: #fff; font-size: 16px; font-weight: 700; margin-top: 10px; }
@@ -2013,17 +2072,19 @@
   </div>
 
   <div id="budgetView">
-  <!-- §6 (2026-07-24), §Masonry (2026-08-18): десктоп-дашборд. На <900px обёртки прозрачны
-       (display:contents), порядок блоков остаётся мобильным; на 900px+ .home-top-pinned держит
-       самые приоритетные блоки на всю ширину сверху, .home-masonry раскладывает остальное
-       CSS-колонками (см. комментарий у .home-col в <style> — там же обоснование ухода от Grid). -->
+  <!-- §Compact (2026-08-19): главная — короткая панель контроля, не дашборд/аналитика/список
+       операций разом (см. 10_CHANGELOG.md). На <900px обёртки прозрачны (display:contents),
+       порядок блоков в исходном HTML = мобильный порядок (ТЗ §9); на 900px+ .home-top-pinned
+       держит остаток/KPI/действия на всю ширину сверху, .home-control-grid — три ФИКСИРОВАННЫЕ
+       колонки (не masonry — роли колонок разные по смыслу, не взаимозаменяемые карточки),
+       .home-shortcuts-row — четыре компактные карточки-переходы в разделы. -->
   <div class="home-grid">
   <div class="home-top-pinned">
-  <!-- Реальный остаток семьи (ТЗ 2026-07-24): главный показатель, самый заметный блок страницы.
-       Закреплён вне .home-masonry (2026-08-18) — приоритетная карточка не должна теряться в
-       общей массе при перебалансировке колонок (см. 05_DESIGN_SYSTEM.md, иерархия). -->
+  <!-- 3.1 Реальный остаток семьи — компактный (ТЗ §3.1): главный показатель, но без крупной
+       кнопки на всю ширину. Состояния (загрузка/ошибка/пусто/скелетон) рендерит renderRealBalance()
+       без изменений — компактность достигнута только CSS (см. .real-balance-card.compact). -->
   <div class="summary-grid">
-    <div class="summary-card balance hero real-balance-card" id="realBalanceCard">
+    <div class="summary-card balance hero real-balance-card compact" id="realBalanceCard">
       <div class="hero-top-row">
         <div class="rb-icon-title">
           <img class="rb-icon" src="icons/balance.png" alt="" decoding="async" id="realBalanceIcon">
@@ -2035,141 +2096,138 @@
     </div>
   </div>
 
-  <!-- Быстрые действия (ТЗ §8): «Добавить расход» — первое, самое заметное действие. -->
-  <div class="quick-actions-v2" id="quickActionsV2">
-    <button type="button" class="qa-primary" id="qaAddExpense" aria-label="Добавить расход">
-      <i data-lucide="minus-circle"></i><span>Добавить расход</span>
+  <!-- 3.2 KPI текущего месяца — заменяет прежние отдельные крупные карточки «Долги»/«Этот месяц»
+       (ТЗ §3.2). Те же id (sumIncomeMonth/sumExpenseMonth/debtsMonthTotal), что и раньше — их
+       по-прежнему пишет renderSummary(); monthBalanceValue — новое, тоже из renderSummary()
+       (income − expense за период, без новых Supabase-запросов). data-kpi переиспользует
+       существующий openKpiBreakdownFor()/openKpiBreakdown() — 'balance' там уже был реализован
+       (использовался в других расшифровках), просто не был вынесен в отдельную видимую KPI-плитку. -->
+  <div class="home-kpi-row" id="homeKpiRow">
+    <button type="button" class="home-kpi-tile kpi-clickable" data-kpi="income" title="Как это посчитано?" aria-label="Доход за период, показать расшифровку">
+      <div class="home-kpi-label">Доходы</div>
+      <div class="home-kpi-value amount-income" id="sumIncomeMonth">—</div>
     </button>
-    <div class="qa-secondary-row">
-      <button type="button" class="qa-secondary" id="qaAddIncome" aria-label="Добавить доход">
-        <span class="qa-sec-icon qa-sec-income"><i data-lucide="plus-circle"></i></span><span>Доход</span>
-      </button>
-      <button type="button" class="qa-secondary" id="qaAddDebt" aria-label="Долг по людям">
-        <span class="qa-sec-icon qa-sec-debt"><i data-lucide="users"></i></span><span>Долг</span>
-      </button>
-      <button type="button" class="qa-secondary" id="qaAddPurchase" aria-label="Покупки">
-        <span class="qa-sec-icon qa-sec-purchase"><i data-lucide="shopping-cart"></i></span><span>Покупка</span>
-      </button>
-    </div>
+    <button type="button" class="home-kpi-tile kpi-clickable" data-kpi="expense" title="Как это посчитано?" aria-label="Расход за период, показать расшифровку">
+      <div class="home-kpi-label">Расходы</div>
+      <div class="home-kpi-value amount-expense" id="sumExpenseMonth">—</div>
+    </button>
+    <button type="button" class="home-kpi-tile kpi-clickable" data-kpi="debts" title="Как это посчитано?" aria-label="Долги, показать расшифровку">
+      <div class="home-kpi-label">Долги</div>
+      <div class="home-kpi-value" id="debtsMonthTotal">—</div>
+    </button>
+    <button type="button" class="home-kpi-tile kpi-clickable" data-kpi="balance" title="Как это посчитано?" aria-label="Баланс месяца, показать расшифровку">
+      <div class="home-kpi-label">Баланс месяца</div>
+      <div class="home-kpi-value" id="monthBalanceValue">—</div>
+    </button>
+  </div>
+  <div class="month-compare-note" id="monthCompareNote"></div>
+
+  <!-- 3.3 Быстрые действия — одна компактная строка вместо крупной красной полосы (ТЗ §3.3).
+       Те же id и обработчики (openTxSheet()/setKind()/switchPageTab()), новой логики нет. -->
+  <div class="home-quick-actions" id="quickActionsV2">
+    <button type="button" class="home-qa-btn home-qa-expense" id="qaAddExpense" aria-label="Добавить расход">
+      <i data-lucide="minus-circle"></i><span>Расход</span>
+    </button>
+    <button type="button" class="home-qa-btn" id="qaAddIncome" aria-label="Добавить доход">
+      <i data-lucide="plus-circle"></i><span>Доход</span>
+    </button>
+    <button type="button" class="home-qa-btn" id="qaAddPurchase" aria-label="Покупки">
+      <i data-lucide="shopping-cart"></i><span>Покупка</span>
+    </button>
+    <button type="button" class="home-qa-btn" id="qaAddDebt" aria-label="Долг по людям">
+      <i data-lucide="users"></i><span>Долг</span>
+    </button>
   </div>
   </div><!-- /home-top-pinned -->
 
-  <div class="home-masonry">
-  <div class="home-col home-col-left">
-  <!-- Долги (ТЗ §12): краткая сводка, не длинный список. -->
-  <div class="debts-compact-panel">
-    <button type="button" class="debts-row kpi-clickable" data-kpi="debts" title="Как это посчитано?" aria-label="Долги, показать расшифровку">
-      <span class="debts-row-label">Долги</span>
-      <span class="debts-row-right"><span class="debts-row-value" id="debtsMonthTotal">—</span> <i data-lucide="chevron-right"></i></span>
-    </button>
-    <div class="debts-compact-footer">
-      <span class="debts-compact-count" id="debtsMonthCount"></span>
-      <button type="button" class="debts-detail-link" id="debtsDetailLink">Подробнее</button>
+  <!-- 3.4 Основной контрольный блок — три ФИКСИРОВАННЫЕ колонки по смыслу (ТЗ §3.4), не masonry:
+       «Последние операции» (те же renderRecentTransactions(), макс. 5 — без изменений),
+       «Требует внимания» (renderDiscrepancyNote(), теперь компактная, без большого пустого
+       состояния — см. JS), «Впереди» (renderUpcomingFeed(), теперь макс. 4 — заменяет отдельную
+       «Ближайшие платежи», которая показывала только часть тех же данных). -->
+  <div class="home-control-grid">
+    <div class="home-control-col panel" id="recentTxPanel">
+      <h2>Последние операции</h2>
+      <div id="recentTxList"></div>
+      <span class="home-col-link" id="recentTxSeeAllBtn">Все операции →</span>
+    </div>
+
+    <div class="home-control-col panel" id="discrepancyPanel">
+      <h2>Требует внимания</h2>
+      <div class="discrepancy-note" id="discrepancyNote"></div>
+    </div>
+
+    <div class="home-control-col panel" id="upcomingFeedPanel">
+      <h2>Впереди</h2>
+      <div id="upcomingFeed"></div>
+      <span class="home-col-link" id="upcomingSeeAllLink">Все события →</span>
     </div>
   </div>
-  </div><!-- /home-col-left -->
 
-  <div class="home-col home-col-center">
-  <!-- Этот месяц (ТЗ §9): только фактически внесённые операции — без плана/прогноза/лимита. -->
-  <div class="panel month-summary-panel" id="monthSummaryPanel">
-    <h2>Этот месяц</h2>
-    <div class="io-cards" style="margin-bottom:0;">
-      <button type="button" class="io-card io-income kpi-clickable" data-kpi="income" title="Как это посчитано?" aria-label="Доход за период, показать расшифровку">
-        <div class="io-label">Доходы</div>
-        <div class="io-value" id="sumIncomeMonth">—</div>
-      </button>
-      <button type="button" class="io-card io-expense kpi-clickable" data-kpi="expense" title="Как это посчитано?" aria-label="Расход за период, показать расшифровку">
-        <div class="io-label">Расходы</div>
-        <div class="io-value" id="sumExpenseMonth">—</div>
-      </button>
+  <!-- 3.5 Компактная строка разделов — навигационные ярлыки (ТЗ §3.5), максимум 2 значения на
+       карточку. Те же id/renderHomeCreditsWidget()/renderHomeSubscriptionsWidget()/
+       renderHomeShoppingWidget()/renderHomeGoalsWidget(), которые раньше показывали до 4 строк —
+       тела виджетов подрезаны до 2 (см. JS), сама разметка карточек не менялась. -->
+  <div class="home-shortcuts-row">
+    <div class="panel compact-feature-panel home-shortcut-card" id="homeCreditsPanel">
+      <h2 style="justify-content:space-between;">
+        <span>Кредиты</span>
+        <span class="badge-info badge-normalcase" id="homeCreditsBadge"></span>
+      </h2>
+      <div id="homeCreditsBody"></div>
+      <button type="button" class="btn-ghost compact-detail-btn" id="homeCreditsDetailBtn">Подробнее</button>
     </div>
-    <div class="month-compare-note" id="monthCompareNote"></div>
+
+    <div class="panel compact-feature-panel home-shortcut-card" id="homeSubscriptionsPanel">
+      <h2 style="justify-content:space-between;">
+        <span>Подписки</span>
+        <span class="badge-info badge-normalcase" id="homeSubscriptionsBadge"></span>
+      </h2>
+      <div id="homeSubscriptionsBody"></div>
+      <button type="button" class="btn-ghost compact-detail-btn" id="homeSubscriptionsDetailBtn">Подробнее</button>
+    </div>
+
+    <div class="panel compact-feature-panel home-shortcut-card" id="homeShoppingPanel">
+      <h2 style="justify-content:space-between;">
+        <span>Покупки</span>
+        <span class="badge-info badge-normalcase" id="homeShoppingBadge"></span>
+      </h2>
+      <div id="homeShoppingBody"></div>
+      <button type="button" class="btn-ghost compact-detail-btn" id="homeShoppingDetailBtn">Подробнее</button>
+    </div>
+
+    <div class="panel compact-feature-panel home-shortcut-card" id="homeGoalsPanel">
+      <h2 style="justify-content:space-between;">
+        <span>Цель</span>
+        <span class="badge-info badge-normalcase" id="homeGoalsBadge"></span>
+      </h2>
+      <div id="homeGoalsBody"></div>
+      <button type="button" class="btn-ghost compact-detail-btn" id="homeGoalsDetailBtn">Подробнее</button>
+    </div>
   </div>
 
-  <div class="panel" id="recentTxPanel">
-    <h2 style="justify-content:space-between;">
-      <span>Последние операции</span>
-      <span class="badge-info" id="recentTxSeeAllBtn" style="cursor:pointer;">Все операции →</span>
-    </h2>
-    <div id="recentTxList"></div>
-  </div>
+  <!-- Нижняя часть — вынесенные с главной тяжёлые блоки (полная таблица операций, аналитика по
+       категориям, календарь проверки расходов, список покупок на сегодня) физически остаются
+       здесь в DOM (модалка формы операции тоже здесь), но relocateHomeOnlyPanels() переносит их
+       на вкладку «Аналитика»/«Покупки» при инициализации (см. JS) — сама разметка карточек не
+       менялась, только адрес. -->
+  <div class="home-col home-col-center-lower">
 
   <!-- ТЗ №3 (2026-07-24) «Календарь проверки расходов»: компактный блок последних 7 дней.
        Статус «Проверен» ставится ТОЛЬКО вручную — наличие операций само по себе не переводит
-       день в проверенный (см. getDayStatus). -->
+       день в проверенный (см. getDayStatus). Разметка не менялась (2026-08-19) — только адрес:
+       relocateHomeOnlyPanels() переносит этот узел на вкладку «Аналитика» при инициализации,
+       т.к. на компактной главной для отдельного календаря нет места (ТЗ §4). -->
   <div class="panel" id="expenseCheckPanel">
     <h2><span>Проверка расходов</span></h2>
     <div class="expense-check-days" id="expenseCheckDays"></div>
     <div class="expense-check-summary" id="expenseCheckSummary"></div>
     <button type="button" class="btn-ghost compact-detail-btn" id="expenseCheckOpenCalendarBtn">Открыть календарь</button>
   </div>
-  </div><!-- /home-col-center (верхняя часть: месяц + последние операции) -->
 
-  <div class="home-col home-col-right">
-
-  <!-- Ближайшие платежи (ТЗ §11): максимум 3, справочная сумма — без вычитания из остатка. -->
-  <div class="panel" id="upcomingPaymentsPanel">
-    <h2 style="justify-content:space-between;">
-      <span>Ближайшие платежи</span>
-      <span class="badge-info badge-normalcase" id="upcomingPaymentsBadge"></span>
-    </h2>
-    <div id="upcomingPaymentsList"></div>
-  </div>
-
-  <!-- Покупки (ТЗ §13): компактная сводка, ниже расходов/операций. -->
-  <div class="panel compact-feature-panel" id="homeShoppingPanel">
-    <h2 style="justify-content:space-between;">
-      <span>Покупки</span>
-      <span class="badge-info badge-normalcase" id="homeShoppingBadge"></span>
-    </h2>
-    <div id="homeShoppingBody"></div>
-    <button type="button" class="btn-ghost compact-detail-btn" id="homeShoppingDetailBtn">Подробнее</button>
-  </div>
-
-  <!-- Подписки (ТЗ §13): компактная сводка. -->
-  <div class="panel compact-feature-panel" id="homeSubscriptionsPanel">
-    <h2 style="justify-content:space-between;">
-      <span>Подписки</span>
-      <span class="badge-info badge-normalcase" id="homeSubscriptionsBadge"></span>
-    </h2>
-    <div id="homeSubscriptionsBody"></div>
-    <button type="button" class="btn-ghost compact-detail-btn" id="homeSubscriptionsDetailBtn">Подробнее</button>
-  </div>
-
-  <!-- Кредиты (2026-07-25, этап 1): компактная сводка — не смешивается с блоком «Долги» выше. -->
-  <div class="panel compact-feature-panel" id="homeCreditsPanel">
-    <h2 style="justify-content:space-between;">
-      <span>Кредиты</span>
-      <span class="badge-info badge-normalcase" id="homeCreditsBadge"></span>
-    </h2>
-    <div id="homeCreditsBody"></div>
-    <button type="button" class="btn-ghost compact-detail-btn" id="homeCreditsDetailBtn">Подробнее</button>
-  </div>
-
-  <!-- Цели (2026-07-25, этап 2): компактная сводка — прогресс и базовый прогноз одной цели. -->
-  <div class="panel compact-feature-panel" id="homeGoalsPanel">
-    <h2 style="justify-content:space-between;">
-      <span>Цели</span>
-      <span class="badge-info badge-normalcase" id="homeGoalsBadge"></span>
-    </h2>
-    <div id="homeGoalsBody"></div>
-    <button type="button" class="btn-ghost compact-detail-btn" id="homeGoalsDetailBtn">Подробнее</button>
-  </div>
-
-  <!-- Сверка операций (ТЗ §14): справочное расхождение, не главное предупреждение страницы. -->
-  <div class="panel" id="discrepancyPanel" style="display:none;">
-    <h2>Сверка операций</h2>
-    <div class="discrepancy-note" id="discrepancyNote"></div>
-  </div>
-
-  <!-- A3: единая лента предстоящих движений за месяц (подписки + ежемес. расходы + ожид. доходы) —
-       второстепенный блок, дополняет компактные «Ближайшие платежи» выше. -->
-  <div class="panel" id="upcomingFeedPanel">
-    <h2>Предстоит в этом месяце</h2>
-    <div id="upcomingFeed"></div>
-  </div>
-
-  <!-- §6.9: краткая аналитическая карточка → ведёт на экран «Аналитика» -->
+  <!-- §6.9: краткая аналитическая карточка → ведёт на экран «Аналитика». Разметка не менялась
+       (2026-08-19) — постоянно скрыта на главной (ТЗ §5 «Аналитика не должна жить на главной»),
+       см. CSS-правило рядом с .home-col-right (теперь безусловное, не только ≥900px). -->
   <button type="button" class="panel analytics-teaser" id="analyticsTeaser">
     <h2 style="margin-bottom:6px;"><i data-lucide="bar-chart-3" style="width:18px;height:18px;vertical-align:-3px;"></i> Аналитика месяца</h2>
     <div class="analytics-teaser-text" id="analyticsTeaserText"></div>
@@ -2188,7 +2246,12 @@
     <button type="button" class="btn-secondary" id="aiSummaryBtn" style="width:auto; padding:0 18px; height:38px;">Получить сводку</button>
   </div>
 
-  <div class="panel">
+  <!-- «Список покупок на сегодня» (shopping_notes) — раньше существовал ТОЛЬКО на главной, в
+       разделе «Покупки» (shoppingView) такого блока не было. Разметка не менялась (2026-08-19) —
+       relocateHomeOnlyPanels() переносит этот узел в #shoppingView (ТЗ §4/§11: подробное
+       добавление покупок — в разделе «Покупки» либо через «+ Покупка»), функциональность
+       (голосовой ввод, чек-лист) сохранена полностью, просто не на главной. -->
+  <div class="panel" id="notepadPanel">
     <h2 style="justify-content:space-between;">
       <span><i data-lucide="notebook-pen"></i> Список покупок на сегодня</span>
       <span class="badge-info" id="notepadDateLabel"></span>
@@ -2201,13 +2264,7 @@
     <ul class="notepad-list" id="notepadList"></ul>
     <div class="empty-note" id="notepadEmptyNote" style="display:none;">Список пуст — добавьте что-нибудь голосом или текстом</div>
   </div>
-  </div><!-- /home-col-right -->
-  </div><!-- /home-masonry -->
-  <!-- Нижняя часть центральной колонки (аналитика/операции целиком) размещена ПОСЛЕ home-masonry
-       в исходном порядке — на мобильном это даёт нужный порядок блоков (ТЗ §4: месяц/операции
-       выше платежей/покупок/подписок, а тяжёлые таблицы — ниже всего); на десктопе/планшете —
-       отдельный блок на всю ширину под колонками (см. CSS, §Masonry). -->
-  <div class="home-col home-col-center-lower">
+
   <div class="main-grid">
     <!-- FORM: на мобильном — bottom sheet; на десктопе/планшете (≥768px) — модальное окно,
          открывается быстрым действием «Новая операция» или «+» в нижней навигации (§6.3: форма
@@ -4534,9 +4591,19 @@ document.getElementById('pinBtn').addEventListener('click', () => {
   (hasPin ? pinCurrentDigits : pinNewDigits).focus();
 });
 
+// Полная таблица операций теперь на вкладке «Аналитика» (ТЗ §4/§Compact 2026-08-19) — не на
+// главной, поэтому «Все операции →» переключает вкладку, а не скроллит по текущей странице.
 document.getElementById('recentTxSeeAllBtn').addEventListener('click', () => {
-  document.getElementById('txPanel').scrollIntoView({ behavior: 'smooth' });
+  switchPageTab('analytics');
+  requestAnimationFrame(() => {
+    const tx = document.getElementById('txPanel');
+    if (tx) tx.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
 });
+// «Впереди» (ТЗ §3.4 колонка 3) объединяет ежемесячные расходы + подписки + ожидаемые доходы —
+// полное управление ими живёт на вкладке «Аналитика» (там же «Регулярные платежи»), «Все события →»
+// ведёт туда же, без выделенного якоря (там несколько разделов, не один).
+document.getElementById('upcomingSeeAllLink').addEventListener('click', () => switchPageTab('analytics'));
 document.getElementById('pinCancelBtn').addEventListener('click', () => {
   document.getElementById('pinModalOverlay').classList.remove('visible');
 });
@@ -4905,7 +4972,6 @@ document.getElementById('qaAddExpense').addEventListener('click', () => { openTx
 document.getElementById('qaAddIncome').addEventListener('click', () => { openTxSheet(); setKind('income'); });
 document.getElementById('qaAddDebt').addEventListener('click', () => switchPageTab('debts'));
 document.getElementById('qaAddPurchase').addEventListener('click', () => switchPageTab('shopping'));
-document.getElementById('debtsDetailLink').addEventListener('click', () => switchPageTab('debts'));
 document.getElementById('homeShoppingDetailBtn').addEventListener('click', () => switchPageTab('shopping'));
 document.getElementById('homeSubscriptionsDetailBtn').addEventListener('click', () => switchPageTab('analytics'));
 document.getElementById('txSheetCloseBtn').addEventListener('click', closeTxSheet);
@@ -4953,37 +5019,51 @@ function renderAnalyticsCharts() {
   renderCategoryRanking('expenseCategoryRanking', 'expense');
   if (window.lucide) lucide.createIcons();
 }
-// Размещение аналитических панелей (один раз, на инициализации). На десктопе (≥1100px) — часть
-// панелей переносится прямо в колонки главной (дашборд); на мобильном/планшете — всё на вкладке
-// «Аналитика», как раньше. Крупные графики всегда живут на вкладке «Аналитика».
+// Размещение аналитических/тяжёлых панелей (один раз, на инициализации). §Compact (2026-08-19):
+// главная — короткая панель контроля (см. ТЗ в 10_CHANGELOG.md), поэтому ВСЕ подробные блоки —
+// таблица операций целиком, разбивка по категориям, сравнение периодов, календарь проверки
+// расходов — теперь безусловно уезжают на вкладку «Аналитика», независимо от ширины экрана
+// (раньше часть из них на десктопе/планшете оставалась прямо на дашборде — эта ветка убрана,
+// см. git-историю). Крупные графики и полные панели «Ежемесячные расходы»/«Подписки» и раньше
+// всегда жили на «Аналитике» — эта часть не менялась.
 let analyticsRelocated = false;
 function initAnalyticsScreen() {
   if (analyticsRelocated) return;
   const body = document.getElementById('analyticsBody');
   if (!body) return;
   const mv = id => document.getElementById(id);
-  // Дашборд-раскладка активна и на планшете (2 колонки), и на десктопе (3 колонки) — от 900px.
-  // На <900px (мобильный) — прежнее поведение: всё на вкладке «Аналитика».
-  const dashboard = window.innerWidth >= 900;
-  const centerLower = document.querySelector('.home-col-center-lower');
 
   // Крупные графики — всегда на вкладке «Аналитика».
   ['expenseOverviewPanel', 'dynamicsPanel'].forEach(id => { const el = mv(id); if (el) body.appendChild(el); });
 
-  if (dashboard && centerLower) {
-    // Дашборд (ТЗ §16): «основная аналитика» центральной колонки — расходы по категориям и
-    // сравнение периодов, над таблицей операций.
-    const mainGrid = centerLower.querySelector('.main-grid');
-    ['categoryRankingGrid', 'periodComparisonPanel'].forEach(id => { const el = mv(id); if (el && mainGrid) centerLower.insertBefore(el, mainGrid); });
-  } else {
-    // Мобильный (<900px): сравнение периодов и категории — на вкладке «Аналитика».
-    ['periodComparisonPanel', 'categoryRankingGrid'].forEach(id => { const el = mv(id); if (el) body.appendChild(el); });
-  }
+  // §Compact: расходы/доходы по категориям, сравнение периодов, календарь проверки расходов и
+  // полная таблица операций — раньше жили на дашборде (десктоп/планшет), теперь ТОЛЬКО на
+  // «Аналитике» (ТЗ §4/§5) — на компактной главной для них нет места ни на одной ширине.
+  const head1 = document.createElement('h2'); head1.className = 'analytics-section-head'; head1.textContent = 'Проверка расходов'; body.appendChild(head1);
+  ['expenseCheckPanel'].forEach(id => { const el = mv(id); if (el) body.appendChild(el); });
+  const head2 = document.createElement('h2'); head2.className = 'analytics-section-head'; head2.textContent = 'Категории и периоды'; body.appendChild(head2);
+  ['periodComparisonPanel', 'categoryRankingGrid'].forEach(id => { const el = mv(id); if (el) body.appendChild(el); });
+
   // Полные панели «Ежемесячные расходы»/«Подписки» + структура регулярных расходов — всегда на
   // вкладке «Аналитика» (на любой ширине): на главной их роль выполняют компактные превью
-  // «Ближайшие платежи»/«Подписки» (ТЗ §11/§13), а полное управление — по кнопке «Подробнее».
-  const head = document.createElement('h2'); head.className = 'analytics-section-head'; head.textContent = 'Регулярные платежи'; body.appendChild(head);
+  // «Кредиты»/«Подписки»/«Впереди» (ТЗ §3.4/§3.5), а полное управление — по кнопке «Подробнее».
+  const head3 = document.createElement('h2'); head3.className = 'analytics-section-head'; head3.textContent = 'Регулярные платежи'; body.appendChild(head3);
   ['recurringBreakdownPanel', 'subscriptionsPanel', 'recurringPanel'].forEach(id => { const el = mv(id); if (el) body.appendChild(el); });
+
+  // Полная таблица операций — всегда на «Аналитике» (ТЗ §4: «убрать полную таблицу Операции» с
+  // главной). «Все операции →» (recentTxSeeAllBtn) и «Проверить операции» (discrepancy) ведут сюда.
+  const head4 = document.createElement('h2'); head4.className = 'analytics-section-head'; head4.textContent = 'Операции'; body.appendChild(head4);
+  ['txPanel'].forEach(id => { const el = mv(id); if (el) body.appendChild(el); });
+
+  // «Список покупок на сегодня» (shopping_notes) раньше жил только на главной — теперь в разделе
+  // «Покупки» (ТЗ §4/§11), перед формой добавления. Функциональность (голос/чек-лист) не менялась.
+  const shoppingView = document.getElementById('shoppingView');
+  const notepadPanel = mv('notepadPanel');
+  if (shoppingView && notepadPanel) {
+    const shoppingMainGrid = shoppingView.querySelector('.main-grid');
+    shoppingView.insertBefore(notepadPanel, shoppingMainGrid || null);
+  }
+
   analyticsRelocated = true;
 }
 document.getElementById('analyticsTeaser').addEventListener('click', () => switchPageTab('analytics'));
@@ -8733,35 +8813,13 @@ function renderHomeGoalsWidget() {
   if (badge) badge.textContent = state.financialGoals.length ? `${state.financialGoals.length} ${pluralGoal(state.financialGoals.length)}` : '';
   if (!state.financialGoals.length) { body.innerHTML = '<div class="empty-note">Цели не добавлены</div>'; return; }
   const goal = state.financialGoals.find(g => g.status === 'active') || state.financialGoals[0];
-  const forecast = calculateGoalForecast(goal);
-  const base = forecast.scenarios.base;
-  const monthsText = !forecast.remainingAmount ? 'Цель достигнута'
-    : base.reachable ? `${base.monthsNeeded} ${pluralMonths(base.monthsNeeded)}` : 'недостижимо при текущем темпе';
-  // §19: если параллельно платится только ипотека — отдельная строка «не блокирует цель»;
-  // если есть приоритетная очередь — строка «сначала кредиты» с датой закрытия очереди.
-  let debtRow = '';
-  if (forecast.remainingAmount) {
-    if (!forecast.queueCredits.length && forecast.parallelCredits.length) {
-      debtRow = `<div class="cfp-row"><span class="cfp-label">Ипотека</span><span class="cfp-value">не блокирует цель</span></div>`;
-    } else if (forecast.queueCredits.length) {
-      debtRow = `<div class="cfp-row"><span class="cfp-label">Сначала кредиты</span><span class="cfp-value">${base.priorityDebtsClosedDate ? 'до ' + formatDateHuman(base.priorityDebtsClosedDate) : '—'}</span></div>`;
-    }
-  }
-  // §19 доп.: компактно, без формул — доплата по кредитам только если задан fixed_monthly режим.
-  const extraDebtRow = forecast.debtAccelerationMode === 'fixed_monthly' && forecast.plannedMonthlyLoad.plannedExtraDebtPayment
-    ? `<div class="cfp-row"><span class="cfp-label">Доплата по кредитам</span><span class="cfp-value">${fmt.format(forecast.plannedMonthlyLoad.plannedExtraDebtPayment)} в месяц</span></div>` : '';
-  // §28: не перегружать карточку — только основа расчёта и, если данные неполные, короткая
-  // пометка «Предварительный прогноз» вместо процентов и формул.
-  const basisRow = forecast.referenceMonthData
-    ? `<div class="cfp-row"><span class="cfp-label">Основа</span><span class="cfp-value">${escapeHtml(capFirst(monthLabel(forecast.referenceMonthData.monthKeyStr)))}${forecast.referenceMonthData.completenessLevel !== 'high' ? ' · предварительный прогноз' : ''}</span></div>`
-    : '';
+  // §Compact (2026-08-19, ТЗ §3.5): максимум 2 значения на карточке-переходе — имя цели с
+  // процентом и целевая сумма. Полный прогноз (сроки, доплаты по кредитам, приоритет над
+  // очередью кредитов) по-прежнему считает calculateGoalForecast() и показывает раздел «Цели»
+  // (кнопка «Подробнее») — расчёт не менялся, здесь просто не отображается.
   body.innerHTML = `
     <div class="cfp-row"><span class="cfp-label">${escapeHtml(goal.name)}</span><span class="cfp-value">${goalProgressPercent(goal)}%</span></div>
-    <div class="cfp-row"><span class="cfp-label">Осталось накопить</span><span class="cfp-value">${fmt.format(forecast.remainingAmount)}</span></div>
-    ${basisRow}
-    ${extraDebtRow}
-    ${debtRow}
-    <div class="cfp-row"><span class="cfp-label">Автомобиль</span><span class="cfp-value">${monthsText}</span></div>`;
+    <div class="cfp-row"><span class="cfp-label">Цель</span><span class="cfp-value">${fmt.format(Number(goal.target_amount) || 0)}</span></div>`;
 }
 
 /* ---- Форма добавления/редактирования цели ---- */
@@ -9111,11 +9169,12 @@ function renderHomeCreditsWidget() {
   const s = calculateCreditSummary();
   if (badge) badge.textContent = s.activeCredits.length ? `${s.activeCredits.length} ${pluralCredit(s.activeCredits.length)}` : '';
   if (!s.activeCredits.length) { body.innerHTML = '<div class="empty-note">Кредиты не добавлены</div>'; return; }
+  // §Compact (2026-08-19, ТЗ §3.5): максимум 2 значения на карточке-переходе — платёж в месяц и
+  // остаток задолженности. «Ближайший платёж»/«Досрочно в этом месяце» по-прежнему считаются в
+  // calculateCreditSummary() и видны в разделе «Кредиты» (кнопка «Подробнее»), просто не здесь.
   body.innerHTML = `
-    <div class="cfp-row"><span class="cfp-label">Осталось</span><span class="cfp-value">${fmt.format(s.totalRemainingCreditDebt)}</span></div>
     <div class="cfp-row"><span class="cfp-label">В месяц</span><span class="cfp-value">${fmt.format(s.totalMonthlyCreditPayments)}</span></div>
-    ${s.nearestPayment ? `<div class="cfp-row"><span class="cfp-label">Ближайший платёж</span><span class="cfp-value">${formatDateHuman(s.nearestPayment.next_payment_date)}</span></div>` : ''}
-    ${s.totalExtraPaidThisMonth > 0 ? `<div class="cfp-row"><span class="cfp-label">Досрочно в этом месяце</span><span class="cfp-value">${fmt.format(s.totalExtraPaidThisMonth)}</span></div>` : ''}`;
+    <div class="cfp-row"><span class="cfp-label">Осталось</span><span class="cfp-value">${fmt.format(s.totalRemainingCreditDebt)}</span></div>`;
 }
 function pluralCredit(n) {
   const a = Math.abs(n) % 100, b = a % 10;
@@ -10279,16 +10338,23 @@ function renderRealBalance() {
   const btnLabel = level === 'old' ? 'Сверить остаток' : 'Обновить остаток';
   const btnClass = level === 'old' ? 'rb-update-btn rb-update-warn' : 'rb-update-btn';
 
+  // §Compact (2026-08-19, ТЗ §3.1): статус + кнопка сверки в одну строку (было — кнопка на всю
+  // ширину отдельной строкой). «Расшифровка →»/«История остатков →» — компактные ссылки, не
+  // крупные кнопки; история остатков переехала ВНУТРЬ раскрываемой расшифровки, чтобы не занимать
+  // высоту, пока свёрнуто (когда расшифровки нет — остаётся отдельной строкой, иначе стала бы
+  // недостижима).
   let html = `<div class="value rb-amount">${fmt.format(calc.currentBalance)}</div>`;
+  html += `<div class="rb-status-row">`;
   html += `<div class="rb-status rb-${level}"><span class="rb-status-dot"></span><span class="rb-status-text">${escapeHtml(statusText)}</span></div>`;
   html += `<button type="button" class="${btnClass}" id="rbUpdateBtn">${btnLabel}</button>`;
+  html += `</div>`;
 
   // Расшифровка: разбивка по долгам (если есть долг) + разбивка «подтверждено/операции/текущий»
   // (ТЗ доп. §19), если со сверки что-то изменилось.
   const hasOperationsBreakdown = calc.operationsDelta !== 0;
   const hasDetails = debt > 0 || hasOperationsBreakdown;
   if (hasDetails) {
-    html += `<button type="button" class="rb-details-toggle" id="rbDetailsToggle">Показать расшифровку</button>`;
+    html += `<button type="button" class="rb-details-toggle" id="rbDetailsToggle">Расшифровка →</button>`;
     html += `<div class="rb-details" id="rbDetails" style="display:none;">`;
     if (debt > 0) {
       html += `<div class="rb-break-row"><span>Деньги на счетах</span><span>${fmt.format(own)}</span></div>`;
@@ -10301,9 +10367,11 @@ function renderRealBalance() {
       if (calc.expenseDelta !== 0) html += `<div class="rb-break-row"><span>Внесённые расходы</span><span class="rb-neg">${fmt.format(calc.expenseDelta)}</span></div>`;
       html += `<div class="rb-break-row rb-break-total"><span>Текущий остаток</span><span>${fmt.format(calc.currentBalance)}</span></div>`;
     }
+    html += `<button type="button" class="rb-history-link" id="rbHistoryLink">История остатков →</button>`;
     html += `</div>`;
+  } else {
+    html += `<button type="button" class="rb-history-link" id="rbHistoryLink">История остатков →</button>`;
   }
-  html += `<button type="button" class="rb-history-link" id="rbHistoryLink">История остатков →</button>`;
 
   body.innerHTML = html;
   document.getElementById('rbUpdateBtn').addEventListener('click', () => openBalanceSheet());
@@ -10318,40 +10386,41 @@ function renderRealBalance() {
 }
 
 // Справочное расхождение между операциями и остатками (ТЗ §8). Не «ошибка», без агрессии.
+// §Compact (2026-08-19, ТЗ §3.4 колонка 2 «Требует внимания»): панель больше не прячется целиком,
+// когда расхождений нет — сам расчёт расхождения (BALANCE_DISCREPANCY_THRESHOLD и т.д.) не менялся,
+// изменился только рендер: раньше при отсутствии проблемы весь .panel скрывался (display:none) и
+// колонка «выпадала» из раскладки; теперь заголовок «Требует внимания» остаётся всегда, а тело —
+// либо компактная строка «Сверка операций / Разница: N ₽ / [Проверить]», либо одна строка «Всё в
+// порядке» (ТЗ: «не занимать большой блок сообщением об отсутствии проблемы» — здесь это буквально
+// одна строка текста, не пустая карточка).
 function renderDiscrepancyNote() {
-  // ТЗ 2026-07-24 «главная вокруг остатка», §14: панель «Сверка операций» — справочный блок
-  // третьего уровня значимости (не главное предупреждение страницы), заголовок статичен в HTML.
-  const panel = document.getElementById('discrepancyPanel');
   const box = document.getElementById('discrepancyNote');
-  if (!panel || !box) return;
-  panel.style.display = 'none';
-  if (state.discrepancyDismissed) return;
+  if (!box) return;
+  const renderClear = () => { box.innerHTML = `<div class="empty-note">Всё в порядке — расхождений нет</div>`; };
+  if (state.discrepancyDismissed) { renderClear(); return; }
   const snaps = snapshotsDesc();
-  if (snaps.length < 2) return;
+  if (snaps.length < 2) { renderClear(); return; }
   const cur = snaps[0], prev = snaps[1];
   const expectedChange = sumTxRange('income', snapDay(prev), snapDay(cur)) - sumTxRange('expense', snapDay(prev), snapDay(cur));
   const actualChange = (Number(cur.net_balance) || 0) - (Number(prev.net_balance) || 0);
   const difference = actualChange - expectedChange;
-  if (Math.abs(difference) < BALANCE_DISCREPANCY_THRESHOLD) return;
+  if (Math.abs(difference) < BALANCE_DISCREPANCY_THRESHOLD) { renderClear(); return; }
 
-  const dirWord = actualChange < 0 ? 'уменьшился' : 'увеличился';
-  const expenseSince = sumTxRange('expense', snapDay(prev), snapDay(cur));
   box.innerHTML = `
-    <div class="dn-text">С прошлого обновления остаток ${dirWord} на ${fmt.format(Math.abs(actualChange))}.<br>
-      В приложение внесено расходов на ${fmt.format(expenseSince)}.<br>
-      Разница: ${fmt.format(Math.abs(difference))}.</div>
-    <div class="dn-hint">Возможно, часть операций ещё не внесена.</div>
+    <div class="dn-text"><strong>Сверка операций</strong><br>Разница: ${fmt.format(Math.abs(difference))}</div>
     <div class="dn-actions">
-      <button type="button" class="dn-btn dn-primary" id="dnCheckBtn">Проверить операции</button>
-      <button type="button" class="dn-btn" id="dnCloseBtn">Закрыть</button>
+      <button type="button" class="dn-btn dn-primary" id="dnCheckBtn">Проверить</button>
+      <button type="button" class="dn-btn" id="dnCloseBtn">Скрыть</button>
     </div>`;
-  panel.style.display = '';
-  document.getElementById('dnCloseBtn').addEventListener('click', () => { state.discrepancyDismissed = true; panel.style.display = 'none'; });
+  document.getElementById('dnCloseBtn').addEventListener('click', () => { state.discrepancyDismissed = true; renderClear(); });
   document.getElementById('dnCheckBtn').addEventListener('click', () => {
-    state.discrepancyDismissed = true; panel.style.display = 'none';
-    switchPageTab('budget');
-    const tx = document.getElementById('txPanel');
-    if (tx) tx.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    state.discrepancyDismissed = true; renderClear();
+    // Полная таблица операций теперь на вкладке «Аналитика» (ТЗ §4/§Compact) — не на главной.
+    switchPageTab('analytics');
+    requestAnimationFrame(() => {
+      const tx = document.getElementById('txPanel');
+      if (tx) tx.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
   });
 }
 
@@ -10615,8 +10684,18 @@ function renderSummary() {
   setKpi('debtsMonthTotal', fmt.format(computeUnpaidDebtsTotal()));
   const unpaidDebtsCount = state.debts.filter(d => !d.is_paid).length;
   setKpi('debtsMonthCount', unpaidDebtsCount ? `${unpaidDebtsCount} ${pluralDolg(unpaidDebtsCount)}` : '');
-  // Главный показатель остатка вынесен в карточку «Реальный остаток семьи» (renderRealBalance).
-  // Рассчитанный баланс (доход − расход) больше не является главным на главной (ТЗ §2/§15).
+  // Главный показатель остатка — карточка «Реальный остаток семьи» (renderRealBalance).
+  // «Баланс месяца» (доход − расход за период, §Compact 2026-08-19, ТЗ §3.2) — четвёртая KPI-плитка
+  // рядом с Доходы/Расходы/Долги; тот же расчёт, что уже был у расшифровки kind='balance'
+  // (openKpiBreakdownFor), просто теперь виден без клика. Знак определяет цвет (зелёный/красный) —
+  // переиспользует существующие утилитарные классы .amount-income/.amount-expense.
+  const monthBalance = incomePeriod - expensePeriod;
+  const monthBalanceEl = document.getElementById('monthBalanceValue');
+  if (monthBalanceEl) {
+    monthBalanceEl.textContent = (monthBalance >= 0 ? '+' : '') + fmt.format(monthBalance);
+    monthBalanceEl.classList.toggle('amount-income', monthBalance >= 0);
+    monthBalanceEl.classList.toggle('amount-expense', monthBalance < 0);
+  }
 
   // «Этот месяц» (ТЗ 2026-07-24 «главная вокруг остатка», §9): фактическое сравнение расходов
   // с прошлым периодом текстом — только если есть с чем сравнивать; тот же расчёт, что и в
@@ -10695,7 +10774,10 @@ function renderUpcomingFeed() {
   });
   items.sort((a, b) => a.date.localeCompare(b.date));
   if (!items.length) { box.innerHTML = '<div class="empty-note">До конца месяца ничего не запланировано</div>'; return; }
-  box.innerHTML = items.map(it => `
+  // §Compact (2026-08-19, ТЗ §3.4 колонка 3 «Впереди»): максимум 4 строки — колонка «Впереди»
+  // заменила отдельную панель «Ближайшие платежи» (renderUpcomingPayments(), показывала макс. 3,
+  // только расходы), эта лента и так содержит все те же данные плюс ожидаемые доходы.
+  box.innerHTML = items.slice(0, 4).map(it => `
     <div class="upcoming-row">
       <div class="upcoming-ico ${it.dir}"><i data-lucide="${it.dir === 'in' ? 'arrow-down-left' : 'arrow-up-right'}"></i></div>
       <div style="min-width:0;">
@@ -10814,7 +10896,12 @@ function topCategoriesForKind(kind, n = 3) {
 }
 
 // Единый компонент листа-расшифровки. Данные считаются кодом (детерминированно).
-function openKpiBreakdown({ title, period, total, formula, note, included, notIncluded, itemsLabel, items }) {
+// sectionTab/sectionLabel (2026-08-19): необязательная ссылка «Перейти в раздел →» внизу листа —
+// после того как компактная главная лишилась отдельной карточки «Долги» со своей кнопкой
+// «Подробнее» (см. debtsDetailLink), это единственный путь туда со страницы, поэтому расшифровка
+// KPI «Долги» теперь удваивает роль точки входа в раздел (переиспользует switchPageTab(), новой
+// навигации не добавлено).
+function openKpiBreakdown({ title, period, total, formula, note, included, notIncluded, itemsLabel, items, sectionTab, sectionLabel }) {
   document.getElementById('kpiSheetTitle').textContent = title;
   const bullets = (label, arr) => (arr && arr.length)
     ? `<div class="kpi-break-sub">${escapeHtml(label)}</div><ul class="kpi-break-ul">${arr.map(x => `<li>${escapeHtml(x)}</li>`).join('')}</ul>`
@@ -10833,8 +10920,11 @@ function openKpiBreakdown({ title, period, total, formula, note, included, notIn
     ${bullets('Включено', included)}
     ${bullets('Не включено', notIncluded)}
     ${listHtml}
+    ${sectionTab ? `<button type="button" class="kpi-break-link" id="kpiSheetSectionLink">${escapeHtml(sectionLabel || 'Перейти в раздел')} →</button>` : ''}
     ${updatedAtLabel() ? `<div class="kpi-break-updated">${escapeHtml(updatedAtLabel())}</div>` : ''}`;
   document.getElementById('kpiSheetOverlay').classList.add('visible');
+  const sectionLink = document.getElementById('kpiSheetSectionLink');
+  if (sectionLink) sectionLink.addEventListener('click', () => { closeKpiSheet(); switchPageTab(sectionTab); });
   lucide.createIcons();
 }
 function closeKpiSheet() { document.getElementById('kpiSheetOverlay').classList.remove('visible'); }
@@ -10878,6 +10968,7 @@ function openKpiBreakdownFor(kind) {
       formula: 'Сумма остатков по всем не погашенным полностью долгам.',
       included: ['Активные долги по остатку (после частичных погашений)'],
       notIncluded: ['Полностью погашенные долги', 'Обычные расходные операции'],
+      sectionTab: 'debts', sectionLabel: 'Перейти в раздел «Долги»',
       itemsLabel: 'По людям', items: topByAmount(byName),
     });
   }
@@ -11572,7 +11663,9 @@ function renderEverything() {
   renderRecurring();
   renderRecurringDueSoon();
   renderUpcomingFeed();
-  renderUpcomingPayments();
+  // renderUpcomingPayments() больше не вызывается (2026-08-19): её панель «Ближайшие платежи»
+  // убрана с главной — заменена колонкой «Впереди» (renderUpcomingFeed(), те же данные + доходы).
+  // Функция оставлена в коде нетронутой (не используется больше нигде), на случай если понадобится.
   renderRecurringBreakdown();
   renderShoppingSummary();
   renderShoppingList();
