@@ -467,64 +467,52 @@
     padding: 28px 20px 60px;
   }
 
-  /* §IA (2026-07-24, ред. «главная вокруг остатка»): дашборд главной. Обёртки-колонки прозрачны
-     на мобильном (<900px — одна колонка, порядок блоков в исходном HTML = мобильный порядок,
-     без JS). 900–1099px — две колонки. ≥1100px — три колонки. Одна семантическая разметка, без
-     дублирования. .home-col-center-lower — вторая, «нижняя» часть той же визуальной центральной
-     колонки (полная таблица операций и аналитика) — в исходном HTML идёт ПОСЛЕ home-col-right,
-     чтобы на мобильном «Этот месяц»/«Последние операции» оказались выше «Платежей»/«Покупок», а
-     тяжёлые таблицы — в самом низу; на планшете/десктопе CSS Grid возвращает её в тот же столбец
-     вторым рядом. */
-  .home-col { display: contents; }
+  /* §IA (2026-07-24, ред. «главная вокруг остатка»); §Masonry (2026-08-18, устранение пустот в
+     колонках десктопа). Обёртки-колонки прозрачны на мобильном (<900px — одна колонка, порядок
+     блоков в исходном HTML = мобильный порядок, без JS). 900px+ — .home-top-pinned (остаток семьи
+     + «Добавить расход», самые приоритетные блоки — см. 05_DESIGN_SYSTEM.md) закреплён на всю
+     ширину НАД колонками, а не внутри них, чтобы не потеряться при перебалансировке; .home-masonry
+     оборачивает home-col-left/center/right и раскладывает их содержимое CSS-колонками
+     (column-count), а не CSS Grid — у Grid все элементы в одном grid-row делят одну высоту строки
+     по самому высокому среди них (раньше это и создавало гигантские пустые пролёты под короткими
+     левой/центральной колонками, пока в грид-ряду сидела длинная правая колонка), у column-count
+     колонки балансируются по фактической суммарной высоте контента, никакой общей «строки» нет.
+     .home-col остаётся display:contents (как и раньше) — это «растворяет» обёртки home-col-left/
+     center/right, так что их карточки становятся обычными элементами потока для column-count,
+     сохраняя при этом порядок DOM (колонки CSS columns заполняются последовательно по DOM-порядку,
+     поэтому «Долги»→«Этот месяц»→«Последние операции»→«Проверка расходов»→… остаются наверху).
+     .home-col-center-lower (тяжёлые таблицы/аналитика — DOM-порядок и структура ВНУТРИ неё не
+     менялись, см. initAnalyticsScreen(), index.html~4964) остаётся отдельным блоком на всю ширину
+     ПОСЛЕ .home-masonry — как и раньше, тяжёлые таблицы визуально в самом низу. */
+  .home-col, .home-top-pinned, .home-masonry { display: contents; }
 
   /* Общие правила дашборда (планшет + десктоп): информационная иерархия. */
   @media (min-width: 900px) {
-    /* «Аналитика месяца»-тизер и ИИ-сводка не дублируют центр/аналитику на дашборде. */
+    /* «Аналитика месяца»-тизер и ИИ-сводка не дублируют центр/аналитику на дашборде. Селектор
+       матчит #analyticsTeaser/#aiSummaryPanel и через display:contents-родителя (потомок в DOM
+       остаётся тем же, contents не убирает элемент из дерева — только не создаёт для родителя бокс). */
     .home-col-right #analyticsTeaser,
     .home-col-right #aiSummaryPanel { display: none; }
+    .home-top-pinned { display: block; margin-bottom: 20px; }
+    .home-top-pinned > .summary-grid { margin-bottom: 20px; } /* было 26px по умолчанию — держим прежний десктопный ритм */
+    .home-masonry { display: block; column-gap: 20px; }
+    .home-masonry .panel, .home-masonry .debts-compact-panel { break-inside: avoid; -webkit-column-break-inside: avoid; }
+    .home-col-center-lower { display: block; margin-top: 20px; }
   }
 
-  /* Планшет: две колонки. Центр (месяц/операции сверху, аналитика/таблица операций снизу) —
-     главный и широкий; узкий сайдбар справа: сверху остаток/действия/долги, снизу платежи/
-     покупки/подписки/сверка. */
+  /* Планшет и малый десктоп: 2 колонки. */
   @media (min-width: 900px) and (max-width: 1099px) {
     .container { max-width: 1040px; }
-    .home-grid {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) 320px;
-      gap: 20px;
-      align-items: start;
-    }
-    .home-col { display: block; }
-    .home-col-center       { grid-column: 1; grid-row: 1; }
-    .home-col-center-lower { grid-column: 1; grid-row: 2; }
-    .home-col-left  { grid-column: 2; grid-row: 1; }
-    .home-col-right { grid-column: 2; grid-row: 2; }
+    .home-masonry { column-count: 2; }
     .home-col-center-lower .main-grid { grid-template-columns: 1fr; }
-    .home-col > .panel, .home-col > .summary-grid, .home-col > .io-cards { margin-bottom: 20px; }
   }
 
-  /* Десктоп: три колонки (ТЗ §16 — левая ≈30%: остаток/действия/долги; центральная ≈40%: месяц/
-     операции/аналитика; правая ≈30%: платежи/покупки/подписки/сверка). */
+  /* Широкий десктоп: 3 колонки. */
   @media (min-width: 1100px) {
     .container { max-width: 1240px; }
-    .home-grid {
-      display: grid;
-      grid-template-columns: minmax(280px, 300px) minmax(460px, 560px) minmax(280px, 300px);
-      gap: 20px;
-      align-items: start;
-      justify-content: center;
-    }
-    /* grid-row задан явно на всех — иначе sparse-автоплейсмент уводит центральную колонку не туда */
-    .home-col { display: block; grid-row: 1; }
-    .home-col-left   { grid-column: 1; }
-    .home-col-center { grid-column: 2; }  /* центральная колонка — визуально главная */
-    .home-col-right  { grid-column: 3; }
-    .home-col-center-lower { grid-column: 2; grid-row: 2; }
+    .home-masonry { column-count: 3; }
     /* в узкой центральной колонке «Новая операция» встаёт над таблицей «Операции» */
     .home-col-center-lower .main-grid { grid-template-columns: 1fr; }
-    /* секции не растягиваем на весь монитор — ширину держит сетка колонок */
-    .home-col > .panel, .home-col > .summary-grid, .home-col > .io-cards { margin-bottom: 20px; }
   }
 
   .config-banner {
@@ -2025,11 +2013,15 @@
   </div>
 
   <div id="budgetView">
-  <!-- §6 (2026-07-24): десктоп-дашборд в 3 колонки. На <1100px обёртки прозрачны (display:contents),
-       порядок блоков остаётся мобильным; на десктопе визуальные колонки задаёт grid-column. -->
+  <!-- §6 (2026-07-24), §Masonry (2026-08-18): десктоп-дашборд. На <900px обёртки прозрачны
+       (display:contents), порядок блоков остаётся мобильным; на 900px+ .home-top-pinned держит
+       самые приоритетные блоки на всю ширину сверху, .home-masonry раскладывает остальное
+       CSS-колонками (см. комментарий у .home-col в <style> — там же обоснование ухода от Grid). -->
   <div class="home-grid">
-  <div class="home-col home-col-left">
-  <!-- Реальный остаток семьи (ТЗ 2026-07-24): главный показатель, самый заметный блок страницы. -->
+  <div class="home-top-pinned">
+  <!-- Реальный остаток семьи (ТЗ 2026-07-24): главный показатель, самый заметный блок страницы.
+       Закреплён вне .home-masonry (2026-08-18) — приоритетная карточка не должна теряться в
+       общей массе при перебалансировке колонок (см. 05_DESIGN_SYSTEM.md, иерархия). -->
   <div class="summary-grid">
     <div class="summary-card balance hero real-balance-card" id="realBalanceCard">
       <div class="hero-top-row">
@@ -2060,7 +2052,10 @@
       </button>
     </div>
   </div>
+  </div><!-- /home-top-pinned -->
 
+  <div class="home-masonry">
+  <div class="home-col home-col-left">
   <!-- Долги (ТЗ §12): краткая сводка, не длинный список. -->
   <div class="debts-compact-panel">
     <button type="button" class="debts-row kpi-clickable" data-kpi="debts" title="Как это посчитано?" aria-label="Долги, показать расшифровку">
@@ -2207,10 +2202,11 @@
     <div class="empty-note" id="notepadEmptyNote" style="display:none;">Список пуст — добавьте что-нибудь голосом или текстом</div>
   </div>
   </div><!-- /home-col-right -->
-  <!-- Нижняя часть центральной колонки (аналитика/операции целиком) размещена ПОСЛЕ home-col-right
+  </div><!-- /home-masonry -->
+  <!-- Нижняя часть центральной колонки (аналитика/операции целиком) размещена ПОСЛЕ home-masonry
        в исходном порядке — на мобильном это даёт нужный порядок блоков (ТЗ §4: месяц/операции
-       выше платежей/покупок/подписок, а тяжёлые таблицы — ниже всего); на десктопе/планшете
-       .home-col-center-lower занимает тот же визуальный столбец вторым рядом (см. CSS). -->
+       выше платежей/покупок/подписок, а тяжёлые таблицы — ниже всего); на десктопе/планшете —
+       отдельный блок на всю ширину под колонками (см. CSS, §Masonry). -->
   <div class="home-col home-col-center-lower">
   <div class="main-grid">
     <!-- FORM: на мобильном — bottom sheet; на десктопе/планшете (≥768px) — модальное окно,
